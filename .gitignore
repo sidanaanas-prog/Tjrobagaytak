@@ -50,3 +50,4 @@ Thumbs.db
 attached_assets/*.json
 attached_assets/*.json
 .env
+attached_assets/
