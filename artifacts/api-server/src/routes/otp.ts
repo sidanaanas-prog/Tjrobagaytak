@@ -3,11 +3,41 @@ import { randomUUID } from "crypto";
 import { db, usersTable, activityTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { signToken } from "../lib/auth";
-import { sendOtp, verifyOtp } from "../lib/wasender";
+import { sendOtp as sendWasenderOtp, verifyOtp as verifyWasenderOtp } from "../lib/wasender";
+import { sendOtp as sendNabdaOtp, verifyOtp as verifyNabdaOtp } from "../lib/nabda";
 
 const isDev = process.env.NODE_ENV === "development";
+const hasWasenderKey = !!process.env.WASENDER_API_KEY;
+const hasNabdaToken = !!process.env.NABDA_TOKEN;
+
 const router: IRouter = Router();
 const DEFAULT_NAME = "مستخدم Gaytak";
+
+/* ── Unified OTP: Wasender → Nabda → dev-fallback ── */
+async function unifiedSendOtp(phone: string): Promise<{ success: boolean; error?: string; code?: string }> {
+  if (hasWasenderKey) {
+    return sendWasenderOtp(phone);
+  }
+  if (hasNabdaToken) {
+    const result = await sendNabdaOtp(phone);
+    return { ...result, code: undefined };
+  }
+  if (isDev) {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    return { success: true, code };
+  }
+  return { success: false, error: "خدمة OTP غير مهيأة" };
+}
+
+async function unifiedVerifyOtp(phone: string, code: string): Promise<{ valid: boolean; error?: string }> {
+  if (hasWasenderKey) {
+    return verifyWasenderOtp(phone, code);
+  }
+  if (hasNabdaToken) {
+    return await verifyNabdaOtp(phone, code);
+  }
+  return { valid: false, error: "خدمة OTP غير مهيأة" };
+}
 
 function normalizePhone(phone: string): string {
   let p = phone.replace(/\s+/g, "").replace(/-/g, "");
@@ -29,7 +59,7 @@ router.post("/auth/otp/send", async (req, res): Promise<void> => {
   }
 
   const normalized = normalizePhone(phone);
-  const result = await sendOtp(normalized);
+  const result = await unifiedSendOtp(normalized);
 
   if (!result.success) {
     res.status(400).json({ error: result.error || "فشل إرسال الرمز" });
@@ -56,7 +86,7 @@ router.post("/auth/otp/verify", async (req, res): Promise<void> => {
   }
 
   const normalized = normalizePhone(phone);
-  const result = verifyOtp(normalized, code);
+  const result = await unifiedVerifyOtp(normalized, code);
 
   if (!result.valid) {
     res.status(400).json({ error: result.error || "الرمز غير صحيح أو منتهي الصلاحية" });
