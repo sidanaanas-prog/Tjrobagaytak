@@ -6,8 +6,9 @@ import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { ImageIcon, Type, ArrowRight, Loader2, CheckCircle, Link as LinkIcon, X } from "lucide-react";
 import { uploadStoryImage } from "@/lib/upload-image";
+import { getApiUrl } from "@/lib/api-url";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "");
+const BASE = getApiUrl("");
 
 const BACKGROUNDS = [
   { id: "midnight", style: "linear-gradient(160deg,#0f0c29,#302b63,#24243e)" },

@@ -4,8 +4,9 @@ import { useAuth } from "@/hooks/use-auth";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowRight, ChevronDown, ChevronRight, Shield } from "lucide-react";
+import { getApiUrl } from "@/lib/api-url";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "");
+const BASE = getApiUrl("");
 
 type Step = "phone" | "otp";
 

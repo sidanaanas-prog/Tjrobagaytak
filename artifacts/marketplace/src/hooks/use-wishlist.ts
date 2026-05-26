@@ -1,7 +1,8 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { getApiUrl } from "@/lib/api-url";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiUrl("");
 
 async function apiFetch(path: string, options?: RequestInit) {
   const token = localStorage.getItem("glow_token");

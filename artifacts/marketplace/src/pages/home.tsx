@@ -12,8 +12,9 @@ import { getCachedData } from "@/hooks/use-cached-query";
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useStreak } from "@/hooks/use-streak";
+import { getApiUrl } from "@/lib/api-url";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiUrl("");
 
 function FlashCountdown({ endsAt }: { endsAt: string }) {
   const [remaining, setRemaining] = useState("");

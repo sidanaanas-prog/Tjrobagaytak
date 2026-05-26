@@ -5,6 +5,7 @@ import { VerifiedBadge } from "./VerifiedBadge";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { getApiUrl } from "@/lib/api-url";
 
 interface StoryItem {
   id: string;
@@ -43,7 +44,7 @@ interface Liker {
   likedAt: string;
 }
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "");
+const BASE = getApiUrl("");
 
 async function fetchStories(): Promise<StoryGroup[]> {
   try {

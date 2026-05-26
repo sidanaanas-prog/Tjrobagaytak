@@ -5,8 +5,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Heart, Trash2, Zap, Clock, ShoppingBag } from "lucide-react";
 import { useWishlist } from "@/hooks/use-wishlist";
 import { useState, useEffect } from "react";
+import { getApiUrl } from "@/lib/api-url";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiUrl("");
 
 async function fetchWishlist() {
   const token = localStorage.getItem("glow_token");

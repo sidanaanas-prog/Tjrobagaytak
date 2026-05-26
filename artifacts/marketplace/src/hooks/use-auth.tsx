@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useGetMe, getGetMeQueryKey, type User } from "@workspace/api-client-react";
-import { setAuthTokenGetter } from "@workspace/api-client-react/src/custom-fetch";
+import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react/src/custom-fetch";
 import { useQueryClient } from "@tanstack/react-query";
+import { RENDER_API_URL } from "@/lib/api-url";
 import { getFCMToken, listenForegroundMessages } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 
@@ -101,6 +102,11 @@ export function handle401(): void {
 // Set auth token getter once at module level so every request gets the token
 // even before AuthProvider mounts.
 setAuthTokenGetter(getMemToken);
+
+// اكتشاف Render — تعيين API URL للموجد المبعد
+const isRender = typeof window !== "undefined" && window.location.hostname.includes(".onrender.com");
+const API_URL = import.meta.env.VITE_API_URL || (isRender ? RENDER_API_URL : null);
+setBaseUrl(API_URL);
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
