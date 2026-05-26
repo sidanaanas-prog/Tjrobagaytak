@@ -1,0 +1,106 @@
+modules = ["nodejs-24", "postgresql-16"]
+
+[deployment]
+router = "application"
+deploymentTarget = "autoscale"
+
+[deployment.postBuild]
+args = ["pnpm", "store", "prune"]
+env = { "CI" = "true" }
+
+[workflows]
+runButton = "Project"
+
+[agent]
+stack = "PNPM_WORKSPACE"
+expertMode = true
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[[ports]]
+localPort = 8081
+externalPort = 80
+
+[[ports]]
+localPort = 8082
+externalPort = 5000
+
+[[ports]]
+localPort = 20130
+externalPort = 3002
+
+[[ports]]
+localPort = 20131
+externalPort = 3003
+
+[[ports]]
+localPort = 20787
+externalPort = 3000
+
+[[ports]]
+localPort = 20788
+externalPort = 4200
+
+[[ports]]
+localPort = 22389
+externalPort = 3001
+
+[[ports]]
+localPort = 22390
+externalPort = 6000
+
+[nix]
+channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+NABDA_INSTANCE_ID = "ca28b317-45be-417e-bc9d-574674ff8859"
+NABDA_TOKEN = "sk_8fc927d3890b48d1980b0c438b5f8e32"
+NABDA_API_URL = "https://api.nabdaotp.com"
+EXPO_PUBLIC_ONESIGNAL_APP_ID = "44fc0800-399e-4d4f-bf67-9aeb178438b5"
+VITE_FIREBASE_API_KEY = "AIzaSyCM5zG2VfmVBKCTFHXRcS1gj6sxSAOfCTE"
+VITE_FIREBASE_PROJECT_ID = "gaytak-45ae1"
+VITE_FIREBASE_SENDER_ID = "47975948307"
+VITE_FIREBASE_STORAGE_BUCKET = "gaytak-45ae1.firebasestorage.app"
+VITE_FIREBASE_VAPID_KEY = "BES8demg3D1FkTnMVmsgKLTXVQ89ACaSp3hKegkU5BQhyQDKhg9NWxc6bkkDWuwsag6vf6ZHfZfm8C16gX4NGtU"
+FIREBASE_CLIENT_EMAIL = "firebase-adminsdk-fbsvc@gaytak-45ae1.iam.gserviceaccount.com"
+FIREBASE_PROJECT_ID = "gaytak-45ae1"
+FIREBASE_PRIVATE_KEY = """
+-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDYuyvjHobI9U68
+1XCBwUrd6hRMjXflJp/vGiyzWI7DCVk7Qk66xsMsQtcN+iDC5nJZgNnhaduIc1lj
+Dzl5REW60ABqjptDllXzbW42K63ikfKI8pv1uQRUM8WJyWXm4jG4HtsZgR6Nn569
+IFvHq+/3SAopNXBUpA3HgjQDYsruQFpE/JiCgRiSG6fHuvENPJTV5AB7WnXmzXbc
+Q56HF0jUaeYyy1uLhrTHvdDmg6aQobL+AVy/D82FoaVr+psqEOY1YKUWY1/RDGJm
+/gGwjNney14JvozdEbpLuzP1Qrp61ZTYYTaqdfv3zZmOS/acF8HWnUNpid9Dvw3k
+S3r6Q+7ZAgMBAAECggEAAJ56PvmitTNnuwf2CrlIem8R0JtigV6HSnmvsSqsSJt/
+z9UorlrW7id2Y0qjW+3S+BHBkR6ts+79hi1wUPLinOGEflelb3+RyuQuRCi71f/P
+jhDAcspesYunwXwUwWeZ1Ahx3O8JV9UpFJu2zZ7JIguaU5rcqlxWYL0JRn9PxT5i
+hU9cKWx+5BHC0M6z9WHqOscL/TctBO7+X04wNObbD+oJ8mZtslKRqM+2MVOkCaO/
+MKP2hv+NL66q0uWAHXVud4efOJ8XjKpyn+ZaFvDsjCH9hnsVtyipnovILfTvwdee
+6Jg3W+p/eAQI0ZP3AJcrqp8zoP433VPpl9JyeyDTgQKBgQD4lSLylmApI6TKqx+J
+hUM5Uojib3jcV0bgAI/t5fiiTIE2rubdjJDOatD2Yh1xzVMCZyeHwFZj2GYXuR5S
+BfT/DuVCyPp9HngOkDfE9itvcOQ2srb4SFwQm6W/FKm8JBYQfCQDEOzNb9Jk2zoQ
+CI+7jjikVNfmpf4dNJgpvANNwQKBgQDfMrq6AnpiVOswDz9zuOxm/PTyAGlGchFI
+TumAkMaRa58t3scltfbzQKYJ6VUu3weBctGzd35krzfl+J5ZiBrw4+G4z0eaNMR6
+kSy+K3OgrJt0pY1B0GdBZFGzYfo3NIk7NIXlz0tX191/dS4Nx64d5CIt/Z4ldHZA
+GiAUeTUXGQKBgQDULGdR6+xT8Op9WiZm+OnyCXJw43ijiZMjKxeulPXtgaNgi1Te
+kVYf+ag2RHShaAGMMYPaKN8UBebOJOGuXQtKkOo6YNT86n7K32naoctdKVyBG3V0
+4j5CpreIKxjdT2fN1kfenhmhF+razwv2F3inO7M5AHnvkosdXoDqTmH7gQKBgFUq
+d0Oo1GgW/RL+jniqtFHr7c81xvXhaqTLr5+mHo64oSmQmy7RiyRwo6qehSl4YtXL
+KScwzmK+1TaEMm/5VkZavfOV7D10KxCVupvp2poRotPUo9zcF7pE/EPVe/N6sW6M
+8RaqjZY8QUF0Rhlt+wte1If2AVVLZh+5mEoXoeFpAoGBAMmr+cTP9pgS+sL/W5WR
+0Uc+L+xpkHs+mP1Xk3jRFShOcVRXnT5T+ViIf4pCvJB0v/zbCBbVi/55BN4vNYS6
+8yIoRhaWDJ1rxHbN4jRVOVJHqCxFrmrzB5ukYRpenovVuK7tsgtZfL/U37XgPeHG
+ovcOycjzqBN78xxz52YszXKN
+-----END PRIVATE KEY-----
+"""
+VITE_FIREBASE_APP_ID = "1:47975948307:android:f5ad9b31f8a46d870d5fe6"
+ONESIGNAL_APP_ID = "44fc0800-399e-4d4f-bf67-9aeb178438b5"

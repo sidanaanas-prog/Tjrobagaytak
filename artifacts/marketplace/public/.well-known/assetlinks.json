@@ -1,0 +1,15 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls",
+      "delegate_permission/common.get_login_creds"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.gaytak.gaytak",
+      "sha256_cert_fingerprints": [
+        "F4:31:10:AB:93:36:1A:2D:CB:FD:24:D1:27:04:A5:3E:8E:E3:EF:0C:EF:15:C5:EC:F1:FB:9B:44:0F:0C:35:B5"
+      ]
+    }
+  }
+]

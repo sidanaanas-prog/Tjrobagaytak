@@ -1,0 +1,55 @@
+config" shipped with the EAS CLI.
+
+Unable to resolve a valid config plugin for expo-notifications.
+
+main export of expo-notifications does not appear to be a config plugin: the following error was thrown C:\Users\sidan\Desktop\gaytak-mobile\gaytak-mobile\node_modules\expo-notifications\app.plugin.js: Cannot find sodela
+
+Cache
+
+Require stack:
+
+C:\Users\sidan\Desktop\gaytak-mobile\gaytak-mobile\node_modules\@expo\image-utils\build\index.js
+
+C:\Users\sidan\Desktop\gaytak-mobile\gaytak-mobile)\node_modules\expo-notifications\plugin\build\winotification id.js
+
+C:\Users\sidan\Desktop\gaytak-mobile\gaytak-mobile\node_modules\expo-notifications\plugin\build\withbtificutines
+
+C:\Users\sidan\Desktop\gaytak-mobile\gaytak-mobile\node_modules\expo-notifications\app.plugin.js
+
++
+
+C:\Users\sidan\AppData\Roaming\npm\node_modules\eas-cli\node_modules\@expo\config-plugins\build\utils plugin resche
+
+Ctrl+C to exit
+
+C:\Users\sidan\AppData\Roaming\npe\node_modules\eas-cli\node_modules\@expo\config-plugins\build\plugins\aitlises
+
+in.js
+
+C:\Users\sidan\AppData\Roaming\npm\node_modules\eas-cli\node_modules\@expa\config-plugins\build\plugins\witiligten
+
+C:\Users\sidan\AppData\Roaming\npm\node_modules\eas-cli\node_modules\@expo\config-plugins\buil\index.j \Users\sidan\AppData\Roaming\npe\node_modules\eas-cli\build\build\android\syncProjectConfiguration.js
+
+C:\Users\sidan\AppData\Roaming\npm\node_modules\eas-cli\build\build\android\build.js C:
+
+C:\Users\sidan\AppData\Roaming\npm\node_modules\eas-cli\build\build\runBuildAndSubmit.is
+
+C:\Users\sidan\AppData\Roaming\npm\node_modules\eas-cli\build\commands\build\index.js
+
+sidan\AppData\Roaming\npw\node_modules\eas-cli\node_modules\@oclif\core\Lib\help/index.js C:\Users\sidan\AppData\Roaming\npm\node_modules\eas-cli\node_modules @oclif\core\lib\module-Inader 35
+
+C: \Users\ \Users\sidan\AppData\Roaming\npw\node_modules\eas-cli\node_modules\@oclif\core\lib\errors\handle.js
+
+C:\Users\sidan\AppData\Roaming\npe\node_modules\eas-cli\node_modules\@oclif\core\lib\errors/index.js C:
+
+↓
+
+C:\Users\sidan\AppData\Roaming\npe\node_modules\eas-cli\node_modules\Boclif\core\lib\config\config.js
+
+X
+
+AnnData\Roaming\npm\node_modules\eas-cli\node_modules\clif\core\Lib\config/index.js
+
+indyles\eas-cli\node_modules\Moclificore\Lib\command.
+
+dules Moclif

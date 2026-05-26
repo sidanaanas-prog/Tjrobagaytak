@@ -1,0 +1,7 @@
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { background: #09090F; color: #fff; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; direction: rtl; height: 100%; overflow-x: hidden; }
+#root { min-height: 100vh; display: flex; flex-direction: column; }
+input, button, textarea, select { font-family: inherit; direction: rtl; }
+button { cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+::-webkit-scrollbar { width: 0; }

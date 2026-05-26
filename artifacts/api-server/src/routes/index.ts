@@ -1,0 +1,48 @@
+import { Router, type IRouter } from "express";
+import healthRouter from "./health";
+import authRouter from "./auth";
+import usersRouter from "./users";
+import categoriesRouter from "./categories";
+import productsRouter from "./products";
+import chatRouter from "./chat";
+import adminRouter from "./admin";
+import storiesRouter from "./stories";
+import otpRouter from "./otp";
+import sendMessageRouter from "./send-message";
+import followsRouter from "./follows";
+import ordersRouter from "./orders";
+import notificationsRouter from "./notifications";
+import contentRouter from "./content";
+import wasenderApiRouter from "./wasender-api";
+import storageRouter from "./storage";
+import bannersRouter from "./banners";
+import reportsRouter from "./reports";
+import blocksRouter from "./blocks";
+import wishlistRouter from "./wishlist";
+import flashSalesRouter from "./flash-sales";
+
+const router: IRouter = Router();
+
+router.use(healthRouter);
+router.use(authRouter);
+router.use(otpRouter);
+router.use(usersRouter);
+router.use(categoriesRouter);
+router.use(productsRouter);
+router.use(chatRouter);
+router.use(adminRouter);
+router.use(storiesRouter);
+router.use(sendMessageRouter);
+router.use(followsRouter);
+router.use(ordersRouter);
+router.use(notificationsRouter);
+router.use(contentRouter);
+router.use(storageRouter);
+router.use(bannersRouter);
+router.use(reportsRouter);
+router.use(blocksRouter);
+router.use(wishlistRouter);
+router.use(flashSalesRouter);
+router.use(wasenderApiRouter);
+
+export default router;

@@ -1,0 +1,73 @@
+uploads = []
+
+[[generated]]
+id = "PoRwc8MeQIFS9vryJXOVd"
+uri = "file://attached_assets/logo/gaytak-logo-1.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Uq-kskhMIFfUEEZNIomfH"
+uri = "file://attached_assets/logo/gaytak-logo-2.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Qskky_6wHHanco2tNa44W"
+uri = "file://attached_assets/logo/gaytak-logo-3.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "BV98zY3lH7dNsMosnnzXg"
+uri = "file://artifacts/gaytak-mobile/assets/images/icon.png"
+type = "image"
+title = "generated_image"
+
+[[outputs]]
+id = "jkttsP__ACbgKS-EvcfrJ"
+uri = "file://attached_assets/logo/gaytak-logo-1.png"
+type = "image"
+title = "لوجو 1 — حلقات نيون بنفسجي"
+
+[[outputs]]
+id = "ZMRkB45HRumx5-yQ8-3_D"
+uri = "file://attached_assets/logo/gaytak-logo-2.png"
+type = "image"
+title = "لوجو 2 — علامة تسوق ذهبية بنفسجية"
+
+[[outputs]]
+id = "RK2iHTC8Q6XLzFNyssQ7s"
+uri = "file://attached_assets/logo/gaytak-logo-3.png"
+type = "image"
+title = "لوجو 3 — حرف G بتأثير نيون"
+
+[[outputs]]
+id = "2rO6zYWTirzCmO0hH5o5h"
+uri = "file://artifacts/gaytak-mobile/assets/images/icon.png"
+type = "image"
+title = "Gaytak App Icon"
+
+[[outputs]]
+id = "Wf4ZXOs7pc_Xw7HGh8Qip"
+uri = "file://gaytak-mobile.tar.gz"
+type = "unspecified"
+title = "gaytak-mobile — OneSignal + expo-build-properties"
+
+[[outputs]]
+id = "i2x6C9E8gV6j02WOzEd5S"
+uri = "file://gaytak-mobile-fixed.tar.gz"
+type = "unspecified"
+title = "gaytak-mobile - نسخة مصلحة نهائياً ✅"
+
+[[outputs]]
+id = "Ss59Pb9D9VzdeHqk74W7z"
+uri = "file://gaytak-capacitor.tar.gz"
+type = "unspecified"
+title = "Gaytak — Capacitor Android App"
+
+[[outputs]]
+id = "tWe0Jvcq79Ei9yyBPHPFO"
+uri = "file://screenshots/posts-tiktok-style.jpg"
+type = "image"
+title = "Posts Page - TikTok Style Layout"

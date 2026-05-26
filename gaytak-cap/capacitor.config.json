@@ -1,0 +1,11 @@
+{
+  "appId": "com.gaytak.app",
+  "appName": "Gaytak",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}
