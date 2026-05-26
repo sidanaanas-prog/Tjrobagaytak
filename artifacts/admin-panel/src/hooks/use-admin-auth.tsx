@@ -7,7 +7,10 @@ import type { User } from "@workspace/api-client-react";
 import { Loader2 } from "lucide-react";
 
 setAuthTokenGetter(() => localStorage.getItem("glow_admin_token"));
-setBaseUrl(import.meta.env.VITE_API_URL ?? null);
+
+const isRender = typeof window !== "undefined" && window.location.hostname.includes(".onrender.com");
+const API_URL = import.meta.env.VITE_API_URL || (isRender ? "https://gaytak-api.onrender.com" : null);
+setBaseUrl(API_URL);
 
 type AdminAuthContextType = {
   user: User | null;
