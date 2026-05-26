@@ -103,8 +103,9 @@ export function handle401(): void {
 // even before AuthProvider mounts.
 setAuthTokenGetter(getMemToken);
 
-// اكتشاف Render — تعيين API URL للموجد المبعد
-const isRender = typeof window !== "undefined" && window.location.hostname.includes(".onrender.com");
+// اكتشاف Render: REPL_ID موجود فقط في Replit
+const isReplit = !!import.meta.env.REPL_ID;
+const isRender = !isReplit;
 const API_URL = import.meta.env.VITE_API_URL || (isRender ? RENDER_API_URL : null);
 setBaseUrl(API_URL);
 
