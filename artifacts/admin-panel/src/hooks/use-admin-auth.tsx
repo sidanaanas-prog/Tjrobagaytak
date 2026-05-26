@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useGetMe, useLogin, getGetMeQueryKey } from "@workspace/api-client-react";
-import { setAuthTokenGetter } from "@workspace/api-client-react/custom-fetch";
+import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react/custom-fetch";
 import { useQueryClient } from "@tanstack/react-query";
 import type { User } from "@workspace/api-client-react";
 import { Loader2 } from "lucide-react";
 
 setAuthTokenGetter(() => localStorage.getItem("glow_admin_token"));
+setBaseUrl(import.meta.env.VITE_API_URL ?? null);
 
 type AdminAuthContextType = {
   user: User | null;

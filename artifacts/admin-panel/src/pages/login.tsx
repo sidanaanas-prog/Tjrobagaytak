@@ -32,6 +32,14 @@ export default function Login() {
     try {
       setError("");
       const response = await login({ data });
+      if (!response) {
+        setError("No response from server — check VITE_API_URL env var");
+        return;
+      }
+      if (!response.user || !response.token) {
+        setError("Invalid server response");
+        return;
+      }
       if (response.user.role !== "admin") {
         setError("ACCESS DENIED: Insufficient clearance level");
         return;
