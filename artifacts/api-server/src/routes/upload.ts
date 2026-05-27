@@ -18,8 +18,9 @@ router.post("/upload", authenticate, async (req: Request, res: Response): Promis
     const cleanBase64 = base64.replace(/^data:[^;]+;base64,/, "");
     const buffer = Buffer.from(cleanBase64, "base64");
 
-    // Use default bucket from Firebase Admin app config
-    const bucket = admin.storage().bucket();
+    // Firebase Storage bucket — use the exact name from web SDK config
+    const bucketName = process.env.FIREBASE_STORAGE_BUCKET || "gaytak-45ae1.firebasestorage.app";
+    const bucket = admin.storage().bucket(bucketName);
     const file = bucket.file(path);
 
     await file.save(buffer, {
@@ -30,7 +31,7 @@ router.post("/upload", authenticate, async (req: Request, res: Response): Promis
     // Make publicly accessible
     await file.makePublic();
 
-    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${path}`;
+    const publicUrl = `https://storage.googleapis.com/${bucketName}/${path}`;
     res.json({ url: publicUrl, path });
   } catch (err: any) {
     console.error("[Upload] Firebase Storage error:", err.message);
