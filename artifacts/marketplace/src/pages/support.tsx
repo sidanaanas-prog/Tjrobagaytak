@@ -10,6 +10,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { getMemToken } from "@/hooks/use-auth";
 import { getListConversationsQueryKey, getGetMessagesQueryKey } from "@workspace/api-client-react";
+import { getApiUrl } from "@/lib/api-url";
+const BASE = getApiUrl("");
 
 const SUPPORT_USER_ID = "e0757f35-e7d4-4c07-ae0b-339252aecfa6";
 
@@ -46,7 +48,7 @@ export default function SupportPage() {
     (async () => {
       try {
         // Try to find existing conversation with support
-        const listRes = await fetch("/api/conversations", { headers: { Authorization: `Bearer ${token}` } });
+        const listRes = await fetch(`${BASE}/api/conversations`, { headers: { Authorization: `Bearer ${token}` } });
         if (listRes.ok) {
           const convs = await listRes.json();
           const supportConv = convs.find((c: any) =>
@@ -68,7 +70,7 @@ export default function SupportPage() {
             });
           } else {
             // Create new conversation with support
-            const createRes = await fetch("/api/conversations", {
+            const createRes = await fetch(`${BASE}/api/conversations`, {
               method: "POST",
               headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
               body: JSON.stringify({ recipientId: SUPPORT_USER_ID }),
@@ -126,7 +128,7 @@ export default function SupportPage() {
     const token = getMemToken();
     try {
       // Try to find existing
-      const listRes = await fetch("/api/conversations", { headers: { Authorization: `Bearer ${token}` } });
+      const listRes = await fetch(`${BASE}/api/conversations`, { headers: { Authorization: `Bearer ${token}` } });
       if (listRes.ok) {
         const convs = await listRes.json();
         const supportConv = convs.find((c: any) =>
@@ -140,7 +142,7 @@ export default function SupportPage() {
         }
       }
       // Create new
-      const createRes = await fetch("/api/conversations", {
+      const createRes = await fetch(`${BASE}/api/conversations`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ recipientId: SUPPORT_USER_ID }),

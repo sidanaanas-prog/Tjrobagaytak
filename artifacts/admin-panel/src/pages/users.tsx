@@ -29,6 +29,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useToast } from "@/hooks/use-toast";
+import { getApiUrl } from "@/lib/api-url";
+const BASE = getApiUrl("");
 
 const updateUserSchema = z.object({
   name: z.string().min(2, "Name required"),
@@ -110,7 +112,7 @@ export default function Users() {
     setLogoutAllLoading(true);
     try {
       const token = localStorage.getItem("glow_admin_token");
-      await fetch("/api/admin/logout-all", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      await fetch(`${BASE}/api/admin/logout-all`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
     } finally { setLogoutAllLoading(false); setShowLogoutAll(false); }
   };
 

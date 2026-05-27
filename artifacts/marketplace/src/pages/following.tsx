@@ -5,6 +5,8 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Loader2, Users, ChevronLeft, Store } from "lucide-react";
+import { getApiUrl } from "@/lib/api-url";
+const BASE = getApiUrl("");
 
 type Seller = {
   id: string;
@@ -22,7 +24,7 @@ export default function FollowingPage() {
     if (!user) return;
     setLoading(true);
     const token = getMemToken();
-    fetch("/api/user/following", { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${BASE}/api/user/following`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
       .then((d) => setSellers(Array.isArray(d) ? d : []))
       .catch(() => setSellers([]))

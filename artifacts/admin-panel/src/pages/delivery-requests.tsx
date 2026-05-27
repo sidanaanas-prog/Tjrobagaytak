@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Truck, Phone, MapPin, Package, CheckCircle, XCircle, Clock, Navigation, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { getApiUrl } from "@/lib/api-url";
+const BASE = getApiUrl("");
 
 interface DeliveryRequest {
   id: string;
@@ -42,7 +44,7 @@ export default function DeliveryRequestsPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/delivery-requests", {
+      const res = await fetch(`${BASE}/api/admin/delivery-requests`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return;

@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getMemToken } from "@/hooks/use-auth";
 import { useState } from "react";
 import { SkeletonCard } from "@/components/SkeletonCard";
+import { getApiUrl } from "@/lib/api-url";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,8 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+
+const BASE = getApiUrl("");
 
 export default function ProductDetailPage() {
   const { id } = useParams();
@@ -88,7 +91,7 @@ export default function ProductDetailPage() {
     setSubmitting(true);
     try {
       const token = getMemToken();
-      const res = await fetch("/api/orders", {
+      const res = await fetch(`${BASE}/api/orders`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({

@@ -67,6 +67,14 @@ export async function uploadStoryImage(file: File, userId: string): Promise<stri
   return uploadImageToFirebase(file, path);
 }
 
+export async function uploadStoryVideo(file: File, userId: string): Promise<string> {
+  const ext = file.name.split(".").pop() || "mp4";
+  const path = `stories/${userId}/${Date.now()}.${ext}`;
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, file, { contentType: file.type });
+  return getDownloadURL(storageRef);
+}
+
 export async function uploadChatImage(
   file: File,
   conversationId: string

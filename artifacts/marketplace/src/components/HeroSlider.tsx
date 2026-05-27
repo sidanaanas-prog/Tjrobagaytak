@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
+import { getApiUrl } from "@/lib/api-url";
+const BASE = getApiUrl("");
 
 interface Banner {
   id: string;
@@ -26,7 +28,7 @@ export function HeroSlider() {
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
-    fetch("/api/banners")
+    fetch(`${BASE}/api/banners`)
       .then((r) => r.json())
       .then((data: Banner[]) => { if (data?.length) setSlides(data); })
       .catch(() => {});

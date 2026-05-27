@@ -13,6 +13,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { uploadAvatar } from "@/lib/upload-image";
+import { getApiUrl } from "@/lib/api-url";
+const BASE = getApiUrl("");
 
 export default function ProfilePage() {
   const { user, logout } = useAuth();
@@ -45,7 +47,7 @@ export default function ProfilePage() {
     const token = getMemToken();
 
     // fetch stories
-    fetch("/api/stories", { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${BASE}/api/stories`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
       .then((groups: any[]) => {
         const mine = groups.find((g: any) => g.userId === user.id);
@@ -100,7 +102,7 @@ export default function ProfilePage() {
     setDeletingAccount(true);
     try {
       const token = getMemToken();
-      const res = await fetch("/api/users/me", {
+      const res = await fetch(`${BASE}/api/users/me`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -118,7 +120,7 @@ export default function ProfilePage() {
     setTestingPush(true);
     try {
       const token = getMemToken();
-      const res = await fetch("/api/test-notification", {
+      const res = await fetch(`${BASE}/api/test-notification`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,

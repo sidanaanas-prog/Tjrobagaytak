@@ -4,6 +4,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Link as LinkIcon, Play, Upload, Video, X, CheckCircle, Image as ImageIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getMemToken, handle401 } from "@/hooks/use-auth";
+import { getApiUrl } from "@/lib/api-url";
+
+const BASE = getApiUrl("");
 
 type UploadTab = "file" | "url";
 
@@ -60,7 +63,7 @@ export default function AddContentPage() {
   }
 
   async function uploadFileToStorage(file: File): Promise<string> {
-    const urlRes = await fetch("/api/storage/uploads/request-url", {
+    const urlRes = await fetch(`${BASE}/api/storage/uploads/request-url`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
@@ -81,7 +84,7 @@ export default function AddContentPage() {
       xhr.send(file);
     });
 
-    return `/api/storage${objectPath}`;
+    return `${BASE}/api/storage${objectPath}`;
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -115,7 +118,7 @@ export default function AddContentPage() {
     try {
       const tok = getMemToken() ?? "";
 
-      const res = await fetch("/api/content", {
+      const res = await fetch(`${BASE}/api/content`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok}` },
         body: JSON.stringify({

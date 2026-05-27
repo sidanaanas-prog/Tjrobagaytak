@@ -10,6 +10,8 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { getApiUrl } from "@/lib/api-url";
+const BASE = getApiUrl("");
 
 const ADMIN_ID = "e0757f35-e7d4-4c07-ae0b-339252aecfa6";
 
@@ -59,7 +61,7 @@ export default function SupportPage() {
     if (!token) return;
     const fetchConversations = async () => {
       try {
-        const res = await fetch("/api/conversations", {
+        const res = await fetch(`${BASE}/api/conversations`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) throw new Error();

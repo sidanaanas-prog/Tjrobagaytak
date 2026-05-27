@@ -5,6 +5,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
+import { getApiUrl } from "@/lib/api-url";
+const BASE = getApiUrl("");
 
 interface BroadcastResult { broadcastId: string; sent: number; failed: number; total: number; }
 interface BroadcastRecord { id: string; message: string; recipientCount: number; readCount: number; createdAt: string; }
@@ -25,7 +27,7 @@ export default function BroadcastPage() {
 
   const fetchHistory = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/broadcasts", { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${BASE}/api/admin/broadcasts`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) setHistory(await res.json());
     } catch {} finally { setLoadingHistory(false); }
   }, [token]);
@@ -53,7 +55,7 @@ export default function BroadcastPage() {
     setSending(true);
     setResult(null);
     try {
-      const res = await fetch("/api/admin/broadcast", {
+      const res = await fetch(`${BASE}/api/admin/broadcast`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ message: message.trim() }),

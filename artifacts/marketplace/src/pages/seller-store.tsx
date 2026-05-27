@@ -11,6 +11,8 @@ import { motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { getMemToken } from "@/hooks/use-auth";
 import { useState, useEffect } from "react";
+import { getApiUrl } from "@/lib/api-url";
+const BASE = getApiUrl("");
 
 export default function SellerStorePage() {
   const { id } = useParams();
@@ -51,11 +53,11 @@ export default function SellerStorePage() {
     const token = getMemToken();
     try {
       if (following) {
-        await fetch("/api/follows", { method: "DELETE", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ sellerId: id }) });
+        await fetch(`${BASE}/api/follows`, { method: "DELETE", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ sellerId: id }) });
         setFollowing(false);
         setFollowerCount((c) => Math.max(0, c - 1));
       } else {
-        await fetch("/api/follows", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ sellerId: id }) });
+        await fetch(`${BASE}/api/follows`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ sellerId: id }) });
         setFollowing(true);
         setFollowerCount((c) => c + 1);
       }

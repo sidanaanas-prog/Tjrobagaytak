@@ -7,6 +7,8 @@ import { Flag, Clock, CheckCircle, XCircle, MessageSquare, Phone } from "lucide-
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
+import { getApiUrl } from "@/lib/api-url";
+const BASE = getApiUrl("");
 
 interface Report {
   id: string;
@@ -33,7 +35,7 @@ export default function Reports() {
   const fetchReports = async () => {
     const token = localStorage.getItem("glow_admin_token");
     try {
-      const res = await fetch("/api/admin/reports", { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${BASE}/api/admin/reports`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) setReports(await res.json());
     } finally {
       setLoading(false);

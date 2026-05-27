@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2, Eye, EyeOff, Image, MoveUp, MoveDown, Upload, X, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getApiUrl } from "@/lib/api-url";
+const BASE = getApiUrl("");
 
 interface Banner {
   id: string;
@@ -52,7 +54,7 @@ function getToken() {
 }
 
 async function uploadToStorage(file: File, onProgress: (p: number) => void): Promise<string> {
-  const urlRes = await fetch("/api/storage/uploads/request-url", {
+  const urlRes = await fetch(`${BASE}/api/storage/uploads/request-url`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
@@ -88,7 +90,7 @@ export default function Banners() {
 
   async function fetchBanners() {
     try {
-      const res = await fetch("/api/admin/banners", { headers: { Authorization: `Bearer ${getToken()}` } });
+      const res = await fetch(`${BASE}/api/admin/banners`, { headers: { Authorization: `Bearer ${getToken()}` } });
       if (res.ok) setBanners(await res.json());
     } finally { setLoading(false); }
   }

@@ -19,6 +19,8 @@ import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { getApiUrl } from "@/lib/api-url";
+const BASE = getApiUrl("");
 
 export default function ChatPage() {
   const { user } = useAuth();
@@ -266,7 +268,7 @@ export default function ChatPage() {
     const token = getMemToken();
     try {
       if (blockStatus?.iBlockedThem) {
-        await fetch("/api/blocks", {
+        await fetch(`${BASE}/api/blocks`, {
           method: "DELETE",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ blockedId: otherParticipant.id }),
@@ -274,7 +276,7 @@ export default function ChatPage() {
         setBlockStatus({ blocked: false, iBlockedThem: false, theyBlockedMe: false });
         toast({ title: "تم إلغاء الحظر" });
       } else {
-        await fetch("/api/blocks", {
+        await fetch(`${BASE}/api/blocks`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ blockedId: otherParticipant.id }),
@@ -295,7 +297,7 @@ export default function ChatPage() {
     setReportSending(true);
     const token = getMemToken();
     try {
-      const res = await fetch("/api/reports", {
+      const res = await fetch(`${BASE}/api/reports`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ reportedId: otherParticipant.id, conversationId: activeId, reason: reportReason.trim() }),

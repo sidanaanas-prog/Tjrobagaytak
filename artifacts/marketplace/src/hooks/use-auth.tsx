@@ -56,15 +56,16 @@ async function saveFCMToken(userId: string, fcmToken: string) {
   const authToken = localStorage.getItem("glow_token");
   if (!authToken) return;
   const headers = { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` };
+  const base = getApiUrl("");
   try {
     // 1) جدول push_tokens — هو المصدر الرئيسي لإرسال الإشعارات
-    await fetch("/api/push-tokens", {
+    await fetch(`${base}/api/push-tokens`, {
       method: "POST",
       headers,
       body: JSON.stringify({ token: fcmToken, platform: "web" }),
     });
     // 2) عمود users.push_token — للتوافقية مع الكود القديم
-    await fetch(`/api/users/${userId}`, {
+    await fetch(`${base}/api/users/${userId}`, {
       method: "PATCH",
       headers,
       body: JSON.stringify({ pushToken: fcmToken }),

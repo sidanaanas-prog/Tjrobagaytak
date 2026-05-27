@@ -10,6 +10,8 @@ import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { getMemToken } from "@/hooks/use-auth";
+import { getApiUrl } from "@/lib/api-url";
+const BASE = getApiUrl("");
 
 function TrendArrow({ value, median, size = "sm" }: { value: number; median: number; size?: "sm" | "xs" }) {
   if (median === 0 && value === 0) return null;
@@ -349,14 +351,14 @@ function VideoCard({
     setFollowLoading(true);
     try {
       if (following) {
-        await fetch("/api/follows", {
+        await fetch(`${BASE}/api/follows`, {
           method: "DELETE",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ sellerId: video.userId }),
         });
         setFollowing(false);
       } else {
-        await fetch("/api/follows", {
+        await fetch(`${BASE}/api/follows`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ sellerId: video.userId }),
@@ -588,7 +590,7 @@ export default function ContentPage() {
 
     if (showSpinner) setLoading(true);
     try {
-      const res = await fetch("/api/content?limit=30", {
+      const res = await fetch(`${BASE}/api/content?limit=30`, {
         signal: ctrl.signal,
         cache: "no-store",
         headers: token ? { Authorization: `Bearer ${token}` } : {},

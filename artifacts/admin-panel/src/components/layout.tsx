@@ -19,6 +19,8 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { useState, useEffect } from "react";
+import { getApiUrl } from "@/lib/api-url";
+const BASE = getApiUrl("");
 
 const ADMIN_ID = "e0757f35-e7d4-4c07-ae0b-339252aecfa6";
 
@@ -35,7 +37,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     if (!token) return;
     const fetchUnread = async () => {
       try {
-        const res = await fetch("/api/conversations", {
+        const res = await fetch(`${BASE}/api/conversations`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) return;
@@ -50,7 +52,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       try {
         const token2 = localStorage.getItem("glow_admin_token");
         if (!token2) return;
-        const res = await fetch("/api/admin/reports", { headers: { Authorization: `Bearer ${token2}` } });
+        const res = await fetch(`${BASE}/api/admin/reports`, { headers: { Authorization: `Bearer ${token2}` } });
         if (!res.ok) return;
         const data = await res.json();
         setPendingReports(data.filter((r: any) => r.status === "pending").length);
@@ -60,7 +62,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       try {
         const token2 = localStorage.getItem("glow_admin_token");
         if (!token2) return;
-        const res = await fetch("/api/admin/delivery-requests", { headers: { Authorization: `Bearer ${token2}` } });
+        const res = await fetch(`${BASE}/api/admin/delivery-requests`, { headers: { Authorization: `Bearer ${token2}` } });
         if (!res.ok) return;
         const data = await res.json();
         setPendingDeliveries(data.filter((r: any) => r.deliveryStatus === "pending").length);
