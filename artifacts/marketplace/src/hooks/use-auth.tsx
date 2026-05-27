@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { useGetMe, getGetMeQueryKey, type User } from "@workspace/api-client-react";
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react/src/custom-fetch";
 import { useQueryClient } from "@tanstack/react-query";
-import { RENDER_API_URL } from "@/lib/api-url";
+import { RENDER_API_URL, getApiUrl } from "@/lib/api-url";
 import { getFCMToken, listenForegroundMessages } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 

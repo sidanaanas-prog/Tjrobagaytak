@@ -14,6 +14,7 @@ import {
 import { Plus, Pencil, Trash2, Eye, EyeOff, Image, MoveUp, MoveDown, Upload, X, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/lib/api-url";
+import { uploadToFirebaseWithProgress } from "@/lib/firebase-upload";
 const BASE = getApiUrl("");
 
 interface Banner {
@@ -54,25 +55,8 @@ function getToken() {
 }
 
 async function uploadToStorage(file: File, onProgress: (p: number) => void): Promise<string> {
-  const urlRes = await fetch(`${BASE}/api/storage/uploads/request-url`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
-  });
-  if (!urlRes.ok) throw new Error("تعذّر الحصول على رابط الرفع");
-  const { uploadURL, objectPath } = await urlRes.json();
-
-  await new Promise<void>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("PUT", uploadURL);
-    xhr.setRequestHeader("Content-Type", file.type);
-    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100)); };
-    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error("فشل الرفع")));
-    xhr.onerror = () => reject(new Error("خطأ في الشبكة"));
-    xhr.send(file);
-  });
-
-  return `/api/storage${objectPath}`;
+  const path = `banners/${Date.now()}-${file.name}`;
+  return uploadToFirebaseWithProgress(file, path, onProgress);
 }
 
 export default function Banners() {

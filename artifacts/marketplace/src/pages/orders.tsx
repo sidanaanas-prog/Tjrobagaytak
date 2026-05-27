@@ -6,6 +6,8 @@ import { motion, AnimatePresence as AP } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Loader2, Package, ChevronLeft, Truck, CheckCircle, XCircle, Clock, Phone, MapPin, MessageSquare, UserCheck, Navigation } from "lucide-react";
+import { getApiUrl } from "@/lib/api-url";
+const BASE = getApiUrl("");
 
 type Order = {
   id: string;
@@ -77,7 +79,7 @@ export default function OrdersPage() {
     if (!user) return;
     setLoading(true);
     const token = getMemToken();
-    fetch(`/api/orders?role=${activeTab}`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${BASE}/api/orders?role=${activeTab}`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
       .then((d) => setOrders(Array.isArray(d) ? d : []))
       .catch(() => setOrders([]))

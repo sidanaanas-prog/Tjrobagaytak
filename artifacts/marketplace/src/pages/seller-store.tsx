@@ -37,13 +37,13 @@ export default function SellerStorePage() {
 
   useEffect(() => {
     if (!id) return;
-    fetch(`/api/seller/${id}/followers`).then((r) => r.json()).then((d) => setFollowerCount(d.count ?? 0)).catch(() => {});
+    fetch(`${BASE}/api/seller/${id}/followers`).then((r) => r.json()).then((d) => setFollowerCount(d.count ?? 0)).catch(() => {});
   }, [id]);
 
   useEffect(() => {
     if (!user || !id) return;
     const token = getMemToken();
-    fetch(`/api/follows/check?sellerId=${id}`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${BASE}/api/follows/check?sellerId=${id}`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json()).then((d) => setFollowing(d.following)).catch(() => {});
   }, [user, id]);
 
