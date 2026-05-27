@@ -18,6 +18,7 @@ router.post("/upload", authenticate, async (req: Request, res: Response): Promis
     const cleanBase64 = base64.replace(/^data:[^;]+;base64,/, "");
     const buffer = Buffer.from(cleanBase64, "base64");
 
+    // Use default bucket from Firebase Admin app config
     const bucket = admin.storage().bucket();
     const file = bucket.file(path);
 

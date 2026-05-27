@@ -24,10 +24,15 @@ function initFirebase(): admin.app.App {
     throw new Error(_firebaseInitError);
   }
 
+  // Firebase Storage bucket — must match the web SDK config exactly
+  const storageBucket = process.env.FIREBASE_STORAGE_BUCKET || `${projectId}.appspot.com`;
+
   try {
     _firebaseApp = admin.initializeApp({
       credential: admin.credential.cert({ clientEmail, privateKey, projectId }),
+      storageBucket,
     });
+    console.log("[Firebase] storageBucket:", storageBucket);
     console.log("[FCM] ✅ Firebase Admin initialized, project:", projectId);
     return _firebaseApp;
   } catch (e: any) {
