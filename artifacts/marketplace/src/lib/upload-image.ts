@@ -1,5 +1,41 @@
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "./firebase";
+import { getApiUrl } from "./api-url";
+
+const BASE = getApiUrl("");
+
+function isRender(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.location.hostname.includes("onrender.com");
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadViaServer(file: File, path: string): Promise<string> {
+  const base64 = await fileToBase64(file);
+  const token = localStorage.getItem("glow_token") || "";
+  const res = await fetch(`${BASE}/api/upload`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ base64, path, contentType: file.type }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Upload failed" }));
+    throw new Error(err.error || "Upload failed");
+  }
+  const { url } = await res.json();
+  return url;
+}
 
 function compressToBlob(file: File, maxSize = 900, quality = 0.8): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -34,16 +70,28 @@ function compressToBlob(file: File, maxSize = 900, quality = 0.8): Promise<Blob>
   });
 }
 
+async function uploadToFirebase(file: File, path: string): Promise<string> {
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, file, { contentType: file.type });
+  return getDownloadURL(storageRef);
+}
+
 export async function uploadImageToFirebase(
   file: File,
   path: string,
   maxSize = 900,
   quality = 0.8
 ): Promise<string> {
+  // On Render: upload via server to avoid CORS
+  if (isRender()) {
+    const blob = await compressToBlob(file, maxSize, quality);
+    const uploadFile = new File([blob], file.name, { type: "image/jpeg" });
+    return uploadViaServer(uploadFile, path);
+  }
+  // Local/Replit: direct Firebase upload
   const blob = await compressToBlob(file, maxSize, quality);
-  const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
-  return getDownloadURL(storageRef);
+  const uploadFile = new File([blob], file.name, { type: "image/jpeg" });
+  return uploadToFirebase(uploadFile, path);
 }
 
 export async function uploadProductImages(
@@ -70,6 +118,10 @@ export async function uploadStoryImage(file: File, userId: string): Promise<stri
 export async function uploadStoryVideo(file: File, userId: string): Promise<string> {
   const ext = file.name.split(".").pop() || "mp4";
   const path = `stories/${userId}/${Date.now()}.${ext}`;
+  // On Render: upload via server
+  if (isRender()) {
+    return uploadViaServer(file, path);
+  }
   const storageRef = ref(storage, path);
   await uploadBytes(storageRef, file, { contentType: file.type });
   return getDownloadURL(storageRef);
