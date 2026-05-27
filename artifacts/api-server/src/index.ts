@@ -22,32 +22,31 @@ if (Number.isNaN(port) || port <= 0) {
 
 const SUPPORT_USER_ID = "e0757f35-e7d4-4c07-ae0b-339252aecfa6";
 
-// ── إنشاء حساب Admin تلقائياً إذا لم يكن موجوداً ───────────────────────────
+// ── إنشاء/تحديث حساب Admin تلقائياً ───────────────────────────────────────
 async function seedAdmin() {
   try {
     const adminEmail = process.env.ADMIN_EMAIL || "admin@gaytak.com";
     const adminPassword = process.env.ADMIN_PASSWORD || "gaytak@2025";
 
     const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, adminEmail));
+    const hash = await bcrypt.hash(adminPassword, 10);
+
     if (!existing) {
-      const hash = await bcrypt.hash(adminPassword, 10);
       await db.insert(usersTable).values({
         id: SUPPORT_USER_ID,
-        name: "دعم Gaytak",
+        name: "مدير Gaytak",
         email: adminEmail,
         passwordHash: hash,
         role: "admin",
         banned: false,
       });
       logger.info("✅ Admin user created: " + adminEmail);
-    } else if (existing.role !== "admin") {
-      logger.info("Admin user exists but role is not admin — skipping");
-    } else if (existing.id !== SUPPORT_USER_ID) {
-      // Admin exists with different ID — can't change PK due to FK constraints.
-      // Just log a warning; the admin-panel will filter by both IDs.
-      logger.info("Admin user exists with ID " + existing.id + " (not " + SUPPORT_USER_ID + "). Support conversations will still work.");
     } else {
-      logger.info("Admin user already exists");
+      // تحديث كلمة المرور دائماً — للتأكد من التزامن مع ADMIN_PASSWORD
+      await db.update(usersTable)
+        .set({ passwordHash: hash, role: "admin", name: "مدير Gaytak" })
+        .where(eq(usersTable.id, existing.id));
+      logger.info("✅ Admin user updated (password reset): " + adminEmail);
     }
   } catch (err) {
     logger.error({ err }, "Error seeding admin user");
