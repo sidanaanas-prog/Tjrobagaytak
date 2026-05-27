@@ -1,0 +1,2 @@
+- [Firebase Storage Not Set Up](firebase-storage.md) — bucket 404 for gaytak-45ae1; switched to Replit Object Storage via /api/upload
+- [Upload Architecture](upload-arch.md) — all uploads go through server /api/upload → Replit Object Storage → served at /api/storage/public-objects/*
