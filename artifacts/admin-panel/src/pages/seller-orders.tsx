@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, ShoppingBag, Eye, ArrowLeft, Package, Truck, CheckCircle, XCircle, Clock, DollarSign } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { getApiUrl } from "@/lib/api-url";
+const BASE = getApiUrl("");
 
 interface SellerOrders {
   sellerId: string;
@@ -54,7 +56,7 @@ const statusIcons: Record<string, React.ReactNode> = {
 };
 
 async function fetchSellerOrders(token: string): Promise<SellerOrders[]> {
-  const res = await fetch(`/api/admin/seller-orders`, {
+  const res = await fetch(`${BASE}/api/admin/seller-orders`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error("فشل في جلب البيانات");
@@ -62,7 +64,7 @@ async function fetchSellerOrders(token: string): Promise<SellerOrders[]> {
 }
 
 async function fetchSellerOrderDetails(sellerId: string, token: string): Promise<OrderDetail[]> {
-  const res = await fetch(`/api/admin/seller-orders/${sellerId}`, {
+  const res = await fetch(`${BASE}/api/admin/seller-orders/${sellerId}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error("فشل في جلب التفاصيل");

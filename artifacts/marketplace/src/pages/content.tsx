@@ -78,7 +78,7 @@ function CommentsDrawer({
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    fetch(`/api/content/${videoId}/comments`)
+    fetch(`${BASE}/api/content/${videoId}/comments`)
       .then((r) => r.json())
       .then((data) => setComments(Array.isArray(data) ? data : []))
       .finally(() => setLoading(false));
@@ -89,7 +89,7 @@ function CommentsDrawer({
     if (!text.trim() || !token) return;
     setSending(true);
     try {
-      const res = await fetch(`/api/content/${videoId}/comments`, {
+      const res = await fetch(`${BASE}/api/content/${videoId}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ text }),
@@ -105,7 +105,7 @@ function CommentsDrawer({
   };
 
   const handleDelete = async (commentId: string) => {
-    const res = await fetch(`/api/content/${videoId}/comments/${commentId}`, {
+    const res = await fetch(`${BASE}/api/content/${videoId}/comments/${commentId}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -211,7 +211,7 @@ function ViewersDrawer({ videoId, open, onClose }: { videoId: string; open: bool
   useEffect(() => {
     if (!open || !token) return;
     setLoading(true);
-    fetch(`/api/content/${videoId}/viewers`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${BASE}/api/content/${videoId}/viewers`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
       .then((data) => setViewers(Array.isArray(data) ? data : []))
       .catch(() => setViewers([]))
@@ -641,14 +641,14 @@ export default function ContentPage() {
 
   const handleLike = async (id: string) => {
     if (!user) { navigate("/login"); return; }
-    await fetch(`/api/content/${id}/like`, {
+    await fetch(`${BASE}/api/content/${id}/like`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
   };
 
   const handleView = async (id: string) => {
-    await fetch(`/api/content/${id}/view`, {
+    await fetch(`${BASE}/api/content/${id}/view`, {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
@@ -656,7 +656,7 @@ export default function ContentPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("حذف هذا الفيديو؟")) return;
-    const res = await fetch(`/api/content/${id}`, {
+    const res = await fetch(`${BASE}/api/content/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });

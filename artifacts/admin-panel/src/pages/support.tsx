@@ -101,13 +101,13 @@ export default function SupportPage() {
     setLoadingMessages(true);
     const fetchMessages = async () => {
       try {
-        const res = await fetch(`/api/conversations/${activeConvId}/messages`, {
+        const res = await fetch(`${BASE}/api/conversations/${activeConvId}/messages`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) throw new Error();
         setMessages(await res.json());
         // Mark read
-        await fetch(`/api/conversations/${activeConvId}/mark-read`, {
+        await fetch(`${BASE}/api/conversations/${activeConvId}/mark-read`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -132,7 +132,7 @@ export default function SupportPage() {
     if (!message.trim() || !activeConvId) return;
     setSending(true);
     try {
-      const res = await fetch(`/api/conversations/${activeConvId}/messages`, {
+      const res = await fetch(`${BASE}/api/conversations/${activeConvId}/messages`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ content: message }),

@@ -153,7 +153,7 @@ export default function Banners() {
   }
 
   async function handleToggle(b: Banner) {
-    const res = await fetch(`/api/admin/banners/${b.id}/toggle`, {
+    const res = await fetch(`${BASE}/api/admin/banners/${b.id}/toggle`, {
       method: "PATCH", headers: { Authorization: `Bearer ${getToken()}` },
     });
     if (res.ok) fetchBanners();
@@ -161,7 +161,7 @@ export default function Banners() {
 
   async function handleDelete() {
     if (!deleteId) return;
-    await fetch(`/api/admin/banners/${deleteId}`, { method: "DELETE", headers: { Authorization: `Bearer ${getToken()}` } });
+    await fetch(`${BASE}/api/admin/banners/${deleteId}`, { method: "DELETE", headers: { Authorization: `Bearer ${getToken()}` } });
     setDeleteId(null);
     fetchBanners();
   }
@@ -173,8 +173,8 @@ export default function Banners() {
     if (swapIdx < 0 || swapIdx >= sorted.length) return;
     const other = sorted[swapIdx]!;
     await Promise.all([
-      fetch(`/api/admin/banners/${b.id}`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` }, body: JSON.stringify({ ...b, sortOrder: other.sortOrder }) }),
-      fetch(`/api/admin/banners/${other.id}`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` }, body: JSON.stringify({ ...other, sortOrder: b.sortOrder }) }),
+      fetch(`${BASE}/api/admin/banners/${b.id}`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` }, body: JSON.stringify({ ...b, sortOrder: other.sortOrder }) }),
+      fetch(`${BASE}/api/admin/banners/${other.id}`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` }, body: JSON.stringify({ ...other, sortOrder: b.sortOrder }) }),
     ]);
     fetchBanners();
   }

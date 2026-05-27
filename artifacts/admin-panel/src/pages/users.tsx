@@ -121,7 +121,7 @@ export default function Users() {
     setSendingMessage(true);
     try {
       const token = localStorage.getItem("glow_admin_token");
-      const res = await fetch(`/api/admin/users/${userToMessage.id}/message`, {
+      const res = await fetch(`${BASE}/api/admin/users/${userToMessage.id}/message`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ message: messageText.trim() }),

@@ -87,7 +87,7 @@ export default function ChatPage() {
     const other = activeConv?.participants?.find((p: any) => p.id !== user?.id);
     if (!other) return;
     const token = getMemToken();
-    fetch(`/api/blocks/check?userId=${other.id}`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${BASE}/api/blocks/check?userId=${other.id}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) setBlockStatus(d); })
       .catch(() => {});
@@ -97,7 +97,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (!activeId) return;
     const token = getMemToken();
-    fetch(`/api/conversations/${activeId}/mark-read`, {
+    fetch(`${BASE}/api/conversations/${activeId}/mark-read`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }).catch(() => {});
@@ -111,8 +111,8 @@ export default function ChatPage() {
       if (document.hidden) return; // لا تستطلع والتب معمي
       try {
         const [typingRes, statusRes] = await Promise.all([
-          fetch(`/api/conversations/${activeId}/typing`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`/api/conversations/${activeId}/status`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${BASE}/api/conversations/${activeId}/typing`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${BASE}/api/conversations/${activeId}/status`, { headers: { Authorization: `Bearer ${token}` } }),
         ]);
         if (typingRes.ok) {
           const data = await typingRes.json();
@@ -154,7 +154,7 @@ export default function ChatPage() {
     if (!activeId) return;
     try {
       const token = getMemToken();
-      const res = await fetch(`/api/conversations/${activeId}/messages/${msgId}`, {
+      const res = await fetch(`${BASE}/api/conversations/${activeId}/messages/${msgId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -192,7 +192,7 @@ export default function ChatPage() {
     if (!targetId) return;
     const token = getMemToken();
     try {
-      const res = await fetch(`/api/conversations/${activeId}/forward`, {
+      const res = await fetch(`${BASE}/api/conversations/${activeId}/forward`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ messageId: msg.id, toConversationId: targetId }),
@@ -317,7 +317,7 @@ export default function ChatPage() {
     setDeletingId(convId);
     try {
       const token = getMemToken();
-      const res = await fetch(`/api/conversations/${convId}`, {
+      const res = await fetch(`${BASE}/api/conversations/${convId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -337,7 +337,7 @@ export default function ChatPage() {
   function handleTyping() {
     if (!activeId) return;
     const token = getMemToken();
-    fetch(`/api/conversations/${activeId}/typing`, {
+    fetch(`${BASE}/api/conversations/${activeId}/typing`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }).catch(() => {});

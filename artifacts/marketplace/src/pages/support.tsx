@@ -59,12 +59,12 @@ export default function SupportPage() {
             const other = supportConv.participants?.find((p: any) => p.id === SUPPORT_USER_ID);
             setSupportInfo({ name: other?.name ?? "دعم Gaytak", avatar: other?.avatar ?? null });
             // Load messages
-            const msgRes = await fetch(`/api/conversations/${supportConv.id}/messages`, {
+            const msgRes = await fetch(`${BASE}/api/conversations/${supportConv.id}/messages`, {
               headers: { Authorization: `Bearer ${token}` },
             });
             if (msgRes.ok) setMessages(await msgRes.json());
             // Mark read
-            await fetch(`/api/conversations/${supportConv.id}/mark-read`, {
+            await fetch(`${BASE}/api/conversations/${supportConv.id}/mark-read`, {
               method: "POST",
               headers: { Authorization: `Bearer ${token}` },
             });
@@ -98,7 +98,7 @@ export default function SupportPage() {
     const interval = setInterval(async () => {
       if (document.hidden) return;
       try {
-        const res = await fetch(`/api/conversations/${convId}/messages`, {
+        const res = await fetch(`${BASE}/api/conversations/${convId}/messages`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -114,7 +114,7 @@ export default function SupportPage() {
   useEffect(() => {
     if (!convId || !user) return;
     const token = getMemToken();
-    fetch(`/api/conversations/${convId}/mark-read`, {
+    fetch(`${BASE}/api/conversations/${convId}/mark-read`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }).catch(() => {});
@@ -171,7 +171,7 @@ export default function SupportPage() {
         toast({ variant: "destructive", title: "خطأ", description: "لم يتم إنشاء محادثة الدعم. أعد المحاولة." });
         return;
       }
-      const res = await fetch(`/api/conversations/${activeConvId}/messages`, {
+      const res = await fetch(`${BASE}/api/conversations/${activeConvId}/messages`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ content: message }),

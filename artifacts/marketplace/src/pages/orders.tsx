@@ -90,7 +90,7 @@ export default function OrdersPage() {
     setUpdatingId(orderId);
     try {
       const token = getMemToken();
-      const res = await fetch(`/api/orders/${orderId}/status`, {
+      const res = await fetch(`${BASE}/api/orders/${orderId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status }),
@@ -116,7 +116,7 @@ export default function OrdersPage() {
     setSettingDelivery(true);
     try {
       const token = getMemToken();
-      const res = await fetch(`/api/orders/${orderId}/delivery-type`, {
+      const res = await fetch(`${BASE}/api/orders/${orderId}/delivery-type`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ deliveryType }),

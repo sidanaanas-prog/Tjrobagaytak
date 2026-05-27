@@ -63,7 +63,7 @@ export default function DeliveryRequestsPage() {
   async function updateDelivery(orderId: string, deliveryStatus: string) {
     setUpdatingId(orderId);
     try {
-      await fetch(`/api/admin/delivery-requests/${orderId}`, {
+      await fetch(`${BASE}/api/admin/delivery-requests/${orderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ deliveryStatus }),

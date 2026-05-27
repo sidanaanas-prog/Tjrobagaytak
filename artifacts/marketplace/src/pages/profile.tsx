@@ -56,7 +56,7 @@ export default function ProfilePage() {
       .catch(() => {});
 
     // fetch my content videos
-    fetch(`/api/content?userId=${user.id}`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${BASE}/api/content?userId=${user.id}`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
       .then((data: any) => setMyVideos(Array.isArray(data) ? data : []))
       .catch(() => {});
@@ -66,7 +66,7 @@ export default function ProfilePage() {
     setDeletingStoryId(storyId);
     try {
       const token = getMemToken();
-      const res = await fetch(`/api/stories/${storyId}`, {
+      const res = await fetch(`${BASE}/api/stories/${storyId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -84,7 +84,7 @@ export default function ProfilePage() {
     setDeletingVideoId(videoId);
     try {
       const token = getMemToken();
-      const res = await fetch(`/api/content/${videoId}`, {
+      const res = await fetch(`${BASE}/api/content/${videoId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

@@ -8,6 +8,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { getMemToken } from "@/hooks/use-auth";
 import { useQueryClient } from "@tanstack/react-query";
+import { getApiUrl } from "@/lib/api-url";
+const BASE = getApiUrl("");
 
 type StatusFilter = "all" | "active" | "rejected";
 
@@ -67,7 +69,7 @@ export default function MyListingsPage() {
     setDeletingId(id);
     try {
       const token = getMemToken();
-      const res = await fetch(`/api/products/${id}`, {
+      const res = await fetch(`${BASE}/api/products/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

@@ -6,6 +6,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Search, Store, Package, ChevronRight, Loader2, X } from "lucide-react";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { motion, AnimatePresence } from "framer-motion";
+import { getApiUrl } from "@/lib/api-url";
+const BASE = getApiUrl("");
 
 interface Seller {
   id: string;
@@ -31,7 +33,7 @@ export default function SellersPage() {
     try {
       const params = new URLSearchParams({ page: String(p), limit: String(LIMIT) });
       if (q) params.set("search", q);
-      const res = await fetch(`/api/sellers?${params}`);
+      const res = await fetch(`${BASE}/api/sellers?${params}`);
       if (!res.ok) return;
       const data = await res.json();
       setSellers(prev => reset ? data.sellers : [...prev, ...data.sellers.filter((s: Seller) => !prev.find(x => x.id === s.id))]);

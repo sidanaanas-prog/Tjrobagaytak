@@ -44,7 +44,7 @@ export default function BroadcastPage() {
     if (readers[id]) return;
     setLoadingReaders(id);
     try {
-      const res = await fetch(`/api/admin/broadcasts/${id}/readers`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${BASE}/api/admin/broadcasts/${id}/readers`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) { const data = await res.json(); setReaders(prev => ({ ...prev, [id]: data })); }
     } catch {} finally { setLoadingReaders(null); }
   }

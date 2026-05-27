@@ -46,7 +46,7 @@ export default function Reports() {
 
   const updateStatus = async (id: string, status: string) => {
     const token = localStorage.getItem("glow_admin_token");
-    const res = await fetch(`/api/admin/reports/${id}/status`, {
+    const res = await fetch(`${BASE}/api/admin/reports/${id}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ status }),
