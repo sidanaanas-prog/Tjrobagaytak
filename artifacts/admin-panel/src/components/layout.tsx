@@ -14,6 +14,7 @@ import {
   Flag,
   Truck,
   Zap,
+  CreditCard,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [supportUnread, setSupportUnread] = useState(0);
   const [pendingReports, setPendingReports] = useState(0);
   const [pendingDeliveries, setPendingDeliveries] = useState(0);
+  const [pendingSubscriptions, setPendingSubscriptions] = useState(0);
 
   // Poll for unread support messages + pending reports
   useEffect(() => {
@@ -68,10 +70,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
         setPendingDeliveries(data.filter((r: any) => r.deliveryStatus === "pending").length);
       } catch {}
     };
+    const fetchSubscriptions = async () => {
+      try {
+        const t = localStorage.getItem("glow_admin_token");
+        if (!t) return;
+        const res = await fetch(`${BASE}/api/admin/subscriptions/pending-count`, { headers: { Authorization: `Bearer ${t}` } });
+        if (!res.ok) return;
+        const data = await res.json();
+        setPendingSubscriptions(data.count ?? 0);
+      } catch {}
+    };
     fetchUnread();
     fetchReports();
     fetchDeliveries();
-    const iv = setInterval(() => { fetchUnread(); fetchReports(); fetchDeliveries(); }, 10000);
+    fetchSubscriptions();
+    const iv = setInterval(() => { fetchUnread(); fetchReports(); fetchDeliveries(); fetchSubscriptions(); }, 10000);
     return () => clearInterval(iv);
   }, []);
 
@@ -86,6 +99,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/broadcast", label: "Broadcast", icon: Megaphone },
     { href: "/reports", label: "التبليغات", icon: Flag, badge: pendingReports },
     { href: "/delivery-requests", label: "التوصيل", icon: Truck, badge: pendingDeliveries },
+    { href: "/subscriptions", label: "الاشتراكات", icon: CreditCard, badge: pendingSubscriptions },
     { href: "/flash-sales", label: "Flash Sales", icon: Zap },
     { href: "/activity", label: "Activity", icon: Activity },
   ];

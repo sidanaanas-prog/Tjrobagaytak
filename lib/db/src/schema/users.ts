@@ -18,6 +18,8 @@ export const usersTable = pgTable("users", {
   streakCount: integer("streak_count").notNull().default(0),
   streakLastDate: date("streak_last_date"),
   missYouNotifiedAt: timestamp("miss_you_notified_at", { withTimezone: true }),
+  isVerified: boolean("is_verified").notNull().default(false),
+  subscriptionExpiresAt: timestamp("subscription_expires_at", { withTimezone: true }),
 });
 
 export const insertUserSchema = createInsertSchema(usersTable).omit({ createdAt: true });

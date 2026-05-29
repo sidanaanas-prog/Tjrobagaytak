@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useCreateProduct, useListCategories } from "@workspace/api-client-react";
+import { SubscriptionGate } from "@/components/SubscriptionGate";
 import { AppLayout } from "@/components/AppLayout";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -84,6 +85,7 @@ export default function SellPage() {
 
   return (
     <AppLayout>
+      <SubscriptionGate type="product">
       <div className="flex flex-col">
         <div className="sticky top-0 z-30 px-5 pt-12 pb-4 bg-background/90 backdrop-blur-xl border-b border-white/5">
           <div className="flex items-center gap-3">
@@ -261,7 +263,7 @@ export default function SellPage() {
           </motion.button>
         </form>
       </div>
-
+      </SubscriptionGate>
     </AppLayout>
   );
 }

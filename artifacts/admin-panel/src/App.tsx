@@ -16,6 +16,7 @@ import Broadcast from "@/pages/broadcast";
 import Reports from "@/pages/reports";
 import DeliveryRequests from "@/pages/delivery-requests";
 import FlashSales from "@/pages/flash-sales";
+import Subscriptions from "@/pages/subscriptions";
 import { AdminAuthProvider } from "@/hooks/use-admin-auth";
 import { Layout } from "@/components/layout";
 
@@ -53,6 +54,7 @@ function Router() {
       <Route path="/reports" component={() => <ProtectedRoute component={Reports} />} />
       <Route path="/delivery-requests" component={() => <ProtectedRoute component={DeliveryRequests} />} />
       <Route path="/flash-sales" component={() => <ProtectedRoute component={FlashSales} />} />
+      <Route path="/subscriptions" component={() => <ProtectedRoute component={Subscriptions} />} />
       <Route component={NotFound} />
     </Switch>
   );

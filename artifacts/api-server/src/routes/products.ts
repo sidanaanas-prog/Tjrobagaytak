@@ -1,11 +1,29 @@
 import { Router, type IRouter } from "express";
 import { db, productsTable, usersTable, categoriesTable, activityTable } from "@workspace/db";
-import { eq, ilike, and, gte, lte, count, desc, or, inArray } from "drizzle-orm";
+import { eq, ilike, and, gte, lte, count, desc, or, inArray, gt } from "drizzle-orm";
 import { authenticate } from "../lib/auth";
 import { randomUUID } from "crypto";
 import { sendNotification } from "../lib/notifications";
 
 const router: IRouter = Router();
+
+/** IDs البائعين الذين لديهم اشتراك نشط أو دور admin */
+async function getSubscribedSellerIds(): Promise<string[]> {
+  const now = new Date();
+  const rows = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(
+      or(
+        eq(usersTable.role, "admin"),
+        and(
+          eq(usersTable.isVerified, true),
+          gt(usersTable.subscriptionExpiresAt, now)
+        )
+      )
+    );
+  return rows.map((r) => r.id);
+}
 
 function formatProduct(p: typeof productsTable.$inferSelect, seller?: typeof usersTable.$inferSelect | null, categoryName?: string | null) {
   return {
@@ -35,11 +53,16 @@ function formatProduct(p: typeof productsTable.$inferSelect, seller?: typeof use
 }
 
 router.get("/products/featured", async (_req, res): Promise<void> => {
+  const subscribedIds = await getSubscribedSellerIds();
   // جلب أكبر pool ثم خلط عشوائي لعرض منتجات مختلفة في كل زيارة
+  const featuredWhere = subscribedIds.length > 0
+    ? and(eq(productsTable.status, "active"), inArray(productsTable.sellerId, subscribedIds))
+    : eq(productsTable.status, "never_match_placeholder" as any);
+
   const pool = await db
     .select()
     .from(productsTable)
-    .where(eq(productsTable.status, "active"))
+    .where(featuredWhere)
     .orderBy(desc(productsTable.viewCount))
     .limit(30);
 
@@ -86,7 +109,17 @@ router.get("/products", async (req, res): Promise<void> => {
   if (categoryId) conditions.push(eq(productsTable.categoryId, categoryId));
   if (minPrice !== null) conditions.push(gte(productsTable.price, String(minPrice)));
   if (maxPrice !== null) conditions.push(lte(productsTable.price, String(maxPrice)));
-  if (sellerId) conditions.push(eq(productsTable.sellerId, sellerId));
+  if (sellerId) {
+    conditions.push(eq(productsTable.sellerId, sellerId));
+  } else {
+    // عرض عام — أظهر فقط منتجات البائعين المشتركين
+    const subscribedIds = await getSubscribedSellerIds();
+    if (subscribedIds.length > 0) {
+      conditions.push(inArray(productsTable.sellerId, subscribedIds));
+    } else {
+      conditions.push(eq(productsTable.id, "__no_match__"));
+    }
+  }
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -160,9 +193,18 @@ router.get("/products/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  await db.update(productsTable).set({ viewCount: product.viewCount + 1 }).where(eq(productsTable.id, id as string));
-
+  // تحقق من اشتراك البائع
   const [seller] = await db.select().from(usersTable).where(eq(usersTable.id, product.sellerId));
+  const now = new Date();
+  const sellerSubscribed =
+    seller?.role === "admin" ||
+    (seller?.isVerified === true && seller?.subscriptionExpiresAt != null && seller.subscriptionExpiresAt > now);
+  if (!sellerSubscribed) {
+    res.status(404).json({ error: "Product not available" });
+    return;
+  }
+
+  await db.update(productsTable).set({ viewCount: product.viewCount + 1 }).where(eq(productsTable.id, id as string));
   let catName: string | null = null;
   if (product.categoryId) {
     const [cat] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, product.categoryId));

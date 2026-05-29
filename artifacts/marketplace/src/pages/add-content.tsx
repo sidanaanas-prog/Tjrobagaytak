@@ -5,6 +5,7 @@ import { ArrowRight, Link as LinkIcon, Play, Upload, Video, X, CheckCircle, Imag
 import { useToast } from "@/hooks/use-toast";
 import { getMemToken, handle401 } from "@/hooks/use-auth";
 import { getApiUrl } from "@/lib/api-url";
+import { SubscriptionGate } from "@/components/SubscriptionGate";
 
 const BASE = getApiUrl("");
 
@@ -153,6 +154,7 @@ export default function AddContentPage() {
           <h1 className="text-white font-bold text-lg">إضافة منشور</h1>
         </div>
 
+        <SubscriptionGate type="video">
         <div className="p-5">
           <div className="flex rounded-xl bg-white/5 p-1 mb-5 gap-1">
             {(["file", "url"] as UploadTab[]).map((t) => (
@@ -315,6 +317,7 @@ export default function AddContentPage() {
             </motion.button>
           </form>
         </div>
+        </SubscriptionGate>
       </div>
     </div>
   );

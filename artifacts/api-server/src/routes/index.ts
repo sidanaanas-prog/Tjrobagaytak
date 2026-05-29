@@ -21,6 +21,7 @@ import reportsRouter from "./reports";
 import blocksRouter from "./blocks";
 import wishlistRouter from "./wishlist";
 import flashSalesRouter from "./flash-sales";
+import subscriptionsRouter from "./subscriptions";
 
 const router: IRouter = Router();
 
@@ -45,6 +46,7 @@ router.use(reportsRouter);
 router.use(blocksRouter);
 router.use(wishlistRouter);
 router.use(flashSalesRouter);
+router.use(subscriptionsRouter);
 router.use(wasenderApiRouter);
 
 export default router;
