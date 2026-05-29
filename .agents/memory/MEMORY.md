@@ -1,2 +1,2 @@
-- [Firebase Storage Not Set Up](firebase-storage.md) — bucket 404 for gaytak-45ae1; switched to Replit Object Storage via /api/upload
-- [Upload Architecture](upload-arch.md) — all uploads go through server /api/upload → Replit Object Storage → served at /api/storage/public-objects/*
+- [Neon DB driver fix](neon-driver.md) — pg.Pool يتسبب في crash كل ~78ث مع Neon، الحل: @neondatabase/serverless (HTTP mode)
+- [Neon HTTP null results](neon-null-results.md) — @neondatabase/serverless يُرجع null بدلاً من [] عند عدم وجود نتائج، يجب إضافة ?? []
