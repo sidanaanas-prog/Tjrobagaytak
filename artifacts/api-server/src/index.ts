@@ -7,11 +7,12 @@ import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
 
 // ── منع تعطل السيرفر من أي خطأ غير معالج ──────────────────────────────────
-process.on("uncaughtException", (err) => {
-  logger.error({ err }, "[Process] Uncaught exception — server stays alive");
+// نستخدم console.error (مش logger) لأن pino worker قد يكون هو سبب الخطأ
+process.on("uncaughtException", (err: Error) => {
+  console.error("[Process] uncaughtException — server stays alive:", err?.message);
 });
-process.on("unhandledRejection", (reason) => {
-  logger.error({ reason }, "[Process] Unhandled rejection — server stays alive");
+process.on("unhandledRejection", (reason: unknown) => {
+  console.error("[Process] unhandledRejection — server stays alive:", reason);
 });
 
 const rawPort = process.env["PORT"];

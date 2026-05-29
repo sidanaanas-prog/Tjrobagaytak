@@ -1,5 +1,5 @@
-import { drizzle } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/node-postgres";
+import pg from "pg";
 import * as schema from "./schema";
 
 if (!process.env.DATABASE_URL) {
@@ -8,10 +8,19 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-// neon() يستخدم HTTP لكل query — لا اتصالات TCP خاملة على الإطلاق
-// → Neon لا تجد ما تقطعه → لا crash أبداً
-const sql = neon(process.env.DATABASE_URL);
+const pool = new pg.Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
+});
 
-export const db = drizzle(sql, { schema });
+// ── منع crash عند قطع الاتصال من طرف Neon/PostgreSQL ──────────────────────
+// Neon تقطع الاتصالات الخاملة بعد فترة — بدون هذا الـ handler يكرش السيرفر
+pool.on("error", (err) => {
+  console.error("[DB Pool] idle client error (non-fatal):", err.message);
+});
+
+export const db = drizzle(pool, { schema });
 
 export * from "./schema";
