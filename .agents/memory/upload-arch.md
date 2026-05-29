@@ -17,3 +17,9 @@ description: All file uploads go through /api/upload → Replit Object Storage �
 **Why:** Firebase Storage bucket doesn't exist; Replit Object Storage works locally and serves files via API. On Render, the sidecar (127.0.0.1:1106) won't be available — if Render deployment is needed, Firebase Storage bucket must be created first OR a different storage backend added.
 
 **How to apply:** Never bypass /api/upload to upload directly from client (Firebase SDK). All upload* functions in upload-image.ts call uploadViaServer() which posts to /api/upload.
+
+## Neon DB Pool (Render production)
+- Neon terminates idle connections after 5 minutes
+- Fix: idleTimeoutMillis: 120_000 + pool.on('error') handler to prevent crash
+- SSL required: ssl: { rejectUnauthorized: false } for all non-local URLs
+- Without error handler: entire server crashes every ~5 min on Render

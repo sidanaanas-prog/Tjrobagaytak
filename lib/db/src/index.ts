@@ -10,15 +10,24 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
+const dbUrl = process.env.DATABASE_URL;
+const isLocal = dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1");
+const isNeon  = dbUrl.includes("neon.tech");
+
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  min: 2,
+  connectionString: dbUrl,
+  min: 1,
   max: 10,
-  idleTimeoutMillis: 0,
-  connectionTimeoutMillis: 5000,
-  ssl: process.env.DATABASE_URL?.includes("neon.tech")
-    ? { rejectUnauthorized: false }
-    : undefined,
+  // Neon ينهي الاتصالات الخاملة بعد 5 دقائق — نغلقها نحن بعد دقيقتين
+  idleTimeoutMillis: isLocal ? 0 : 120_000,
+  connectionTimeoutMillis: 10_000,
+  // SSL مطلوب لـ Neon وكل قواعد البيانات الخارجية
+  ssl: isLocal ? undefined : { rejectUnauthorized: false },
+});
+
+// ⚠️ منع تعطل السيرفر عند انقطاع الاتصال من طرف قاعدة البيانات
+pool.on("error", (err) => {
+  console.error("[DB Pool] Connection dropped (auto-reconnect):", err.message);
 });
 
 export const db = drizzle(pool, { schema });
