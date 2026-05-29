@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   collection,
   addDoc,
@@ -8,7 +8,8 @@ import {
   serverTimestamp,
   type Timestamp,
 } from "firebase/firestore";
-import { firestore } from "@/lib/firebase";
+import { signInAnonymously } from "firebase/auth";
+import { firestore, firebaseAuth } from "@/lib/firebase";
 
 export type FirestoreMessage = {
   id: string;
@@ -24,9 +25,26 @@ export type FirestoreMessage = {
   createdAt: string;
 };
 
+// تسجيل دخول مجهول لـ Firestore — يُستدعى مرة واحدة فقط
+let _authReady: Promise<void> | null = null;
+function ensureFirebaseAuth(): Promise<void> {
+  if (_authReady) return _authReady;
+  _authReady = new Promise<void>((resolve) => {
+    if (firebaseAuth.currentUser) {
+      resolve();
+      return;
+    }
+    signInAnonymously(firebaseAuth)
+      .then(() => resolve())
+      .catch(() => resolve()); // نكمل حتى لو فشل
+  });
+  return _authReady;
+}
+
 export function useFirestoreMessages(conversationId: string | undefined) {
   const [messages, setMessages] = useState<FirestoreMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const unsubRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!conversationId) {
@@ -36,27 +54,44 @@ export function useFirestoreMessages(conversationId: string | undefined) {
     }
 
     setLoading(true);
-    const msgsRef = collection(firestore, "conversations", conversationId, "messages");
-    const q = query(msgsRef, orderBy("createdAt", "asc"));
 
-    const unsub = onSnapshot(q, (snap) => {
-      const msgs: FirestoreMessage[] = snap.docs.map((doc) => {
-        const d = doc.data();
-        const ts = d.createdAt as Timestamp | null;
-        return {
-          id: doc.id,
-          senderId: d.senderId as string,
-          content: d.content as string,
-          imageUrl: d.imageUrl ?? null,
-          replyTo: d.replyTo ?? null,
-          createdAt: ts ? ts.toDate().toISOString() : new Date().toISOString(),
-        };
-      });
-      setMessages(msgs);
-      setLoading(false);
+    ensureFirebaseAuth().then(() => {
+      if (unsubRef.current) unsubRef.current();
+
+      const msgsRef = collection(firestore, "conversations", conversationId, "messages");
+      const q = query(msgsRef, orderBy("createdAt", "asc"));
+
+      unsubRef.current = onSnapshot(
+        q,
+        (snap) => {
+          const msgs: FirestoreMessage[] = snap.docs.map((doc) => {
+            const d = doc.data();
+            const ts = d.createdAt as Timestamp | null;
+            return {
+              id: doc.id,
+              senderId: d.senderId as string,
+              content: d.content as string,
+              imageUrl: d.imageUrl ?? null,
+              replyTo: d.replyTo ?? null,
+              createdAt: ts ? ts.toDate().toISOString() : new Date().toISOString(),
+            };
+          });
+          setMessages(msgs);
+          setLoading(false);
+        },
+        (err) => {
+          console.error("[Firestore] snapshot error:", err.code);
+          setLoading(false);
+        },
+      );
     });
 
-    return () => unsub();
+    return () => {
+      if (unsubRef.current) {
+        unsubRef.current();
+        unsubRef.current = null;
+      }
+    };
   }, [conversationId]);
 
   const sendMessage = useCallback(
@@ -67,6 +102,7 @@ export function useFirestoreMessages(conversationId: string | undefined) {
       replyTo?: FirestoreMessage["replyTo"];
     }) => {
       if (!conversationId) return;
+      await ensureFirebaseAuth();
       const msgsRef = collection(firestore, "conversations", conversationId, "messages");
       await addDoc(msgsRef, {
         senderId: params.senderId,
@@ -76,7 +112,7 @@ export function useFirestoreMessages(conversationId: string | undefined) {
         createdAt: serverTimestamp(),
       });
     },
-    [conversationId]
+    [conversationId],
   );
 
   return { messages, loading, sendMessage };
