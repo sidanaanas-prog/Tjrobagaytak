@@ -1,6 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { db, pool, usersTable, categoriesTable, pushTokensTable } from "@workspace/db";
+import { db, usersTable, categoriesTable, pushTokensTable } from "@workspace/db";
 import { eq, count, and, lt, gt, or, isNull, sql } from "drizzle-orm";
 import { notifyUsers } from "./lib/notifications";
 import bcrypt from "bcryptjs";
@@ -110,13 +110,11 @@ async function seedCategories() {
   }
 }
 
-// Pre-warm DB connection pool so first user request doesn't pay cold-start cost
+// Pre-warm DB connection — يتحقق أن قاعدة البيانات تستجيب عند الإقلاع
 async function warmupDb() {
   try {
-    const client = await pool.connect();
-    await client.query("SELECT 1");
-    client.release();
-    logger.info("DB connection pool warmed up");
+    await db.execute(sql`SELECT 1`);
+    logger.info("DB connection warmed up");
   } catch (err) {
     logger.warn({ err }, "DB warmup failed (non-fatal)");
   }
