@@ -12,22 +12,21 @@ if (!process.env.DATABASE_URL) {
 
 const dbUrl = process.env.DATABASE_URL;
 const isLocal = dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1");
-const isNeon  = dbUrl.includes("neon.tech");
 
 export const pool = new Pool({
   connectionString: dbUrl,
-  min: 1,
+  min: 0,              // لا اتصالات خاملة — تُفتح عند الحاجة فقط
   max: 10,
-  // Neon ينهي الاتصالات الخاملة بعد 5 دقائق — نغلقها نحن بعد دقيقتين
-  idleTimeoutMillis: isLocal ? 0 : 120_000,
+  idleTimeoutMillis: 10_000,        // أغلق الخامل بعد 10 ث
   connectionTimeoutMillis: 10_000,
-  // SSL مطلوب لـ Neon وكل قواعد البيانات الخارجية
   ssl: isLocal ? undefined : { rejectUnauthorized: false },
 });
 
-// ⚠️ منع تعطل السيرفر عند انقطاع الاتصال من طرف قاعدة البيانات
-pool.on("error", (err) => {
-  console.error("[DB Pool] Connection dropped (auto-reconnect):", err.message);
+// ─── منع crash من انقطاع اتصال Neon ─────────────────────────────────────────
+// هذا المعالج يمنع Node.js من رمي "Unhandled 'error' event" الذي يُسقط السيرفر
+pool.on("error", (err: Error) => {
+  console.error("[DB Pool] Connection dropped:", err.message);
+  // لا نعيد throw — السيرفر يبقى حياً ويفتح اتصالاً جديداً عند الطلب التالي
 });
 
 export const db = drizzle(pool, { schema });
