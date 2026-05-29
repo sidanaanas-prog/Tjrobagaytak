@@ -1,47 +1,56 @@
-import admin from "firebase-admin";
 import { db, pushTokensTable, usersTable } from "@workspace/db";
-import { eq, inArray, and } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
-const INVALID_TOKEN_CODES = [
-  "messaging/registration-token-not-registered",
-  "messaging/invalid-registration-token",
-];
+const FCM_URL = "https://fcm.googleapis.com/fcm/send";
 
-let _firebaseApp: admin.app.App | null = null;
-let _firebaseInitError: string | null = null;
-
-function initFirebase(): admin.app.App {
-  if (_firebaseApp) return _firebaseApp;
-  if (_firebaseInitError) throw new Error(_firebaseInitError);
-
-  const clientEmail  = process.env.FIREBASE_CLIENT_EMAIL  || "";
-  const privateKey   = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n") || "";
-  const projectId    = process.env.FIREBASE_PROJECT_ID    || "gaytak";
-
-  if (!clientEmail || !privateKey) {
-    _firebaseInitError = `Firebase credentials missing: clientEmail=${!!clientEmail}, privateKey=${!!privateKey}`;
-    console.error("[FCM] ❌", _firebaseInitError);
-    throw new Error(_firebaseInitError);
-  }
-
-  try {
-    _firebaseApp = admin.initializeApp({
-      credential: admin.credential.cert({ clientEmail, privateKey, projectId }),
-      storageBucket: `${projectId}.firebasestorage.app`,
-    });
-    console.log("[FCM] ✅ Firebase Admin initialized, project:", projectId);
-    return _firebaseApp;
-  } catch (e: any) {
-    _firebaseInitError = e.message;
-    console.error("[FCM] ❌ Firebase init failed:", e.message);
-    throw e;
-  }
+function getServerKey(): string {
+  const key = process.env.FIREBASE_SERVER_KEY ?? "";
+  if (!key) console.warn("[FCM] ⚠️ FIREBASE_SERVER_KEY غير مضبوط");
+  return key;
 }
 
-try { initFirebase(); } catch (_) {}
+async function fcmSend(payload: object): Promise<void> {
+  const key = getServerKey();
+  if (!key) return;
 
-function getFirebaseApp(): admin.app.App {
-  return initFirebase();
+  const res = await fetch(FCM_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `key=${key}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    console.error(`[FCM] HTTP ${res.status}:`, text);
+    return;
+  }
+
+  const json = (await res.json()) as { success?: number; failure?: number; results?: { error?: string }[] };
+  if (json.failure && json.failure > 0) {
+    console.warn("[FCM] فشل إرسال بعض الإشعارات:", json.failure, "من", (json.success ?? 0) + json.failure);
+  } else {
+    console.log("[FCM] ✅ إشعار أُرسل بنجاح:", json.success ?? 1, "مستقبل");
+  }
+
+  // حذف الـ tokens الغير صالحة تلقائياً
+  if (json.results) {
+    const tokens = (payload as { registration_ids?: string[]; to?: string }).registration_ids
+      ?? [(payload as { to?: string }).to ?? ""];
+    for (let i = 0; i < json.results.length; i++) {
+      const err = json.results[i]?.error;
+      if (err === "NotRegistered" || err === "InvalidRegistration") {
+        const badToken = tokens[i];
+        if (badToken) {
+          console.warn("[FCM] حذف token منتهي الصلاحية:", badToken.slice(0, 20) + "...");
+          await db.delete(pushTokensTable).where(eq(pushTokensTable.token, badToken)).catch(() => {});
+          await db.update(usersTable).set({ pushToken: null }).where(eq(usersTable.pushToken, badToken)).catch(() => {});
+        }
+      }
+    }
+  }
 }
 
 export async function sendNotification({
@@ -55,44 +64,14 @@ export async function sendNotification({
   body: string;
   data?: Record<string, string>;
 }): Promise<void> {
-  if (!fcmToken) {
-    console.warn("[FCM] لا يوجد FCM Token");
-    return;
-  }
-
-  try {
-    const app = getFirebaseApp();
-    const message: admin.messaging.Message = {
-      token: fcmToken,
-      notification: { title, body },
-      data: data ?? {},
-      android: {
-        priority: "high",
-        notification: { sound: "default", channelId: "messages" },
-      },
-      webpush: {
-        notification: { icon: "/favicon.png", badge: "/favicon.png" },
-        headers: { Urgency: "high" },
-      },
-    };
-
-    const msgId = await admin.messaging(app).send(message);
-    console.log("[FCM] ✅ إشعار أُرسل:", msgId);
-  } catch (err: any) {
-    const code = err?.code || "";
-    const isInvalidToken = INVALID_TOKEN_CODES.some((c) => code.includes(c) || err?.message?.includes(c));
-    if (isInvalidToken) {
-      console.warn("[FCM] Token غير صالح — حذف من DB:", fcmToken.slice(0, 20) + "...");
-      try {
-        await db.delete(pushTokensTable).where(eq(pushTokensTable.token, fcmToken));
-        await db.update(usersTable).set({ pushToken: null }).where(eq(usersTable.pushToken, fcmToken));
-      } catch (dbErr) {
-        console.warn("[FCM] خطأ في حذف التوكن الغير صالح:", dbErr);
-      }
-    } else {
-      console.error("[FCM] sendNotification error:", err?.message || err);
-    }
-  }
+  if (!fcmToken) return;
+  await fcmSend({
+    to: fcmToken,
+    notification: { title, body, sound: "default" },
+    data: data ?? {},
+    android: { priority: "high" },
+    apns: { payload: { aps: { sound: "default", badge: 1 } } },
+  });
 }
 
 export async function sendPushNotification({
@@ -106,33 +85,21 @@ export async function sendPushNotification({
   body: string;
   data?: Record<string, string>;
 }): Promise<void> {
-  const cleanTokens = tokens.filter((t) => t && typeof t === "string" && t.trim().length > 0);
-  if (cleanTokens.length === 0) return;
+  const clean = tokens.filter((t) => t?.trim());
+  if (clean.length === 0) return;
 
-  try {
-    const app = getFirebaseApp();
-    const results = await admin.messaging(app).sendEach(
-      cleanTokens.map((token) => ({
-        token,
-        notification: { title, body },
-        data: data ?? {},
-        android: {
-          priority: "high",
-          notification: { sound: "default", channelId: "messages" },
-        },
-        apns: {
-          payload: { aps: { sound: "default", badge: 1 } },
-        },
-        webpush: {
-          notification: { icon: "/favicon.png", badge: "/favicon.png" },
-          headers: { Urgency: "high" },
-        },
-      }))
-    );
-    console.log(`[FCM] ✅ Sent ${results.successCount}/${cleanTokens.length}, failed ${results.failureCount}`);
-  } catch (err: any) {
-    console.error("[FCM] Multicast error:", err?.message || err);
+  if (clean.length === 1) {
+    await sendNotification({ fcmToken: clean[0], title, body, data });
+    return;
   }
+
+  await fcmSend({
+    registration_ids: clean,
+    notification: { title, body, sound: "default" },
+    data: data ?? {},
+    android: { priority: "high" },
+    apns: { payload: { aps: { sound: "default", badge: 1 } } },
+  });
 }
 
 export async function notifyUsers({
@@ -148,31 +115,29 @@ export async function notifyUsers({
 }): Promise<void> {
   if (userIds.length === 0) return;
 
-  // جلب التوكنات من جدول push_tokens (المصدر الرئيسي)
   const rows = await db
     .select({ token: pushTokensTable.token })
     .from(pushTokensTable)
-    .where(inArray(pushTokensTable.userId, userIds));
+    .where(inArray(pushTokensTable.userId, userIds))
+    .catch(() => []);
 
   const tokenSet = new Set(rows.map((r) => r.token));
 
-  // fallback: جلب push_token من جدول users للمستخدمين الذين لا يملكون سجلاً في push_tokens
-  const usersWithToken = await db
-    .select({ id: usersTable.id, pushToken: usersTable.pushToken })
+  const users = await db
+    .select({ pushToken: usersTable.pushToken })
     .from(usersTable)
-    .where(inArray(usersTable.id, userIds));
+    .where(inArray(usersTable.id, userIds))
+    .catch(() => []);
 
-  for (const u of usersWithToken) {
-    if (u.pushToken && !tokenSet.has(u.pushToken)) {
-      tokenSet.add(u.pushToken);
-    }
+  for (const u of users) {
+    if (u.pushToken && !tokenSet.has(u.pushToken)) tokenSet.add(u.pushToken);
   }
 
-  const tokenList = [...tokenSet].filter(Boolean);
+  const tokenList = [...tokenSet].filter(Boolean) as string[];
   if (tokenList.length === 0) {
-    console.warn("[FCM] notifyUsers: لا توجد توكنات للمستخدمين:", userIds);
+    console.warn("[FCM] لا توجد tokens للمستخدمين:", userIds);
     return;
   }
 
-  return sendPushNotification({ tokens: tokenList, title, body, data });
+  await sendPushNotification({ tokens: tokenList, title, body, data });
 }
