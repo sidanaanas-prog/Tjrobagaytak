@@ -142,7 +142,7 @@ function startMissYouCron() {
       const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
       const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
 
-      const users = (await db
+      const users = await db
         .select({ id: usersTable.id, missYouNotifiedAt: usersTable.missYouNotifiedAt, lastSeenAt: usersTable.lastSeenAt })
         .from(usersTable)
         .where(
@@ -154,7 +154,7 @@ function startMissYouCron() {
               sql`${usersTable.missYouNotifiedAt} < ${usersTable.lastSeenAt}`
             )
           )
-        )) ?? [];
+        ).catch(() => []);
 
       if (users.length === 0) return;
 
