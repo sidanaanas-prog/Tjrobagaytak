@@ -5,7 +5,7 @@ import {
   useListConversations,
   getListConversationsQueryKey,
 } from "@workspace/api-client-react";
-import { useFirestoreMessages } from "@/hooks/use-firestore-messages";
+import { useApiMessages } from "@/hooks/use-api-messages";
 import { uploadChatImage } from "@/lib/upload-image";
 import { AppLayout } from "@/components/AppLayout";
 import { Input } from "@/components/ui/input";
@@ -44,7 +44,7 @@ export default function ChatPage() {
     : conversationsRaw;
 
   const [searchQuery, setSearchQuery] = useState("");
-  const { messages: firestoreMessages, loading: loadingMessages, sendMessage: fsSendMessage } = useFirestoreMessages(activeId);
+  const { messages: firestoreMessages, loading: loadingMessages, sendMessage: fsSendMessage, refetch: refetchMessages } = useApiMessages(activeId);
 
   const [message, setMessage] = useState("");
   const [replyingTo, setReplyingTo] = useState<{ id: string; content: string; senderName: string } | null>(null);

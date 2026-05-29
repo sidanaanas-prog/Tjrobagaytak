@@ -316,49 +316,37 @@ router.post("/conversations/:id/mark-read", authenticate, async (req, res): Prom
 });
 
 router.post("/conversations/:id/typing", authenticate, async (req, res): Promise<void> => {
-  const convId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const userId = req.user!.id;
-
-  const [conv] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, convId));
-  if (!conv) {
-    res.status(404).json({ error: "المحادثة غير موجودة" });
-    return;
+  try {
+    const convId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const userId = req.user!.id;
+    const [conv] = (await db.select().from(conversationsTable).where(eq(conversationsTable.id, convId))) ?? [];
+    if (!conv) { res.status(404).json({ error: "المحادثة غير موجودة" }); return; }
+    await db.insert(typingIndicatorsTable)
+      .values({ id: `${convId}_${userId}`, conversationId: convId, userId })
+      .onConflictDoUpdate({ target: typingIndicatorsTable.id, set: { updatedAt: new Date() } });
+    res.json({ success: true });
+  } catch {
+    res.json({ success: true }); // non-fatal — لا تكسر الـ UI
   }
-
-  // upsert typing indicator
-  await db.insert(typingIndicatorsTable)
-    .values({ id: `${convId}_${userId}`, conversationId: convId, userId })
-    .onConflictDoUpdate({
-      target: typingIndicatorsTable.id,
-      set: { updatedAt: new Date() },
-    });
-
-  res.json({ success: true });
 });
 
 router.get("/conversations/:id/typing", authenticate, async (req, res): Promise<void> => {
-  const convId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const userId = req.user!.id;
-
-  const [conv] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, convId));
-  if (!conv) {
-    res.status(404).json({ error: "المحادثة غير موجودة" });
-    return;
-  }
-
-  const otherId = conv.participant1Id === userId ? conv.participant2Id : conv.participant1Id;
-  const oneMinAgo = new Date(Date.now() - 60 * 1000);
-
-  const [indicator] = await db
-    .select()
-    .from(typingIndicatorsTable)
-    .where(and(
+  try {
+    const convId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const userId = req.user!.id;
+    const [conv] = (await db.select().from(conversationsTable).where(eq(conversationsTable.id, convId))) ?? [];
+    if (!conv) { res.json({ isTyping: false, userId: null }); return; }
+    const otherId = conv.participant1Id === userId ? conv.participant2Id : conv.participant1Id;
+    const oneMinAgo = new Date(Date.now() - 60 * 1000);
+    const [indicator] = (await db.select().from(typingIndicatorsTable).where(and(
       eq(typingIndicatorsTable.conversationId, convId),
       eq(typingIndicatorsTable.userId, otherId),
       gte(typingIndicatorsTable.updatedAt, oneMinAgo)
-    ));
-
-  res.json({ isTyping: !!indicator, userId: otherId });
+    ))) ?? [];
+    res.json({ isTyping: !!indicator, userId: otherId });
+  } catch {
+    res.json({ isTyping: false, userId: null }); // non-fatal
+  }
 });
 
 router.get("/conversations/:id/status", authenticate, async (req, res): Promise<void> => {
