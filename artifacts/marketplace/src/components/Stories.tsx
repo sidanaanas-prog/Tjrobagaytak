@@ -435,8 +435,14 @@ function StoryViewer({ groups, startGroupIndex, onClose, currentUserId, onLikeTo
                     {showDetails === "viewers" ? "لا مشاهدات بعد" : "لا إعجابات بعد"}
                   </p>
                 ) : (
-                  detailsData.map((person) => (
-                    <div key={person.id} className="flex items-center gap-3">
+                  detailsData.map((person, i) => (
+                    <motion.div
+                      key={person.id}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.045, duration: 0.25, ease: "easeOut" }}
+                      className="flex items-center gap-3"
+                    >
                       <div
                         className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white border border-white/20 shrink-0 overflow-hidden"
                         style={{ background: avatarColor(person.name) }}
@@ -454,7 +460,7 @@ function StoryViewer({ groups, startGroupIndex, onClose, currentUserId, onLikeTo
                           })}
                         </p>
                       </div>
-                    </div>
+                    </motion.div>
                   ))
                 )}
               </div>
