@@ -1,54 +1,25 @@
+import admin from "firebase-admin";
 import { db, pushTokensTable, usersTable } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
 
-const FCM_URL = "https://fcm.googleapis.com/fcm/send";
+// ── تهيئة Firebase Admin (مرة واحدة فقط) ─────────────────────────────────
+function getApp(): admin.app.App {
+  if (admin.apps.length > 0) return admin.apps[0]!;
 
-function getServerKey(): string {
-  const key = process.env.FIREBASE_SERVER_KEY ?? "";
-  if (!key) console.warn("[FCM] ⚠️ FIREBASE_SERVER_KEY غير مضبوط");
-  return key;
-}
+  const projectId   = process.env.FIREBASE_PROJECT_ID   ?? "";
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL ?? "";
+  const privateKey  = (process.env.FIREBASE_PRIVATE_KEY ?? "").replace(/\\n/g, "\n");
 
-async function fcmSend(payload: object): Promise<void> {
-  const key = getServerKey();
-  if (!key) return;
+  if (!projectId || !clientEmail || !privateKey) {
+    console.warn("[FCM] ⚠️ بيانات Firebase Admin غير مكتملة");
+  }
 
-  const res = await fetch(FCM_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `key=${key}`,
-    },
-    body: JSON.stringify(payload),
+  return admin.initializeApp({
+    credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
   });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    console.error(`[FCM] HTTP ${res.status}:`, text);
-    return;
-  }
-
-  const json = (await res.json()) as { success?: number; failure?: number; results?: { error?: string }[] };
-  if (json.failure && json.failure > 0) {
-    console.warn("[FCM] فشل إرسال بعض الإشعارات:", json.failure, "من", (json.success ?? 0) + json.failure);
-  }
-
-  if (json.results) {
-    const tokens = (payload as { registration_ids?: string[]; to?: string }).registration_ids
-      ?? [(payload as { to?: string }).to ?? ""];
-    for (let i = 0; i < json.results.length; i++) {
-      const err = json.results[i]?.error;
-      if (err === "NotRegistered" || err === "InvalidRegistration") {
-        const badToken = tokens[i];
-        if (badToken) {
-          await db.delete(pushTokensTable).where(eq(pushTokensTable.token, badToken)).catch(() => {});
-          await db.update(usersTable).set({ pushToken: null }).where(eq(usersTable.pushToken, badToken)).catch(() => {});
-        }
-      }
-    }
-  }
 }
 
+// ── إرسال لرمز واحد ───────────────────────────────────────────────────────
 export async function sendNotification({
   fcmToken,
   title,
@@ -60,16 +31,30 @@ export async function sendNotification({
   body: string;
   data?: Record<string, string>;
 }): Promise<void> {
-  if (!fcmToken) return;
-  await fcmSend({
-    to: fcmToken,
-    notification: { title, body, sound: "default" },
-    data: data ?? {},
-    android: { priority: "high" },
-    apns: { payload: { aps: { sound: "default", badge: 1 } } },
-  });
+  if (!fcmToken?.trim()) return;
+  try {
+    getApp();
+    await admin.messaging().send({
+      token: fcmToken,
+      notification: { title, body },
+      data: data ?? {},
+      android: { priority: "high" },
+      apns: { payload: { aps: { sound: "default", badge: 1 } } },
+    });
+  } catch (err: any) {
+    const code: string = err?.code ?? "";
+    console.error("[FCM] sendNotification error:", code, err?.message ?? err);
+    if (
+      code === "messaging/registration-token-not-registered" ||
+      code === "messaging/invalid-registration-token"
+    ) {
+      await db.delete(pushTokensTable).where(eq(pushTokensTable.token, fcmToken)).catch(() => {});
+      await db.update(usersTable).set({ pushToken: null }).where(eq(usersTable.pushToken, fcmToken)).catch(() => {});
+    }
+  }
 }
 
+// ── إرسال لمجموعة رموز ────────────────────────────────────────────────────
 export async function sendPushNotification({
   tokens,
   title,
@@ -81,23 +66,43 @@ export async function sendPushNotification({
   body: string;
   data?: Record<string, string>;
 }): Promise<void> {
-  const clean = tokens.filter((t) => t?.trim());
+  const clean = [...new Set(tokens.filter((t) => t?.trim()))];
   if (clean.length === 0) return;
 
-  if (clean.length === 1) {
-    await sendNotification({ fcmToken: clean[0], title, body, data });
-    return;
+  getApp();
+
+  const results = await admin.messaging().sendEach(
+    clean.map((token) => ({
+      token,
+      notification: { title, body },
+      data: data ?? {},
+      android: { priority: "high" as const },
+      apns: { payload: { aps: { sound: "default", badge: 1 } } },
+    }))
+  );
+
+  for (let i = 0; i < results.responses.length; i++) {
+    const r = results.responses[i];
+    if (!r.success) {
+      const code: string = r.error?.code ?? "";
+      console.warn("[FCM] فشل الإرسال للـ token:", clean[i]?.slice(0, 20), code);
+      if (
+        code === "messaging/registration-token-not-registered" ||
+        code === "messaging/invalid-registration-token"
+      ) {
+        const bad = clean[i]!;
+        await db.delete(pushTokensTable).where(eq(pushTokensTable.token, bad)).catch(() => {});
+        await db.update(usersTable).set({ pushToken: null }).where(eq(usersTable.pushToken, bad)).catch(() => {});
+      }
+    }
   }
 
-  await fcmSend({
-    registration_ids: clean,
-    notification: { title, body, sound: "default" },
-    data: data ?? {},
-    android: { priority: "high" },
-    apns: { payload: { aps: { sound: "default", badge: 1 } } },
-  });
+  if (results.failureCount > 0) {
+    console.warn(`[FCM] ${results.failureCount} فشل من أصل ${clean.length}`);
+  }
 }
 
+// ── إرسال لمجموعة مستخدمين (بالـ userIds) ───────────────────────────────
 export async function notifyUsers({
   userIds,
   title,
