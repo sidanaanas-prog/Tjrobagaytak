@@ -10,11 +10,11 @@ const BASE = getApiUrl("");
 
 /**
  * Fetch JSON from the API.
- * On Render.com free tier: the server sleeps after 15 min inactivity and
- * returns an HTML "starting…" page (status 503/200). In that case we retry
- * up to `maxRetries` times with a 6-second gap and show the waking banner.
- * For all other hosts (local dev, custom domains) we never retry — we just
- * return the JSON or throw a plain error.
+ * Detects cold-start on Render.com by trying to JSON.parse the response body:
+ * – Success → return normally (no banner ever shown in normal operation)
+ * – Parse fails + Render URL → server is returning HTML "starting…" page,
+ *   show waking banner and retry up to maxRetries times with 6-second gaps.
+ * – Parse fails + non-Render → real server error, throw immediately.
  */
 async function apiFetch(
   url: string,
@@ -32,24 +32,22 @@ async function apiFetch(
       throw new Error("تعذر الاتصال بالخادم، تحقق من اتصالك بالإنترنت");
     }
 
-    const ct = res.headers.get("content-type") ?? "";
-    const isJson = ct.includes("application/json");
-
-    // Cold-start detection: only on Render.com URLs that return non-JSON
-    if (!isJson && isRender && attempt < maxRetries) {
-      onWaking?.(true);
-      await new Promise(r => setTimeout(r, 6000));
-      continue;
-    }
-
-    onWaking?.(false);
-
-    // Not JSON and not a Render cold-start → real error, don't retry
-    if (!isJson) {
+    // Try to parse JSON — this is the only reliable check
+    // (Replit proxy may strip Content-Type headers)
+    let data: any;
+    try {
+      data = await res.json();
+    } catch {
+      // JSON parse failed: server returned HTML (Render cold-start)
+      if (isRender && attempt < maxRetries) {
+        onWaking?.(true);
+        await new Promise(r => setTimeout(r, 6000));
+        continue;
+      }
       throw new Error("حدث خطأ في الاتصال بالخادم");
     }
 
-    const data = await res.json();
+    onWaking?.(false);
     return { res, data };
   }
   throw new Error("الخادم في طور الاستعداد، أعد المحاولة بعد لحظة 🔄");
