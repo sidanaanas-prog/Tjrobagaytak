@@ -1,55 +1,43 @@
 import { useState, useEffect } from "react";
 
 /**
- * عداد حي يُحاكي المشاهدات الحقيقية:
- * ١) animation صعود تدريجي من قريب التارقت عند الظهور (~600ms)
- * ٢) يزيد +1 كل `intervalSec` ثانية تلقائياً
+ * عداد حي يبدأ من 0 ويصعد للرقم الحقيقي خلال ~800ms
+ * ثم يزيد +1 كل `intervalSec` ثانية تلقائياً
  */
 export function useLiveCount(target: number, intervalSec = 15): number {
-  const [count, setCount] = useState<number>(() => Math.max(0, target - getStartOffset(target)));
+  const [count, setCount] = useState(0);
 
   useEffect(() => {
     if (target <= 0) { setCount(0); return; }
 
-    const offset = getStartOffset(target);
-    const start = Math.max(0, target - offset);
-    setCount(start);
+    setCount(0);
 
-    let cur = start;
-    const steps = target - start;
+    // عدد الخطوات ثابت (40 خطوة) بغض النظر عن حجم الرقم
+    const STEPS = Math.min(target, 40);
+    const stepValue = target / STEPS;         // القفزة في كل خطوة
+    const stepMs   = 800 / STEPS;            // الوقت بين كل خطوة (~800ms الكل)
 
-    if (steps > 0) {
-      const stepMs = Math.max(20, 700 / steps);
-      const animTimer = setInterval(() => {
-        cur++;
-        setCount(cur);
-        if (cur >= target) clearInterval(animTimer);
-      }, stepMs);
-
-      // بعد انتهاء الـ animation → نبدأ الزيادة الحية
-      const liveTimer = setInterval(() => {
-        setCount((c) => c + 1);
-      }, intervalSec * 1000);
-
-      return () => {
+    let step = 0;
+    const animTimer = setInterval(() => {
+      step++;
+      if (step >= STEPS) {
+        setCount(target);
         clearInterval(animTimer);
-        clearInterval(liveTimer);
-      };
-    }
+      } else {
+        setCount(Math.round(stepValue * step));
+      }
+    }, stepMs);
 
-    // لا animation مطلوبة (صفر أو واحد) → مباشرة للزيادة الحية
-    setCount(target);
-    const liveTimer = setInterval(() => setCount((c) => c + 1), intervalSec * 1000);
-    return () => clearInterval(liveTimer);
+    // بعد انتهاء الـ animation → +1 كل intervalSec ثانية
+    const liveTimer = setInterval(() => {
+      setCount((c) => c + 1);
+    }, intervalSec * 1000);
+
+    return () => {
+      clearInterval(animTimer);
+      clearInterval(liveTimer);
+    };
   }, [target, intervalSec]);
 
   return count;
-}
-
-/** كم خطوة نرجع للخلف قبل الصعود — يُقاس حسب حجم الرقم */
-function getStartOffset(n: number): number {
-  if (n <= 10)   return n;          // من الصفر
-  if (n <= 100)  return 15;
-  if (n <= 1000) return 25;
-  return 40;                         // أرقام كبيرة: 40 خطوة آخر
 }
