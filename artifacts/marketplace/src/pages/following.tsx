@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Loader2, Users, ChevronLeft, Store } from "lucide-react";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { getApiUrl } from "@/lib/api-url";
 const BASE = getApiUrl("");
 
@@ -12,6 +13,8 @@ type Seller = {
   id: string;
   name: string;
   avatar: string | null;
+  role?: string;
+  isVerified?: boolean | null;
   productCount?: number;
 };
 
@@ -79,7 +82,10 @@ export default function FollowingPage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-white truncate">{seller.name}</p>
+                      <p className="text-sm font-bold text-white truncate flex items-center gap-1">
+                        {seller.name}
+                        {(seller.isVerified || seller.role === "admin") && <VerifiedBadge size="xs" />}
+                      </p>
                       <p className="text-[11px] text-white/40 mt-0.5">
                         <Store className="w-3 h-3 inline mr-1" />
                         {seller.productCount ?? 0} منتج

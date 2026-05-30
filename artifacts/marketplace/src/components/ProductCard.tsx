@@ -5,6 +5,7 @@ import { Clock, CheckCircle, XCircle, Heart } from "lucide-react";
 import { useWishlist } from "@/hooks/use-wishlist";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 
 interface ProductCardProps {
   product: Product;
@@ -159,8 +160,9 @@ export function ProductCard({ product, index = 0, compact = false, showStatus = 
             {product.category && (
               <span className="text-xs text-muted-foreground">{product.category}</span>
             )}
-            <div className="mt-2 text-xs text-white/40">
+            <div className="mt-2 text-xs text-white/40 flex items-center gap-1">
               بواسطة {product.seller?.name || "مجهول"}
+              {(product.seller?.isVerified || product.seller?.role === "admin") && <VerifiedBadge size="xs" />}
             </div>
           </div>
         </div>
