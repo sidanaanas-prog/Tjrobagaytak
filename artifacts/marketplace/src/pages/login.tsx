@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { motion, AnimatePresence } from "framer-motion";
@@ -7,6 +7,42 @@ import { Loader2, ArrowRight, ChevronDown, ChevronRight, Shield } from "lucide-r
 import { getApiUrl } from "@/lib/api-url";
 
 const BASE = getApiUrl("");
+
+/**
+ * Fetch JSON from the API — detects Render cold-start HTML responses and
+ * retries automatically up to `maxRetries` times with a 6-second gap.
+ * Throws a user-friendly Arabic error if all retries fail.
+ */
+async function apiFetch(
+  url: string,
+  options: RequestInit,
+  onWaking?: (waking: boolean) => void,
+  maxRetries = 4,
+): Promise<{ res: Response; data: any }> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(url, options);
+    } catch {
+      throw new Error("تعذر الاتصال بالخادم، تحقق من اتصالك بالإنترنت");
+    }
+
+    const ct = res.headers.get("content-type") ?? "";
+    if (!ct.includes("application/json")) {
+      if (attempt < maxRetries) {
+        onWaking?.(true);
+        await new Promise(r => setTimeout(r, 6000));
+        continue;
+      }
+      throw new Error("الخادم في طور الاستعداد، أعد المحاولة بعد لحظة 🔄");
+    }
+
+    onWaking?.(false);
+    const data = await res.json();
+    return { res, data };
+  }
+  throw new Error("الخادم في طور الاستعداد، أعد المحاولة بعد لحظة 🔄");
+}
 
 type Step = "phone" | "otp";
 
@@ -144,6 +180,7 @@ export default function LoginPage() {
   const [name, setName] = useState("");
   const [isNewUser, setIsNewUser] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [serverWaking, setServerWaking] = useState(false);
 
   const selectedCountry = COUNTRIES.find(c => c.code === countryCode) || COUNTRIES[0];
   const fullPhone = countryCode + phone.replace(/^0+/, "");
@@ -152,13 +189,13 @@ export default function LoginPage() {
     e.preventDefault();
     if (!phone.trim()) return;
     setLoading(true);
+    setServerWaking(false);
     try {
-      const res = await fetch(`${BASE}/api/auth/otp/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: fullPhone }),
-      });
-      const data = await res.json();
+      const { res, data } = await apiFetch(
+        `${BASE}/api/auth/otp/send`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: fullPhone }) },
+        setServerWaking,
+      );
       if (!res.ok) throw new Error(data.error || "فشل إرسال الرمز");
       setIsNewUser(data.isNewUser);
       setStep("otp");
@@ -167,6 +204,7 @@ export default function LoginPage() {
       toast({ variant: "destructive", title: "خطأ", description: err.message });
     } finally {
       setLoading(false);
+      setServerWaking(false);
     }
   }
 
@@ -178,13 +216,13 @@ export default function LoginPage() {
       return;
     }
     setLoading(true);
+    setServerWaking(false);
     try {
-      const res = await fetch(`${BASE}/api/auth/otp/verify`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: fullPhone, code: otp.trim(), name: name.trim() || undefined }),
-      });
-      const data = await res.json();
+      const { res, data } = await apiFetch(
+        `${BASE}/api/auth/otp/verify`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: fullPhone, code: otp.trim(), name: name.trim() || undefined }) },
+        setServerWaking,
+      );
       if (!res.ok) throw new Error(data.error || "الرمز غير صحيح");
       setAuthToken(data.token);
       toast({ title: isNewUser ? "أهلاً بك في Gaytak 🎉" : "مرحباً بك مجدداً 👋" });
@@ -193,6 +231,7 @@ export default function LoginPage() {
       toast({ variant: "destructive", title: "خطأ", description: err.message });
     } finally {
       setLoading(false);
+      setServerWaking(false);
     }
   }
 
@@ -297,6 +336,20 @@ export default function LoginPage() {
                     <p className="text-[11px] text-white/30 text-center">سيصلك رمز التحقق عبر واتساب</p>
                   </div>
 
+                  {serverWaking && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-center gap-2.5 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl px-4 py-3"
+                    >
+                      <Loader2 className="w-4 h-4 text-yellow-400 animate-spin shrink-0" />
+                      <div>
+                        <p className="text-yellow-300 text-xs font-bold">الخادم يستيقظ...</p>
+                        <p className="text-yellow-400/60 text-[10px]">سيُرسَل الرمز تلقائياً بعد لحظة</p>
+                      </div>
+                    </motion.div>
+                  )}
+
                   <motion.button
                     type="submit"
                     whileTap={{ scale: 0.97 }}
@@ -363,6 +416,20 @@ export default function LoginPage() {
                         className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 h-12 text-white placeholder:text-white/20 focus:outline-none focus:border-primary/50 transition-all text-right"
                         required
                       />
+                    </motion.div>
+                  )}
+
+                  {serverWaking && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-center gap-2.5 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl px-4 py-3"
+                    >
+                      <Loader2 className="w-4 h-4 text-yellow-400 animate-spin shrink-0" />
+                      <div>
+                        <p className="text-yellow-300 text-xs font-bold">الخادم يستيقظ...</p>
+                        <p className="text-yellow-400/60 text-[10px]">يُعاد المحاولة تلقائياً، انتظر لحظة</p>
+                      </div>
                     </motion.div>
                   )}
 
