@@ -382,10 +382,10 @@ importers:
         version: 2.8.6
       drizzle-orm:
         specifier: 'catalog:'
-        version: 0.45.1(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@types/pg@8.18.0)(pg@8.20.0)
+        version: 0.45.1(@opentelemetry/api@1.9.1)(@types/pg@8.18.0)(pg@8.20.0)
       drizzle-zod:
         specifier: ^0.8.3
-        version: 0.8.3(drizzle-orm@0.45.1(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@types/pg@8.18.0)(pg@8.20.0))(zod@4.3.6)
+        version: 0.8.3(drizzle-orm@0.45.1(@opentelemetry/api@1.9.1)(@types/pg@8.18.0)(pg@8.20.0))(zod@4.3.6)
       express:
         specifier: ^5
         version: 5.2.1
@@ -841,15 +841,15 @@ importers:
 
   lib/db:
     dependencies:
-      '@neondatabase/serverless':
-        specifier: ^1.1.0
-        version: 1.1.0
       drizzle-orm:
         specifier: 'catalog:'
-        version: 0.45.1(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@types/pg@8.18.0)(pg@8.20.0)
+        version: 0.45.1(@opentelemetry/api@1.9.1)(@types/pg@8.18.0)(pg@8.20.0)
       drizzle-zod:
         specifier: ^0.8.3
-        version: 0.8.3(drizzle-orm@0.45.1(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@types/pg@8.18.0)(pg@8.20.0))(zod@3.25.76)
+        version: 0.8.3(drizzle-orm@0.45.1(@opentelemetry/api@1.9.1)(@types/pg@8.18.0)(pg@8.20.0))(zod@3.25.76)
+      pg:
+        specifier: ^8.20.0
+        version: 8.20.0
       zod:
         specifier: 'catalog:'
         version: 3.25.76
@@ -863,9 +863,6 @@ importers:
       drizzle-kit:
         specifier: ^0.31.9
         version: 0.31.9
-      pg:
-        specifier: ^8.20.0
-        version: 8.20.0
 
   scripts:
     devDependencies:
@@ -1274,10 +1271,6 @@ packages:
 
   '@js-sdsl/ordered-map@4.4.2':
     resolution: {integrity: sha512-iUKgm52T8HOE/makSxjqoWhe95ZJA1/G1sYsGev2JDKUSS14KAgg1LHb+Ba+IPow0xflbnSkOsZcO08C7w1gYw==}
-
-  '@neondatabase/serverless@1.1.0':
-    resolution: {integrity: sha512-r3ZZhRjEcfEdKIZnoB1RusNgvHuaBRqfCzV4Gi+5A9yUX0S4HTws/ASWqt13wL4y4I+0rqsWGdA2w7EQXHi3+Q==}
-    engines: {node: '>=19.0.0'}
 
   '@nodable/entities@2.1.0':
     resolution: {integrity: sha512-nyT7T3nbMyBI/lvr6L5TyWbFJAI9FTgVRakNoBqCD+PmID8DzFrrNdLLtHMwMszOtqZa8PAOV24ZqDnQrhQINA==}
@@ -4709,8 +4702,6 @@ snapshots:
   '@js-sdsl/ordered-map@4.4.2':
     optional: true
 
-  '@neondatabase/serverless@1.1.0': {}
-
   '@nodable/entities@2.1.0': {}
 
   '@nodelib/fs.scandir@2.1.5':
@@ -6101,21 +6092,20 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  drizzle-orm@0.45.1(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@types/pg@8.18.0)(pg@8.20.0):
+  drizzle-orm@0.45.1(@opentelemetry/api@1.9.1)(@types/pg@8.18.0)(pg@8.20.0):
     optionalDependencies:
-      '@neondatabase/serverless': 1.1.0
       '@opentelemetry/api': 1.9.1
       '@types/pg': 8.18.0
       pg: 8.20.0
 
-  drizzle-zod@0.8.3(drizzle-orm@0.45.1(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@types/pg@8.18.0)(pg@8.20.0))(zod@3.25.76):
+  drizzle-zod@0.8.3(drizzle-orm@0.45.1(@opentelemetry/api@1.9.1)(@types/pg@8.18.0)(pg@8.20.0))(zod@3.25.76):
     dependencies:
-      drizzle-orm: 0.45.1(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@types/pg@8.18.0)(pg@8.20.0)
+      drizzle-orm: 0.45.1(@opentelemetry/api@1.9.1)(@types/pg@8.18.0)(pg@8.20.0)
       zod: 3.25.76
 
-  drizzle-zod@0.8.3(drizzle-orm@0.45.1(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@types/pg@8.18.0)(pg@8.20.0))(zod@4.3.6):
+  drizzle-zod@0.8.3(drizzle-orm@0.45.1(@opentelemetry/api@1.9.1)(@types/pg@8.18.0)(pg@8.20.0))(zod@4.3.6):
     dependencies:
-      drizzle-orm: 0.45.1(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@types/pg@8.18.0)(pg@8.20.0)
+      drizzle-orm: 0.45.1(@opentelemetry/api@1.9.1)(@types/pg@8.18.0)(pg@8.20.0)
       zod: 4.3.6
 
   dunder-proto@1.0.1:
