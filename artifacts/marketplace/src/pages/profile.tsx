@@ -5,7 +5,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, LogOut, Shield, User as UserIcon, Camera, ChevronLeft, Bell, Trash2, AlertTriangle, Package, Users, Play, Image } from "lucide-react";
+import { Loader2, LogOut, Shield, User as UserIcon, Camera, ChevronLeft, Bell, BellOff, BellRing, Trash2, AlertTriangle, Package, Users, Play, Image } from "lucide-react";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { useToast } from "@/hooks/use-toast";
 import { getMemToken } from "@/hooks/use-auth";
@@ -14,6 +14,7 @@ import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { uploadAvatar } from "@/lib/upload-image";
 import { getApiUrl } from "@/lib/api-url";
+import { usePushNotifications } from "@/hooks/use-push-notifications";
 const BASE = getApiUrl("");
 
 export default function ProfilePage() {
@@ -29,6 +30,7 @@ export default function ProfilePage() {
   const [compressing, setCompressing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testingPush, setTestingPush] = useState(false);
+  const { permission, loading: pushLoading, registered: pushRegistered, register: registerPush } = usePushNotifications();
 
   // حالات (Stories)
   const [myStories, setMyStories] = useState<any[]>([]);
@@ -333,6 +335,35 @@ export default function ProfilePage() {
             {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : "حفظ التغييرات"}
           </motion.button>
         </div>
+
+        {/* ── تفعيل الإشعارات ── */}
+        {"Notification" in window && permission !== "denied" && (
+          <div className="px-5 pb-2">
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.97 }}
+              onClick={async () => {
+                const ok = await registerPush();
+                if (ok) toast({ title: "✅ تم تفعيل الإشعارات", description: "ستصلك إشعارات الطلبات والرسائل" });
+                else toast({ title: "تعذر تفعيل الإشعارات", description: "تحقق من إذن الإشعارات في المتصفح", variant: "destructive" });
+              }}
+              disabled={pushLoading || pushRegistered}
+              className={`w-full flex flex-row-reverse items-center gap-3 px-4 py-3.5 rounded-2xl transition-all border ${pushRegistered ? "bg-green-500/10 border-green-500/25" : "bg-primary/10 border-primary/40 hover:border-primary/70"}`}
+            >
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${pushRegistered ? "bg-green-500/15" : "bg-primary/20"}`}>
+                {pushLoading ? <Loader2 className="w-4 h-4 text-primary animate-spin" /> : pushRegistered ? <BellRing className="w-4 h-4 text-green-400" /> : <Bell className="w-4 h-4 text-primary" />}
+              </div>
+              <div className="flex-1 text-right">
+                <p className={`text-sm font-bold ${pushRegistered ? "text-green-400" : "text-white"}`}>
+                  {pushRegistered ? "الإشعارات مفعّلة ✓" : "تفعيل الإشعارات"}
+                </p>
+                <p className="text-[11px] text-white/40">
+                  {pushRegistered ? "ستصلك إشعارات الطلبات والرسائل" : "اضغط للسماح بإشعارات الطلبات والرسائل"}
+                </p>
+              </div>
+            </motion.button>
+          </div>
+        )}
 
         {/* ── اختبار الإشعارات ── */}
         <div className="px-5 pb-2">

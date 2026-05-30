@@ -31,11 +31,8 @@ async function fcmSend(payload: object): Promise<void> {
   const json = (await res.json()) as { success?: number; failure?: number; results?: { error?: string }[] };
   if (json.failure && json.failure > 0) {
     console.warn("[FCM] فشل إرسال بعض الإشعارات:", json.failure, "من", (json.success ?? 0) + json.failure);
-  } else {
-    console.log("[FCM] ✅ إشعار أُرسل بنجاح:", json.success ?? 1, "مستقبل");
   }
 
-  // حذف الـ tokens الغير صالحة تلقائياً
   if (json.results) {
     const tokens = (payload as { registration_ids?: string[]; to?: string }).registration_ids
       ?? [(payload as { to?: string }).to ?? ""];
@@ -44,7 +41,6 @@ async function fcmSend(payload: object): Promise<void> {
       if (err === "NotRegistered" || err === "InvalidRegistration") {
         const badToken = tokens[i];
         if (badToken) {
-          console.warn("[FCM] حذف token منتهي الصلاحية:", badToken.slice(0, 20) + "...");
           await db.delete(pushTokensTable).where(eq(pushTokensTable.token, badToken)).catch(() => {});
           await db.update(usersTable).set({ pushToken: null }).where(eq(usersTable.pushToken, badToken)).catch(() => {});
         }
