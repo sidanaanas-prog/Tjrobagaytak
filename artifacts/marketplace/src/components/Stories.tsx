@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useLiveCount } from "@/hooks/use-live-count";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, ChevronLeft, ChevronRight, MessageCircle, Eye, Heart, Users, Loader2 } from "lucide-react";
 import { VerifiedBadge } from "./VerifiedBadge";
@@ -150,6 +151,10 @@ function StoryViewer({ groups, startGroupIndex, onClose, currentUserId, onLikeTo
   const story = group?.stories[storyIdx];
   const DURATION = 5000;
   const isMyStory = currentUserId === group?.userId;
+
+  // عدادات حية — تصعد تدريجياً عند فتح الحالة وتزيد +1 كل 15 ثانية
+  const liveViews = useLiveCount(story?.viewCount ?? 0, 15);
+  const liveLikes = useLiveCount(story?.likeCount ?? 0, 18);
 
   const viewedRef = useRef<Set<string>>(new Set());
 
@@ -328,8 +333,8 @@ function StoryViewer({ groups, startGroupIndex, onClose, currentUserId, onLikeTo
               {new Date(story.createdAt).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}
               {isMyStory && (
                 <>
-                  {(story.viewCount ?? 0) > 0 && <span className="mr-2">• 👁 {story.viewCount}</span>}
-                  {(story.likeCount ?? 0) > 0 && <span className="mr-2">• ❤️ {story.likeCount}</span>}
+                  {(story.viewCount ?? 0) > 0 && <span className="mr-2">• 👁 {liveViews}</span>}
+                  {(story.likeCount ?? 0) > 0 && <span className="mr-2">• ❤️ {liveLikes}</span>}
                 </>
               )}
             </p>
@@ -371,7 +376,7 @@ function StoryViewer({ groups, startGroupIndex, onClose, currentUserId, onLikeTo
                   <Heart
                     className={`w-5 h-5 transition-colors ${story.likedByMe ? "text-red-500 fill-red-500" : "text-white"}`}
                   />
-                  <span className="text-white text-xs font-bold">{story.likeCount ?? 0}</span>
+                  <span className="text-white text-xs font-bold">{liveLikes}</span>
                 </motion.button>
               )}
 
@@ -384,7 +389,7 @@ function StoryViewer({ groups, startGroupIndex, onClose, currentUserId, onLikeTo
                     className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10"
                   >
                     <Users className="w-4 h-4 text-primary" />
-                    <span className="text-white text-xs font-bold">{story.viewCount ?? 0} مشاهدة</span>
+                    <span className="text-white text-xs font-bold">{liveViews} مشاهدة</span>
                   </motion.button>
                   <motion.button
                     whileTap={{ scale: 0.95 }}
@@ -392,7 +397,7 @@ function StoryViewer({ groups, startGroupIndex, onClose, currentUserId, onLikeTo
                     className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10"
                   >
                     <Heart className="w-4 h-4 text-red-400 fill-red-400" />
-                    <span className="text-white text-xs font-bold">{story.likeCount ?? 0} إعجاب</span>
+                    <span className="text-white text-xs font-bold">{liveLikes} إعجاب</span>
                   </motion.button>
                 </>
               )}

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useLiveCount } from "@/hooks/use-live-count";
 import { useAuth } from "@/hooks/use-auth";
 import { Link, useLocation } from "wouter";
 import {
@@ -302,6 +303,7 @@ function VideoCard({
   const [liked, setLiked] = useState(video.likedByMe);
   const [likesCount, setLikesCount] = useState(video.likesCount);
   const [commentsCount, setCommentsCount] = useState(video.commentsCount ?? 0);
+  const liveViews = useLiveCount(video.viewsCount, 15);
   const [heartAnim, setHeartAnim] = useState(false);
   const [following, setFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
@@ -532,8 +534,8 @@ function VideoCard({
           <div className={`w-11 h-11 rounded-full backdrop-blur-sm flex items-center justify-center shadow-lg transition-all ${isMine ? "bg-primary/20 ring-1 ring-primary/40" : "bg-black/40"}`}>
             <Eye className={`w-6 h-6 ${isMine ? "text-primary" : "text-white/80"}`} />
           </div>
-          <span className="text-white text-[11px] font-bold drop-shadow">{video.viewsCount}</span>
-          <TrendArrow value={video.viewsCount} median={medianViews} size="xs" />
+          <span className="text-white text-[11px] font-bold drop-shadow">{liveViews}</span>
+          <TrendArrow value={liveViews} median={medianViews} size="xs" />
         </button>
 
 
