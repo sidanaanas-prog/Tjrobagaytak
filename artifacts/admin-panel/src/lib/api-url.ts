@@ -15,9 +15,8 @@ export function getApiUrl(path: string): string {
     return `${RENDER_API_URL}${path}`;
   }
 
-  // Replit أو local → URLs نسبية عبر الـ proxy
-  const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-  return `${base}${path}`;
+  // Replit أو local → الـ API دائماً على /api من الجذر بغض النظر عن مسار الـ artifact
+  return path;
 }
 
 export { RENDER_API_URL };

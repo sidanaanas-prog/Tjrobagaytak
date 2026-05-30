@@ -3,3 +3,4 @@
 - [Render OTP cold-start fix](render-otp-fix.md) — Wasender OTP كان في Map بالذاكرة، يُمسح عند cold-start. الحل: جدول phone_otps في DB
 - [Browser env detection](browser-env-detection.md) — import.meta.env.REPL_ID لا تصل للبراوزر (ليست VITE_*)، استخدم window.location.hostname بدلاً منها
 - [Firebase-only notifications](firebase-notifications.md) — المشروع يستخدم Firebase فقط للإشعارات، لا OneSignal أبدًا
+- [Admin panel API URL routing](admin-panel-api-url.md) — getApiUrl() يجب أن يُرجع path مباشرة (لا BASE_URL) وإلا تصير الـ URLs خاطئة على Replit deployment
