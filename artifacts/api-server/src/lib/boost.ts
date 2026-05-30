@@ -175,12 +175,16 @@ function lcgRand(seed: number): { val: number; next: number } {
 }
 
 /**
- * Growth factor 0.5→1 based on post age.
- * Starts at 50% immediately, plateaus at 100% by ~48h.
+ * Growth factor 0→1 based on post age.
+ * جديد (0 ساعة) = 0 مشاهدات وهمية تقريباً
+ * بعد ساعة    ≈ 9%
+ * بعد 6 ساعات ≈ 45%
+ * بعد 24 ساعة ≈ 91%
+ * بعد 48 ساعة ≈ 99%
  */
 function growth(createdAt: Date): number {
   const ageHours = (Date.now() - new Date(createdAt).getTime()) / 3_600_000;
-  return 0.5 + 0.5 * (1 - Math.exp(-ageHours / 6));
+  return 1 - Math.exp(-ageHours / 10);
 }
 
 // ── Engagement boosts ────────────────────────────────────────────────────────
@@ -231,35 +235,54 @@ export function contentBoost(id: string, createdAt: Date) {
  *        architecture / children / products / nature —
  *        some IDs reliably contain mosques, markets, families)
  */
+// ── مجموعات الصور الوهمية ────────────────────────────────────────────────────
+
+/** وجوه بشرية من pravatar (1-70 صورة حقيقية) */
+const FACE_IDS = Array.from({ length: 70 }, (_, i) => i + 1);
+
+/**
+ * صور picsum متنوعة — أرقام مختارة تشمل:
+ *  • منتجات وبضائع   (أغراض، ملابس، إلكترونيات)
+ *  • طبيعة وطعام     (شائع كصورة بروفايل)
+ *  • معمار وأسواق    (قد تشمل مساجد وأسواق شعبية)
+ *  • أشخاص وعائلات
+ * نستخدم 120 ID مختلف لتقليل التكرار
+ */
+const LIFESTYLE_IDS = [
+   10,  14,  20,  26,  30,  36,  40,  43,  48,  50,
+   54,  57,  64,  68,  74,  76,  82,  84,  91,  96,
+  104, 110, 116, 122, 128, 134, 139, 143, 149, 153,
+  158, 163, 168, 172, 179, 184, 188, 193, 198, 204,
+  209, 214, 219, 224, 229, 234, 239, 244, 249, 254,
+  259, 264, 269, 274, 279, 284, 289, 294, 299, 304,
+  309, 314, 319, 324, 329, 334, 339, 344, 349, 354,
+  360, 366, 372, 378, 384, 390, 396, 402, 408, 414,
+  420, 426, 432, 438, 444, 450, 456, 462, 468, 474,
+  480, 486, 492, 498, 504, 510, 516, 522, 528, 534,
+  540, 546, 552, 558, 564, 570, 576, 582, 588, 594,
+  600, 606, 612, 618, 624, 630, 636, 642, 648, 654,
+];
+
+/**
+ * يختار صورة بروفايل واقعية متنوعة:
+ *  ~28% بدون صورة  → أحرف ملونة (شائع جداً في السوشال ميديا العربية)
+ *  ~37% وجه بشري   → pravatar.cc
+ *  ~35% صورة متنوعة → picsum (منتجات، طبيعة، معمار، طعام…)
+ */
 function pickAvatar(seed: number): string | null {
-  const bucket = seed % 10; // 0-9
+  const bucket = seed % 100;
 
-  // 0-2 → null (initials)
-  if (bucket <= 2) return null;
+  if (bucket < 28) return null; // أحرف ملونة
 
-  // 3-5 → pravatar human face
-  if (bucket <= 5) {
-    const num = (seed % 70) + 1;
-    return `https://i.pravatar.cc/100?img=${num}`;
+  if (bucket < 65) {
+    // وجه بشري — نستخدم خلط معقد لتجنب تكرار نفس الوجه
+    const idx = ((seed * 31 + 7) % FACE_IDS.length);
+    return `https://i.pravatar.cc/100?img=${FACE_IDS[idx]}`;
   }
 
-  // 6-7 → picsum "lifestyle / products / architecture"
-  // IDs 100-600 include portraits, markets, buildings (incl. mosques), children
-  if (bucket <= 7) {
-    // hand-picked ranges that commonly contain people, markets, architecture
-    const pools = [
-      100, 119, 133, 145, 155, 167, 177, 190, 200, 210,
-      225, 237, 250, 260, 274, 285, 299, 312, 325, 340,
-      357, 371, 385, 400, 415, 430, 445, 460, 478, 490,
-      503, 519, 534, 548, 561, 575, 590, 604, 618, 633,
-    ];
-    const id = pools[seed % pools.length]!;
-    return `https://picsum.photos/id/${id}/100/100`;
-  }
-
-  // 8-9 → pravatar face (different range for more variety)
-  const num = ((seed * 7 + 13) % 70) + 1;
-  return `https://i.pravatar.cc/100?img=${num}`;
+  // صورة متنوعة
+  const idx = ((seed * 17 + 3) % LIFESTYLE_IDS.length);
+  return `https://picsum.photos/id/${LIFESTYLE_IDS[idx]}/100/100`;
 }
 
 /** Generate N deterministic fake users from a seeded PRNG state */
