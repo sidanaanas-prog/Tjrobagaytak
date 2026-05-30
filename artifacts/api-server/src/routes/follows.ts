@@ -24,8 +24,8 @@ router.post("/follows", authenticate, async (req, res): Promise<void> => {
     await db.insert(followsTable).values({ followerId, sellerId }).onConflictDoNothing();
 
     // إشعار للبائع بمتابع جديد (من users.pushToken مباشرة)
-    const [follower] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, followerId));
-    const [sellerRow] = await db.select({ pushToken: usersTable.pushToken }).from(usersTable).where(eq(usersTable.id, sellerId));
+    const [follower] = (await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, followerId))) ?? [];
+    const [sellerRow] = (await db.select({ pushToken: usersTable.pushToken }).from(usersTable).where(eq(usersTable.id, sellerId))) ?? [];
     if (sellerRow?.pushToken) {
       try {
         await sendNotification({
@@ -70,9 +70,9 @@ router.get("/follows/check", authenticate, async (req, res): Promise<void> => {
     return;
   }
 
-  const [row] = await db.select().from(followsTable).where(
+  const [row] = (await db.select().from(followsTable).where(
     and(eq(followsTable.followerId, followerId), eq(followsTable.sellerId, sellerId))
-  );
+  )) ?? [];
 
   res.json({ following: !!row });
 });
@@ -80,18 +80,18 @@ router.get("/follows/check", authenticate, async (req, res): Promise<void> => {
 // ── عدد المتابعين لبائع معين ──────────────────────────────
 router.get("/seller/:id/followers", async (req, res): Promise<void> => {
   const sellerId = req.params.id;
-  const [{ cnt }] = await db.select({ cnt: count() }).from(followsTable).where(eq(followsTable.sellerId, sellerId));
+  const [{ cnt }] = (await db.select({ cnt: count() }).from(followsTable).where(eq(followsTable.sellerId, sellerId))) ?? [{ cnt: 0 }];
   res.json({ count: cnt });
 });
 
 // ── قائمة المتاجر المتبوعة (للمستخدم الحالي) ────────────────
 router.get("/user/following", authenticate, async (req, res): Promise<void> => {
   const followerId = req.user!.id;
-  const rows = await db
+  const rows = (await db
     .select()
     .from(followsTable)
     .where(eq(followsTable.followerId, followerId))
-    .orderBy(followsTable.createdAt);
+    .orderBy(followsTable.createdAt)) ?? [];
 
   const sellerIds = rows.map((r) => r.sellerId);
   if (sellerIds.length === 0) {
@@ -99,14 +99,14 @@ router.get("/user/following", authenticate, async (req, res): Promise<void> => {
     return;
   }
 
-  const sellers = await db.select().from(usersTable).where(inArray(usersTable.id, sellerIds));
+  const sellers = (await db.select().from(usersTable).where(inArray(usersTable.id, sellerIds))) ?? [];
 
   // عدد المنتجات لكل بائع
-  const productCounts = await db
+  const productCounts = (await db
     .select({ sellerId: productsTable.sellerId, cnt: count() })
     .from(productsTable)
     .where(inArray(productsTable.sellerId, sellerIds))
-    .groupBy(productsTable.sellerId);
+    .groupBy(productsTable.sellerId)) ?? [];
 
   const countMap = Object.fromEntries(productCounts.map((p) => [p.sellerId, p.cnt]));
 

@@ -52,7 +52,7 @@ router.post("/send-notification", authenticate, async (req, res): Promise<void> 
     return;
   }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  const [user] = (await db.select().from(usersTable).where(eq(usersTable.id, userId))) ?? [];
   if (!user?.pushToken) {
     res.status(400).json({ error: "المستخدم لا يملك push token" });
     return;
@@ -77,10 +77,10 @@ router.post("/test-notification", authenticate, async (req, res): Promise<void> 
     const userId = req.user!.id;
 
     // جلب كل tokens للمستخدم
-    const tokens = await db
+    const tokens = (await db
       .select({ token: pushTokensTable.token })
       .from(pushTokensTable)
-      .where(eq(pushTokensTable.userId, userId));
+      .where(eq(pushTokensTable.userId, userId))) ?? [];
 
     if (tokens.length === 0) {
       res.json({ success: false, recipients: 0, oneSignalResponse: { recipients: 0 }, message: "لا يوجد token مسجّل — ثبّت التطبيق ومنح صلاحية الإشعارات" });

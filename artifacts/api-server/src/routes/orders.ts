@@ -12,10 +12,10 @@ async function pushToUser(
   body: string,
   data?: Record<string, string>
 ) {
-  const [u] = await db
+  const [u] = (await db
     .select({ pushToken: usersTable.pushToken })
     .from(usersTable)
-    .where(eq(usersTable.id, userId));
+    .where(eq(usersTable.id, userId))) ?? [];
   if (u?.pushToken) {
     try {
       await sendNotification({ fcmToken: u.pushToken, title, body, data: data ?? {} });
@@ -61,7 +61,7 @@ router.post("/orders", authenticate, async (req, res): Promise<void> => {
     return;
   }
 
-  const [product] = await db.select().from(productsTable).where(eq(productsTable.id, productId));
+  const [product] = (await db.select().from(productsTable).where(eq(productsTable.id, productId))) ?? [];
   if (!product) {
     res.status(404).json({ error: "المنتج غير موجود" });
     return;
@@ -95,7 +95,7 @@ router.post("/orders", authenticate, async (req, res): Promise<void> => {
   await db.insert(ordersTable).values(order as any);
 
   // تسجيل نشاط الطلب الجديد
-  const [buyerUser] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, buyerId));
+  const [buyerUser] = (await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, buyerId))) ?? [];
   await db.insert(activityTable).values({
     id: randomUUID(),
     type: "order_created",
@@ -105,7 +105,7 @@ router.post("/orders", authenticate, async (req, res): Promise<void> => {
   });
 
   // إرسال إشعار للبائع (نفس أسلوب الدردشة)
-  const [seller] = await db.select().from(usersTable).where(eq(usersTable.id, product.sellerId));
+  const [seller] = (await db.select().from(usersTable).where(eq(usersTable.id, product.sellerId))) ?? [];
   await pushToUser(
     product.sellerId,
     "طلب جديد! 📦",
@@ -126,7 +126,7 @@ router.get("/orders", authenticate, async (req, res): Promise<void> => {
   if (role === "buyer") conditions = eq(ordersTable.buyerId, userId);
   if (role === "seller") conditions = eq(ordersTable.sellerId, userId);
 
-  const orders = await db.select().from(ordersTable).where(conditions).orderBy(desc(ordersTable.createdAt));
+  const orders = (await db.select().from(ordersTable).where(conditions).orderBy(desc(ordersTable.createdAt))) ?? [];
 
   const userIds = [...new Set(orders.flatMap((o) => [o.buyerId, o.sellerId]))];
   const productIds = [...new Set(orders.map((o) => o.productId))];
@@ -153,7 +153,7 @@ router.patch("/orders/:id/status", authenticate, async (req, res): Promise<void>
     return;
   }
 
-  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, orderId as string));
+  const [order] = (await db.select().from(ordersTable).where(eq(ordersTable.id, orderId as string))) ?? [];
   if (!order) {
     res.status(404).json({ error: "الطلب غير موجود" });
     return;
@@ -173,7 +173,7 @@ router.patch("/orders/:id/status", authenticate, async (req, res): Promise<void>
     delivered: "تم التسليم",
     cancelled: "ملغي",
   };
-  const [actor] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, userId));
+  const [actor] = (await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, userId))) ?? [];
   await db.insert(activityTable).values({
     id: randomUUID(),
     type: `order_${status}`,
@@ -212,7 +212,7 @@ router.patch("/orders/:id/delivery-type", authenticate, async (req, res): Promis
     return;
   }
 
-  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, orderId));
+  const [order] = (await db.select().from(ordersTable).where(eq(ordersTable.id, orderId))) ?? [];
   if (!order) { res.status(404).json({ error: "الطلب غير موجود" }); return; }
   if (order.sellerId !== userId) { res.status(403).json({ error: "غير مصرح" }); return; }
   if (order.status !== "confirmed") { res.status(400).json({ error: "يجب أن يكون الطلب مؤكداً أولاً" }); return; }

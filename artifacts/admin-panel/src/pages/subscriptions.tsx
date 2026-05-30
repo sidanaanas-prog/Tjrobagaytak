@@ -28,7 +28,8 @@ const STATUS_COLORS: Record<string, string> = {
 const STATUS_LABELS: Record<string, string> = { pending: "معلّق", approved: "مقبول", rejected: "مرفوض" };
 
 export default function Subscriptions() {
-  const { token } = useAdminAuth();
+  useAdminAuth();
+  const token = localStorage.getItem("glow_admin_token");
   const { toast } = useToast();
   const [subs, setSubs] = useState<Sub[]>([]);
   const [loading, setLoading] = useState(true);
