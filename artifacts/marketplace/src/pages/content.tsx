@@ -303,7 +303,7 @@ function VideoCard({
   const [liked, setLiked] = useState(video.likedByMe);
   const [likesCount, setLikesCount] = useState(video.likesCount);
   const [commentsCount, setCommentsCount] = useState(video.commentsCount ?? 0);
-  const liveViews = useLiveCount(video.viewsCount, 15);
+  const liveViews = useLiveCount(video.viewsCount, 60);
   const [heartAnim, setHeartAnim] = useState(false);
   const [following, setFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);

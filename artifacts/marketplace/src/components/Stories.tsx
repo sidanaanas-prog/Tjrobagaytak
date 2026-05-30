@@ -153,8 +153,8 @@ function StoryViewer({ groups, startGroupIndex, onClose, currentUserId, onLikeTo
   const isMyStory = currentUserId === group?.userId;
 
   // عدادات حية — تصعد تدريجياً عند فتح الحالة وتزيد +1 كل 15 ثانية
-  const liveViews = useLiveCount(story?.viewCount ?? 0, 15);
-  const liveLikes = useLiveCount(story?.likeCount ?? 0, 18);
+  const liveViews = useLiveCount(story?.viewCount ?? 0, 60);
+  const liveLikes = useLiveCount(story?.likeCount ?? 0, 90);
 
   const viewedRef = useRef<Set<string>>(new Set());
 
