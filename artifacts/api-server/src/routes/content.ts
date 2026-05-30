@@ -195,13 +195,13 @@ router.get("/content/:id/comments", async (req, res): Promise<void> => {
     .limit(50);
 
   const [video] = await db
-    .select({ createdAt: contentVideosTable.createdAt })
+    .select({ createdAt: contentVideosTable.createdAt, caption: contentVideosTable.caption })
     .from(contentVideosTable)
     .where(eq(contentVideosTable.id, id as string));
 
   if (!video) { res.json(rows); return; }
 
-  res.json(fakeVideoComments(id as string, video.createdAt as Date, rows as any[]));
+  res.json(fakeVideoComments(id as string, video.createdAt as Date, video.caption, rows as any[]));
 });
 
 router.post("/content/:id/comments", authenticate, async (req, res): Promise<void> => {

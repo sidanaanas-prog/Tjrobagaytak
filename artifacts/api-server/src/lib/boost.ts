@@ -2,19 +2,28 @@
  * Smart Engagement Boost
  * Adds deterministic fake engagement numbers + user lists on top of real data.
  * Same post ID + same creation time = same results every time (no flickering).
+ *
+ * Comments are context-aware: detected from video caption into one of three
+ * categories (store / comedy / entertainment) and written in Hassaniya +
+ * Algerian dialect.
  */
 
+// ── Arabic names (Mauritanian + Algerian + Gulf mix) ────────────────────────
 const ARABIC_NAMES = [
-  "أحمد محمد","فاطمة علي","عبدالله سالم","نورة خالد","محمد إبراهيم",
-  "سارة أحمد","خالد عبدالله","مريم يوسف","عمر حسن","هنوف ناصر",
-  "يوسف عمر","لمياء سعد","سلطان فهد","ريم محمد","بدر العتيبي",
-  "دانة الشمري","تركي الحربي","غدير الزهراني","وليد المطيري","شهد الغامدي",
-  "فيصل القحطاني","أسماء العمري","جاسم السبيعي","منى الرشيدي","راشد الدوسري",
-  "هيا البقمي","عبدالعزيز الحميد","رهف الأحمدي","ماجد المالكي","سلمى الحربي",
-  "نايف العنزي","أميرة الشهري","صالح الرويلي","لينا الجهني","حمد الرشيد",
-  "نوف القرني","طارق الزهراني","ميساء العتيبي","سعود الشمراني","جواهر الحميد",
-  "عبدالرحمن الغامدي","رنا العسيري","بندر المالكي","هديل الشهري","ياسر الحربي",
-  "بسمة العمري","خالد الدوسري","وفاء السبيعي","فهد الرشيدي","أريج المطيري",
+  // موريتانيا
+  "محمد ولد أحمد","فاطمة بنت محمد","بوبكر ولد سيدي","آمنة بنت الطيب",
+  "محمدن ولد إبراهيم","خديجة بنت أحمد","الطيب ولد محمد","مريم بنت عمر",
+  "أمادو بالده","ييا ديالو","إدومو ولد محمد","حمدي ولد سالم",
+  // الجزائر
+  "يوسف بوعلام","حسيبة مداني","منير بلقاسم","صوفية حمداني",
+  "ياسين بوزيد","رشيدة بن عمر","كريم لعجال","فريدة بوشامة",
+  "زكريا طيفوري","وردة مسعودي","مصطفى بوزيان","نعيمة قاسمي",
+  "هشام بلقايد","سمية كروش","عبد القادر زاهي","دليلة حمدي",
+  // خليجيون
+  "أحمد محمد","عبدالله سالم","نورة خالد","خالد عبدالله",
+  "عمر حسن","يوسف عمر","سلطان فهد","ريم محمد",
+  "فيصل القحطاني","منى الرشيدي","راشد الدوسري","ياسر الحربي",
+  "سعود الشمراني","جواهر الحميد","بندر المالكي","أريج المطيري",
 ];
 
 const AVATAR_COLORS = [
@@ -22,21 +31,135 @@ const AVATAR_COLORS = [
   "#dc2626","#0891b2","#65a30d","#9333ea","#ea580c",
 ];
 
-const ARABIC_COMMENTS = [
-  "ماشاء الله 🔥","والله جميل جداً","أحسنت يا صديقي 👏","هذا رائع","بالتوفيق دائماً ✨",
-  "أكمل أكمل احنا معاك","اشتريت وما ندمت","ممتاز جداً","سعر معقول والجودة عالية 💯",
-  "صراحة أحسن من المتوقع","شكراً على المشاركة","تستاهل التشجيع","الله يوفقك","بالتوفيق",
-  "منتج راقي وسعره مناسب","هذا اللي كنت ادور عليه","متابع ومهتم","حلو والله",
-  "شكلك متمكن من الموضوع","الله يبارك","تمنيت أشتري من زمان","مميز جداً ✅",
-  "واو ما توقعت هذا","أفضل ما شفته اليوم","الجودة واضحة","سأتواصل معك قريباً",
-  "سبحان الله كم هو جميل","شي يستاهل","بكرة يجيني واحد مثله إن شاء الله",
-  "الله يعطيك العافية","ابداع ما شاء الله","تسلم","حلووو 😍",
-  "أنا اشتريت من عنده وما شكيت","صادق في وصف المنتج","تعامل ممتاز",
-  "سعر وجودة لا يُنافَسان","لايك من غير ما أفكر 👍","بالفعل يستحق",
-  "جربته وأنصح فيه","يبين عليه الاهتمام والدقة","من أفضل ما رأيت",
-  "ماشاء الله تبارك الله","يا هلا","شكلك شاطر","الله يوفقك ويسعدك",
-  "كثر الله من أمثالك","أكثر من رائع","ما شاء الله عليك",
+// ── Comment pools per video category ────────────────────────────────────────
+
+/** تعليقات فيديوهات المتجر والبيع — لهجة حسانية وجزائرية */
+const COMMENTS_STORE = [
+  "واجد مليح، كيفاش نتواصل؟ 🔥",
+  "والله سلعة زوينة، ربي يبارك في تجارتك",
+  "بكاش هذا؟ عجبني بزاف",
+  "كيفاش نطلب؟ السلعة واجد حلوة",
+  "قوي بزاف، من وين تجيب هذا؟",
+  "الجودة واضحة، ماشي عادي 💯",
+  "والله سعر مزيان، الله يعاونك",
+  "ربي يبارك، هذاك هو اللي نبحث عليه",
+  "شي يهبل! السعر والجودة معاً 🔥",
+  "مليح واجد، ربي يسهّل عليك",
+  "عجبني التصميم بزاف، تواصلت معك",
+  "والله ما شفت حاجة أحسن من هذا",
+  "واجد كبير المشروع، الله يوفقك",
+  "هذا اللي كنا ندوروا عليه بالضبط",
+  "ربي يزيدك وما يحوجك 🙏",
+  "الجودة واضحة والسعر يناسب، بارك الله فيك",
+  "والله صح، هذاك هو 👌",
+  "حاجة كبيرة والله، مبروك عليك",
+  "واجد حلو المنتج، ربي يبارك لك",
+  "قوي بزاف هذا 💪 الله يعاونك",
+  "ما شاء الله، المنتج واجد زوين",
+  "والله يهبل، كيفاش تتواصل معه؟",
+  "ربي يعطيك الخير يا صاحبي",
+  "هذاك المنتج اللي ندور عليه 🔥",
+  "الله يبارك، واجد مليح ومناسب",
+  "ماشي عادي هذا السعر 👍",
+  "والله من غير كلام، منتج ممتاز",
+  "سلعة من الدرجة الأولى، مبروك",
 ];
+
+/** تعليقات فيديوهات الضحك والكوميدي */
+const COMMENTS_COMEDY = [
+  "والله ضحّكتني بزاف 😂😂",
+  "هههههه واجد مضحك يا صاحبي",
+  "قلبي وجعني من الضحك 😂",
+  "والله ما توقعت هذا آخر 😂",
+  "ماشي عادي هذا الضحك 😂",
+  "بكّاني من الضحك والله 😂",
+  "مرة كملي يا راجل 😂",
+  "شي يقتل من الضحك هههه",
+  "والله راجل كوميدي من الدرجة الأولى ✅",
+  "الله يسعدك ضحّكتنا بزاف 😂",
+  "هههه وين تلقى هؤلاء الناس؟ 😂",
+  "والله ما قدرت نتوقف من الضحك",
+  "مرة شيء مضحك، الله يسعدك 😂",
+  "واجد مضحك، طلع روحه 😂",
+  "هههههه الله يجازيك بالخير 😂",
+  "ضحكت لما ما كنت ناوي 😂",
+  "والله كوميدي من الطراز الأول",
+  "شي بنادم يموت من الضحك 😂",
+  "مرة فنان واجد، الله يبارك فيك",
+  "والله صح مضحك 😂😂😂",
+  "هههه ما شفت مثل هذا من زمان",
+  "الله يسعدك، ضحكتنا الله الله 😂",
+  "مرة كوميدي، شكراً على الضحكة 😂",
+  "هههه يا ويل من يحاول يتوقف 😂",
+  "والله صادق ما توقعت هذا آخر 😂",
+];
+
+/** تعليقات ترفيه عام — لهجة حسانية وجزائرية */
+const COMMENTS_ENTERTAINMENT = [
+  "واجد زوين، ربي يبارك فيك ✨",
+  "ماشاء الله عليك، واجد حلو",
+  "مليح بزاف، الله يعطيك الصحة",
+  "والله روعة، كمّل هكذا 💪",
+  "شي يعجب والله، ربي يسعدك",
+  "قوي بزاف هذا 🔥",
+  "الله يوفقك، واجد ممتاز",
+  "والله ما شفت حاجة أحسن",
+  "ماشي عادي هذا، مبروك عليك 🔥",
+  "حاجة كبيرة والله، تسلم",
+  "هذاك هو، والله يهبل",
+  "واجد ممتاز، ربي يزيدك",
+  "الله يعطيك العافية، شي زوين",
+  "ربي يبارك فيك، واجد حلو",
+  "والله صح، هذاك المحتوى اللي نبحث عليه",
+  "شي كبير والله 💯",
+  "ماشاء الله، تبارك الله عليك",
+  "قوي واجد، كمّل ما تقف 💪",
+  "والله من غير كلام، ممتاز",
+  "مرة حلو هذا، ربي يسعدك ✨",
+  "الله الله، واجد زوين",
+  "تبارك الله، حاجة كبيرة",
+  "والله يهبل هذا المحتوى 🔥",
+  "ربي يعطيك ما تتمنى",
+  "واجد مليح، الله يبارك لك",
+  "روعة والله، هذاك هو 👏",
+  "شي نادر تلقاه هكذا، ممتاز",
+  "الله يوفقك ويسعدك دائماً ✨",
+  "مرة زوين، تسلم يدك",
+  "والله ما قصّرت، قوي بزاف",
+];
+
+// ── Category detection from video caption ───────────────────────────────────
+
+type VideoCategory = "store" | "comedy" | "entertainment";
+
+const STORE_KEYWORDS = [
+  "بيع","للبيع","متجر","منتج","سعر","ريال","دج","دينار","درهم",
+  "تواصل","اطلب","خصم","عرض","توصيل","جملة","سلعة","بضاعة",
+  "مستعمل","جديد","موديل","مقاس","لون","قطعة","حجز","شراء",
+  "يبيع","نبيع","عندي","عندنا","متاح","متوفر","stock","كمية",
+];
+
+const COMEDY_KEYWORDS = [
+  "ضحك","كوميدي","مضحك","نكتة","فكاهة","طريف","يضحك","مزح",
+  "فنان","تمثيل","ههه","هههه","😂","🤣","خرافة","واجد فكيه",
+  "كلاكيت","سكيت","sketch","comedy","تياترو",
+];
+
+function detectCategory(caption: string | null | undefined): VideoCategory {
+  if (!caption) return "entertainment";
+  const t = caption.toLowerCase();
+  if (STORE_KEYWORDS.some(w => t.includes(w))) return "store";
+  if (COMEDY_KEYWORDS.some(w => t.includes(w))) return "comedy";
+  return "entertainment";
+}
+
+function getCommentPool(category: VideoCategory): string[] {
+  if (category === "store") return COMMENTS_STORE;
+  if (category === "comedy") return COMMENTS_COMEDY;
+  return COMMENTS_ENTERTAINMENT;
+}
+
+// ── Core math helpers ────────────────────────────────────────────────────────
 
 function hashId(id: string): number {
   let h = 5381;
@@ -59,6 +182,8 @@ function growth(createdAt: Date): number {
   const ageHours = (Date.now() - new Date(createdAt).getTime()) / 3_600_000;
   return 0.5 + 0.5 * (1 - Math.exp(-ageHours / 6));
 }
+
+// ── Engagement boosts ────────────────────────────────────────────────────────
 
 /**
  * Story boost:
@@ -95,6 +220,8 @@ export function contentBoost(id: string, createdAt: Date) {
   };
 }
 
+// ── Fake user list builder ───────────────────────────────────────────────────
+
 /** Generate N deterministic fake users from a seeded PRNG state */
 function buildFakeUsers(count: number, seed0: number, createdAt: Date) {
   const users: { id: string; name: string; avatar: string; color: string }[] = [];
@@ -127,10 +254,11 @@ function buildFakeUsers(count: number, seed0: number, createdAt: Date) {
   return users;
 }
 
+// ── Public fake list functions ───────────────────────────────────────────────
+
 /**
  * Returns fake viewer list for a story.
  * Count is capped at min(viewBoost, 50) so the panel doesn't overflow.
- * Timestamps are spread backwards from "now" across the story's life.
  */
 export function fakeStoryViewers(
   id: string,
@@ -156,44 +284,6 @@ export function fakeStoryViewers(
   }));
 
   return [...realViewers, ...fakeEntries];
-}
-
-/**
- * Returns fake comment list for a video.
- * Caps display at 30 comments even if commentBoost is higher.
- */
-export function fakeVideoComments(
-  id: string,
-  createdAt: Date,
-  realComments: { id: string; text: string; createdAt: Date | string; userId: string; userName: string; userAvatar: string | null; userRole: string }[],
-) {
-  const boost = contentBoost(id, createdAt);
-  const fakeCount = Math.max(0, boost.commentBoost - realComments.length);
-  const displayCount = Math.min(fakeCount, 30);
-  if (displayCount === 0) return realComments;
-
-  const s0 = (hashId(id) ^ 0x1357cafe) >>> 0;
-  const fakeUsers = buildFakeUsers(displayCount, s0, createdAt);
-  const postTime = new Date(createdAt).getTime();
-  const span = Date.now() - postTime;
-
-  let commentSeed = s0;
-  const fakeEntries = fakeUsers.map((u, i) => {
-    const rc = lcgRand(commentSeed);
-    commentSeed = rc.next;
-    const commentIdx = Math.floor(rc.val * ARABIC_COMMENTS.length) % ARABIC_COMMENTS.length;
-    return {
-      id: `fake-c-${s0}-${i}`,
-      text: ARABIC_COMMENTS[commentIdx]!,
-      createdAt: new Date(Date.now() - Math.round((i / displayCount) * span * 0.85)).toISOString(),
-      userId: u.id,
-      userName: u.name,
-      userAvatar: u.avatar,
-      userRole: "user",
-    };
-  });
-
-  return [...fakeEntries, ...realComments];
 }
 
 /**
@@ -224,4 +314,49 @@ export function fakeStoryLikers(
   }));
 
   return [...realLikers, ...fakeEntries];
+}
+
+/**
+ * Returns smart fake comments for a video.
+ * - Detects video type (store / comedy / entertainment) from caption keywords
+ * - Uses the matching Hassaniya+Algerian comment pool
+ * - Caps display at 30 comments
+ * - Comments are deterministic: same video → same comments every time
+ */
+export function fakeVideoComments(
+  id: string,
+  createdAt: Date,
+  caption: string | null | undefined,
+  realComments: { id: string; text: string; createdAt: Date | string; userId: string; userName: string; userAvatar: string | null; userRole: string }[],
+) {
+  const boost = contentBoost(id, createdAt);
+  const fakeCount = Math.max(0, boost.commentBoost - realComments.length);
+  const displayCount = Math.min(fakeCount, 30);
+  if (displayCount === 0) return realComments;
+
+  const category = detectCategory(caption);
+  const pool = getCommentPool(category);
+
+  const s0 = (hashId(id) ^ 0x1357cafe) >>> 0;
+  const fakeUsers = buildFakeUsers(displayCount, s0, createdAt);
+  const postTime = new Date(createdAt).getTime();
+  const span = Date.now() - postTime;
+
+  let commentSeed = s0;
+  const fakeEntries = fakeUsers.map((u, i) => {
+    const rc = lcgRand(commentSeed);
+    commentSeed = rc.next;
+    const commentIdx = Math.floor(rc.val * pool.length) % pool.length;
+    return {
+      id: `fake-c-${s0}-${i}`,
+      text: pool[commentIdx]!,
+      createdAt: new Date(Date.now() - Math.round((i / displayCount) * span * 0.85)).toISOString(),
+      userId: u.id,
+      userName: u.name,
+      userAvatar: u.avatar,
+      userRole: "user",
+    };
+  });
+
+  return [...fakeEntries, ...realComments];
 }
