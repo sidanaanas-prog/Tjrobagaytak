@@ -42,7 +42,7 @@ export default function AddContentPage() {
 
   useEffect(() => {
     if (!token || !user?.id) return;
-    fetch(`${BASE}/api/products?sellerId=${user.id}&status=approved&limit=50`, {
+    fetch(`${BASE}/api/products?sellerId=${user.id}&status=active&limit=50`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())

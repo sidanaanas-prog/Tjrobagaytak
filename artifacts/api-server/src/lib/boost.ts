@@ -317,6 +317,30 @@ function buildFakeUsers(count: number, seed0: number, createdAt: Date) {
   return users;
 }
 
+// ── Fake notification comments picker ───────────────────────────────────────
+
+/**
+ * يختار N تعليق وهمي من pool المناسبة للـ caption لإرسالها كإشعارات.
+ * النتيجة عشوائية حقيقية (Math.random) لتبدو مختلفة في كل مرة.
+ */
+export function pickFakeNotificationComments(
+  _videoId: string,
+  caption: string | null | undefined,
+  count: number,
+): { text: string; userName: string }[] {
+  const pool = getCommentPool(detectCategory(caption));
+  const names = [...ARABIC_NAMES].sort(() => Math.random() - 0.5);
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  const results: { text: string; userName: string }[] = [];
+  for (let i = 0; i < Math.min(count, pool.length); i++) {
+    results.push({
+      text: shuffled[i % shuffled.length]!,
+      userName: names[i % names.length]!,
+    });
+  }
+  return results;
+}
+
 // ── Public fake list functions ───────────────────────────────────────────────
 
 /**

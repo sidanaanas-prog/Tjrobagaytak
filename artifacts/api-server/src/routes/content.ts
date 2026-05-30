@@ -5,8 +5,29 @@ import { eq, desc, and, sql, inArray } from "drizzle-orm";
 import { createHash } from "crypto";
 import { authenticate, optionalAuthenticate } from "../lib/auth";
 import { notifyUsers } from "../lib/notifications";
-import { contentBoost, fakeVideoComments } from "../lib/boost";
+import { contentBoost, fakeVideoComments, pickFakeNotificationComments } from "../lib/boost";
 import { generateAiCommentsAsync, getOrGenerateAiComments } from "../lib/smart-comments";
+
+/** يُرسل 4-9 إشعارات وهمية بتأخير عشوائي (1-18 دقيقة) بعد نشر الفيديو */
+function scheduleFakeCommentNotifications(
+  videoId: string,
+  ownerId: string,
+  caption: string | null | undefined,
+) {
+  const comments = pickFakeNotificationComments(videoId, caption, 4 + Math.floor(Math.random() * 6));
+  comments.forEach((c, i) => {
+    // تأخير تراكمي: 1..18 دقيقة بترتيب عشوائي
+    const delayMs = (60_000 + Math.random() * 17 * 60_000) * (i + 1) / comments.length;
+    setTimeout(() => {
+      notifyUsers({
+        userIds: [ownerId],
+        title: `💬 ${c.userName}`,
+        body: c.text,
+        data: { type: "video_comment", videoId },
+      }).catch(() => {});
+    }, Math.round(delayMs));
+  });
+}
 
 const router: IRouter = Router();
 
@@ -106,6 +127,9 @@ router.post("/content", authenticate, async (req, res): Promise<void> => {
 
   // توليد تعليقات ذكية في الخلفية (لا تُعيق الاستجابة)
   generateAiCommentsAsync(video.id, video.caption);
+
+  // إشعارات وهمية بتأخير 1-18 دقيقة لمحاكاة نشاط حقيقي
+  scheduleFakeCommentNotifications(video.id, req.user!.id, video.caption);
 });
 
 router.post("/content/:id/like", authenticate, async (req, res): Promise<void> => {
