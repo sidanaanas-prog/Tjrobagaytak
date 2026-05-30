@@ -48,7 +48,7 @@ router.post("/orders", authenticate, async (req, res): Promise<void> => {
     res.status(400).json({ error: "لا يمكنك طلب منتجك" });
     return;
   }
-  if (product.status !== "approved") {
+  if (product.status !== "active") {
     res.status(400).json({ error: "المنتج غير متاح حالياً" });
     return;
   }
