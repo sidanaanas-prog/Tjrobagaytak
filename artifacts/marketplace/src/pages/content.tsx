@@ -146,8 +146,14 @@ function CommentsDrawer({
               {!loading && comments.length === 0 && (
                 <p className="text-center text-white/40 text-sm py-8">لا توجد تعليقات بعد — كن أول من يعلّق!</p>
               )}
-              {comments.map((c) => (
-                <div key={c.id} className="flex items-start gap-3">
+              {comments.map((c, i) => (
+                <motion.div
+                  key={c.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.04, duration: 0.22, ease: "easeOut" }}
+                  className="flex items-start gap-3"
+                >
                   <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0 overflow-hidden">
                     {c.userAvatar
                       ? <img src={c.userAvatar} className="w-full h-full object-cover" alt={c.userName} />
@@ -165,7 +171,7 @@ function CommentsDrawer({
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   )}
-                </div>
+                </motion.div>
               ))}
             </div>
 

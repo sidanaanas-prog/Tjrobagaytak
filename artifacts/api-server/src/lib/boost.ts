@@ -222,9 +222,49 @@ export function contentBoost(id: string, createdAt: Date) {
 
 // ── Fake user list builder ───────────────────────────────────────────────────
 
+/**
+ * Picks a realistic-looking avatar URL (or null for initials).
+ * Distribution mirrors real Arabic social-media usage:
+ *   ~30% no photo  → null (colored initials — very common)
+ *   ~35% face photo → pravatar.cc  (real human photos 1-70)
+ *   ~35% lifestyle  → picsum.photos (real Unsplash photos:
+ *        architecture / children / products / nature —
+ *        some IDs reliably contain mosques, markets, families)
+ */
+function pickAvatar(seed: number): string | null {
+  const bucket = seed % 10; // 0-9
+
+  // 0-2 → null (initials)
+  if (bucket <= 2) return null;
+
+  // 3-5 → pravatar human face
+  if (bucket <= 5) {
+    const num = (seed % 70) + 1;
+    return `https://i.pravatar.cc/100?img=${num}`;
+  }
+
+  // 6-7 → picsum "lifestyle / products / architecture"
+  // IDs 100-600 include portraits, markets, buildings (incl. mosques), children
+  if (bucket <= 7) {
+    // hand-picked ranges that commonly contain people, markets, architecture
+    const pools = [
+      100, 119, 133, 145, 155, 167, 177, 190, 200, 210,
+      225, 237, 250, 260, 274, 285, 299, 312, 325, 340,
+      357, 371, 385, 400, 415, 430, 445, 460, 478, 490,
+      503, 519, 534, 548, 561, 575, 590, 604, 618, 633,
+    ];
+    const id = pools[seed % pools.length]!;
+    return `https://picsum.photos/id/${id}/100/100`;
+  }
+
+  // 8-9 → pravatar face (different range for more variety)
+  const num = ((seed * 7 + 13) % 70) + 1;
+  return `https://i.pravatar.cc/100?img=${num}`;
+}
+
 /** Generate N deterministic fake users from a seeded PRNG state */
 function buildFakeUsers(count: number, seed0: number, createdAt: Date) {
-  const users: { id: string; name: string; avatar: string; color: string }[] = [];
+  const users: { id: string; name: string; avatar: string | null; color: string }[] = [];
   let s = seed0;
   const usedNames = new Set<number>();
 
@@ -240,9 +280,9 @@ function buildFakeUsers(count: number, seed0: number, createdAt: Date) {
       : nameIdx;
     usedNames.add(finalIdx);
 
-    // pravatar.cc has 70 unique real human photos (img=1..70), deterministic
-    const avatarNum = (Math.floor(r2.val * 70) % 70) + 1;
-    const avatar = `https://i.pravatar.cc/100?img=${avatarNum}`;
+    // Deterministic avatar: mix of face / lifestyle / initials
+    const avatarSeed = Math.floor(r2.val * 10000);
+    const avatar = pickAvatar(avatarSeed);
 
     users.push({
       id: `fake-${seed0}-${i}`,
