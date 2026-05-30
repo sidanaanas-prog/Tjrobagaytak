@@ -5,6 +5,7 @@ import { eq, desc, and, sql, inArray } from "drizzle-orm";
 import { createHash } from "crypto";
 import { authenticate, optionalAuthenticate } from "../lib/auth";
 import { sendNotification } from "../lib/notifications";
+import { contentBoost } from "../lib/boost";
 
 const router: IRouter = Router();
 
@@ -48,7 +49,16 @@ router.get("/content", optionalAuthenticate, async (req, res): Promise<void> => 
     likedIds = new Set(likes.map((l) => l.videoId));
   }
 
-  res.json(videos.map((v) => ({ ...v, likedByMe: likedIds.has(v.id) })));
+  res.json(videos.map((v) => {
+    const boost = contentBoost(v.id, v.createdAt as Date);
+    return {
+      ...v,
+      likedByMe: likedIds.has(v.id),
+      viewsCount: (v.viewsCount ?? 0) + boost.viewBoost,
+      likesCount: (v.likesCount ?? 0) + boost.likeBoost,
+      commentsCount: boost.commentBoost,
+    };
+  }));
 });
 
 router.post("/content", authenticate, async (req, res): Promise<void> => {

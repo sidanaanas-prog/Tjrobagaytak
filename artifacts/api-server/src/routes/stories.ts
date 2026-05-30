@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { db, storiesTable, usersTable, storyViewsTable, storyLikesTable } from "@workspace/db";
 import { eq, gt, and, desc, sql, inArray } from "drizzle-orm";
 import { authenticate, optionalAuthenticate } from "../lib/auth";
+import { storyBoost } from "../lib/boost";
 
 const router: IRouter = Router();
 
@@ -75,13 +76,16 @@ router.get("/stories", optionalAuthenticate, async (req, res): Promise<void> => 
   const viewMap = Object.fromEntries(viewData.map((v) => [v.storyId, v]));
   const likeMap = Object.fromEntries(likeData.map((v) => [v.storyId, v]));
 
-  const storiesWithMeta = stories.map((s) => ({
-    ...s,
-    viewCount: viewMap[s.id]?.viewCount ?? 0,
-    viewedByMe: viewMap[s.id]?.viewedByMe ?? false,
-    likeCount: likeMap[s.id]?.likeCount ?? 0,
-    likedByMe: likeMap[s.id]?.likedByMe ?? false,
-  }));
+  const storiesWithMeta = stories.map((s) => {
+    const boost = storyBoost(s.id, s.createdAt as Date);
+    return {
+      ...s,
+      viewCount: (viewMap[s.id]?.viewCount ?? 0) + boost.viewBoost,
+      viewedByMe: viewMap[s.id]?.viewedByMe ?? false,
+      likeCount: (likeMap[s.id]?.likeCount ?? 0) + boost.likeBoost,
+      likedByMe: likeMap[s.id]?.likedByMe ?? false,
+    };
+  });
 
   const grouped = storiesWithMeta.reduce<
     Record<string, {
