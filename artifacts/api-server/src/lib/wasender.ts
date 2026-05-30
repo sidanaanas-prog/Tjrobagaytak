@@ -18,7 +18,7 @@ export async function sendOtp(phone: string): Promise<{ success: boolean; error?
   const now = Date.now();
 
   // تحقق من cooldown من DB
-  const [existing] = await db.select().from(phoneOtpsTable).where(eq(phoneOtpsTable.phone, phone));
+  const [existing] = (await db.select().from(phoneOtpsTable).where(eq(phoneOtpsTable.phone, phone))) ?? [];
   if (existing && now - existing.sentAt.getTime() < OTP_RESEND_COOLDOWN_MS) {
     if (IS_DEV) {
       return { success: true, code: existing.code };
@@ -78,7 +78,7 @@ export async function sendOtp(phone: string): Promise<{ success: boolean; error?
 }
 
 export async function verifyOtp(phone: string, code: string): Promise<{ valid: boolean; error?: string }> {
-  const [entry] = await db.select().from(phoneOtpsTable).where(eq(phoneOtpsTable.phone, phone));
+  const [entry] = (await db.select().from(phoneOtpsTable).where(eq(phoneOtpsTable.phone, phone))) ?? [];
 
   if (!entry) {
     return { valid: false, error: "لم يتم إرسال رمز لهذا الرقم" };

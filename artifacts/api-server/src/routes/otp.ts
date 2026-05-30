@@ -52,98 +52,107 @@ function needsName(user: typeof usersTable.$inferSelect | undefined): boolean {
 }
 
 router.post("/auth/otp/send", async (req, res): Promise<void> => {
-  const { phone } = req.body;
-  if (!phone) {
-    res.status(400).json({ error: "رقم الهاتف مطلوب" });
-    return;
+  try {
+    const { phone } = req.body;
+    if (!phone) {
+      res.status(400).json({ error: "رقم الهاتف مطلوب" });
+      return;
+    }
+
+    const normalized = normalizePhone(phone);
+    const result = await unifiedSendOtp(normalized);
+
+    if (!result.success) {
+      res.status(400).json({ error: result.error || "فشل إرسال الرمز" });
+      return;
+    }
+
+    const [existing] = (await db.select().from(usersTable).where(eq(usersTable.phone, normalized))) ?? [];
+
+    const devCode = isDev ? result.code : undefined;
+
+    res.json({
+      success: true,
+      isNewUser: needsName(existing),
+      ...(devCode ? { devCode } : {}),
+    });
+  } catch (e) {
+    req.log.error({ err: e }, "otp/send error");
+    res.status(500).json({ error: "حدث خطأ، حاول مجدداً" });
   }
-
-  const normalized = normalizePhone(phone);
-  const result = await unifiedSendOtp(normalized);
-
-  if (!result.success) {
-    res.status(400).json({ error: result.error || "فشل إرسال الرمز" });
-    return;
-  }
-
-  const [existing] = await db.select().from(usersTable).where(eq(usersTable.phone, normalized));
-
-  // وضع التطوير: أرجع الكود مباشرة على الشاشة
-  const devCode = isDev ? result.code : undefined;
-
-  res.json({
-    success: true,
-    isNewUser: needsName(existing),
-    ...(devCode ? { devCode } : {}),
-  });
 });
 
 router.post("/auth/otp/verify", async (req, res): Promise<void> => {
-  const { phone, code, name } = req.body;
-  if (!phone || !code) {
-    res.status(400).json({ error: "رقم الهاتف والرمز مطلوبان" });
-    return;
-  }
+  try {
+    const { phone, code, name } = req.body;
+    if (!phone || !code) {
+      res.status(400).json({ error: "رقم الهاتف والرمز مطلوبان" });
+      return;
+    }
 
-  const normalized = normalizePhone(phone);
-  const result = await unifiedVerifyOtp(normalized, code);
+    const normalized = normalizePhone(phone);
+    const result = await unifiedVerifyOtp(normalized, code);
 
-  if (!result.valid) {
-    res.status(400).json({ error: result.error || "الرمز غير صحيح أو منتهي الصلاحية" });
-    return;
-  }
+    if (!result.valid) {
+      res.status(400).json({ error: result.error || "الرمز غير صحيح أو منتهي الصلاحية" });
+      return;
+    }
 
-  let [user] = await db.select().from(usersTable).where(eq(usersTable.phone, normalized));
-  const userName = name?.trim() || DEFAULT_NAME;
+    let [user] = (await db.select().from(usersTable).where(eq(usersTable.phone, normalized))) ?? [];
+    const userName = name?.trim() || DEFAULT_NAME;
 
-  if (!user) {
-    const id = randomUUID();
-    const [created] = await db.insert(usersTable).values({
-      id,
-      name: userName,
-      phone: normalized,
-      email: `${id}@gaytak.phone`,
-      passwordHash: randomUUID(),
-      role: "user",
-      banned: false,
-    }).returning();
-    user = created;
+    if (!user) {
+      const id = randomUUID();
+      const [created] = await db.insert(usersTable).values({
+        id,
+        name: userName,
+        phone: normalized,
+        email: `${id}@gaytak.phone`,
+        passwordHash: randomUUID(),
+        role: "user",
+        banned: false,
+      }).returning();
+      user = created;
 
-    await db.insert(activityTable).values({
-      id: randomUUID(),
-      type: "user_registered",
-      description: `${userName} انضم عبر رقم الهاتف`,
-      userId: user.id,
-      userName: user.name,
+      await db.insert(activityTable).values({
+        id: randomUUID(),
+        type: "user_registered",
+        description: `${userName} انضم عبر رقم الهاتف`,
+        userId: user.id,
+        userName: user.name,
+      });
+    } else if (needsName(user) && name?.trim()) {
+      const [updated] = await db
+        .update(usersTable)
+        .set({ name: name.trim() })
+        .where(eq(usersTable.id, user.id))
+        .returning();
+      user = updated;
+    }
+
+    if (user.banned) {
+      res.status(401).json({ error: "الحساب موقوف" });
+      return;
+    }
+
+    const token = signToken({ userId: user.id, role: user.role });
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        phone: user.phone,
+        email: user.email,
+        avatar: user.avatar,
+        role: user.role,
+        banned: user.banned,
+        createdAt: user.createdAt.toISOString(),
+      },
     });
-  } else if (needsName(user) && name?.trim()) {
-    const [updated] = await db
-      .update(usersTable)
-      .set({ name: name.trim() })
-      .where(eq(usersTable.id, user.id))
-      .returning();
-    user = updated;
+  } catch (e) {
+    req.log.error({ err: e }, "otp/verify error");
+    res.status(500).json({ error: "حدث خطأ، حاول مجدداً" });
   }
-
-  if (user.banned) {
-    res.status(401).json({ error: "الحساب موقوف" });
-    return;
-  }
-
-  const token = signToken({ userId: user.id, role: user.role });
-  res.json({
-    token,
-    user: {
-      id: user.id,
-      name: user.name,
-      phone: user.phone,
-      email: user.email,
-      avatar: user.avatar,
-      role: user.role,
-      banned: user.banned,
-      createdAt: user.createdAt.toISOString(),
-    },
-  });
 });
 
 export default router;
