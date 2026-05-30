@@ -5,7 +5,7 @@ import { eq, desc, and, sql, inArray } from "drizzle-orm";
 import { createHash } from "crypto";
 import { authenticate, optionalAuthenticate } from "../lib/auth";
 import { sendNotification } from "../lib/notifications";
-import { contentBoost } from "../lib/boost";
+import { contentBoost, fakeVideoComments } from "../lib/boost";
 
 const router: IRouter = Router();
 
@@ -193,7 +193,15 @@ router.get("/content/:id/comments", async (req, res): Promise<void> => {
     .where(eq(contentCommentsTable.videoId, id as string))
     .orderBy(desc(contentCommentsTable.createdAt))
     .limit(50);
-  res.json(rows);
+
+  const [video] = await db
+    .select({ createdAt: contentVideosTable.createdAt })
+    .from(contentVideosTable)
+    .where(eq(contentVideosTable.id, id as string));
+
+  if (!video) { res.json(rows); return; }
+
+  res.json(fakeVideoComments(id as string, video.createdAt as Date, rows as any[]));
 });
 
 router.post("/content/:id/comments", authenticate, async (req, res): Promise<void> => {

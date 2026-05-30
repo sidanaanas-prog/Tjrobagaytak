@@ -22,6 +22,22 @@ const AVATAR_COLORS = [
   "#dc2626","#0891b2","#65a30d","#9333ea","#ea580c",
 ];
 
+const ARABIC_COMMENTS = [
+  "ماشاء الله 🔥","والله جميل جداً","أحسنت يا صديقي 👏","هذا رائع","بالتوفيق دائماً ✨",
+  "أكمل أكمل احنا معاك","اشتريت وما ندمت","ممتاز جداً","سعر معقول والجودة عالية 💯",
+  "صراحة أحسن من المتوقع","شكراً على المشاركة","تستاهل التشجيع","الله يوفقك","بالتوفيق",
+  "منتج راقي وسعره مناسب","هذا اللي كنت ادور عليه","متابع ومهتم","حلو والله",
+  "شكلك متمكن من الموضوع","الله يبارك","تمنيت أشتري من زمان","مميز جداً ✅",
+  "واو ما توقعت هذا","أفضل ما شفته اليوم","الجودة واضحة","سأتواصل معك قريباً",
+  "سبحان الله كم هو جميل","شي يستاهل","بكرة يجيني واحد مثله إن شاء الله",
+  "الله يعطيك العافية","ابداع ما شاء الله","تسلم","حلووو 😍",
+  "أنا اشتريت من عنده وما شكيت","صادق في وصف المنتج","تعامل ممتاز",
+  "سعر وجودة لا يُنافَسان","لايك من غير ما أفكر 👍","بالفعل يستحق",
+  "جربته وأنصح فيه","يبين عليه الاهتمام والدقة","من أفضل ما رأيت",
+  "ماشاء الله تبارك الله","يا هلا","شكلك شاطر","الله يوفقك ويسعدك",
+  "كثر الله من أمثالك","أكثر من رائع","ما شاء الله عليك",
+];
+
 function hashId(id: string): number {
   let h = 5381;
   for (let i = 0; i < id.length; i++) {
@@ -139,6 +155,44 @@ export function fakeStoryViewers(
   }));
 
   return [...realViewers, ...fakeEntries];
+}
+
+/**
+ * Returns fake comment list for a video.
+ * Caps display at 30 comments even if commentBoost is higher.
+ */
+export function fakeVideoComments(
+  id: string,
+  createdAt: Date,
+  realComments: { id: string; text: string; createdAt: Date | string; userId: string; userName: string; userAvatar: string | null; userRole: string }[],
+) {
+  const boost = contentBoost(id, createdAt);
+  const fakeCount = Math.max(0, boost.commentBoost - realComments.length);
+  const displayCount = Math.min(fakeCount, 30);
+  if (displayCount === 0) return realComments;
+
+  const s0 = (hashId(id) ^ 0x1357cafe) >>> 0;
+  const fakeUsers = buildFakeUsers(displayCount, s0, createdAt);
+  const postTime = new Date(createdAt).getTime();
+  const span = Date.now() - postTime;
+
+  let commentSeed = s0;
+  const fakeEntries = fakeUsers.map((u, i) => {
+    const rc = lcgRand(commentSeed);
+    commentSeed = rc.next;
+    const commentIdx = Math.floor(rc.val * ARABIC_COMMENTS.length) % ARABIC_COMMENTS.length;
+    return {
+      id: `fake-c-${s0}-${i}`,
+      text: ARABIC_COMMENTS[commentIdx]!,
+      createdAt: new Date(Date.now() - Math.round((i / displayCount) * span * 0.85)).toISOString(),
+      userId: u.id,
+      userName: u.name,
+      userAvatar: u.avatar,
+      userRole: "user",
+    };
+  });
+
+  return [...fakeEntries, ...realComments];
 }
 
 /**
