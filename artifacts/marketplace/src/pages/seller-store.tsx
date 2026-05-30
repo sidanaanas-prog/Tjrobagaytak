@@ -34,6 +34,7 @@ export default function SellerStorePage() {
   const [following, setFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const [followLoading, setFollowLoading] = useState(false);
+  const [hasOrder, setHasOrder] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -45,6 +46,18 @@ export default function SellerStorePage() {
     const token = getMemToken();
     fetch(`${BASE}/api/follows/check?sellerId=${id}`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json()).then((d) => setFollowing(d.following)).catch(() => {});
+  }, [user, id]);
+
+  useEffect(() => {
+    if (!user || !id) return;
+    const token = getMemToken();
+    fetch(`${BASE}/api/orders?role=buyer`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((orders: any[]) => {
+        const found = Array.isArray(orders) && orders.some((o) => o.seller?.id === id || o.sellerId === id);
+        setHasOrder(found);
+      })
+      .catch(() => {});
   }, [user, id]);
 
   async function toggleFollow() {
@@ -193,14 +206,16 @@ export default function SellerStorePage() {
             animate={{ opacity: 1, y: 0 }}
             className="px-5 mt-4 flex gap-2"
           >
-            <button
-              onClick={handleContact}
-              disabled={createConversation.isPending}
-              className="flex-1 h-11 bg-primary/15 border border-primary/30 text-primary text-sm font-bold rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform"
-            >
-              <MessageSquare className="w-4 h-4" />
-              دردشة
-            </button>
+            {hasOrder && (
+              <button
+                onClick={handleContact}
+                disabled={createConversation.isPending}
+                className="flex-1 h-11 bg-primary/15 border border-primary/30 text-primary text-sm font-bold rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform"
+              >
+                <MessageSquare className="w-4 h-4" />
+                دردشة
+              </button>
+            )}
             <button
               onClick={() => document.getElementById('products-section')?.scrollIntoView({ behavior: 'smooth' })}
               className="flex-1 h-11 bg-primary text-white text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(168,85,247,0.4)] active:scale-95 transition-transform"

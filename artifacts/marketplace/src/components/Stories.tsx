@@ -397,18 +397,6 @@ function StoryViewer({ groups, startGroupIndex, onClose, currentUserId, onLikeTo
                 </>
               )}
 
-              {/* Contact button */}
-              {!isMyStory && (
-                <motion.button
-                  whileTap={{ scale: 0.96 }}
-                  onClick={(e) => { e.stopPropagation(); handleContact(); }}
-                  disabled={messaging}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/15 backdrop-blur-md border border-white/20 text-white font-bold text-sm"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  {messaging ? "جاري الفتح..." : `راسل ${group.userName.split(" ")[0]}`}
-                </motion.button>
-              )}
             </div>
           </div>
         )}
