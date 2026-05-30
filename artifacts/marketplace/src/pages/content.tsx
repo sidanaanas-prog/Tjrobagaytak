@@ -572,7 +572,7 @@ function VideoCard({
             className="absolute bottom-[152px] right-2 left-14 z-20"
           >
             <Link
-              href={`/product/${video.productId}`}
+              href={`/products/${video.productId}`}
               onClick={(e) => e.stopPropagation()}
             >
               <motion.div
