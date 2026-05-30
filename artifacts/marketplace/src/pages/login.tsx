@@ -9,9 +9,12 @@ import { getApiUrl } from "@/lib/api-url";
 const BASE = getApiUrl("");
 
 /**
- * Fetch JSON from the API — detects Render cold-start HTML responses and
- * retries automatically up to `maxRetries` times with a 6-second gap.
- * Throws a user-friendly Arabic error if all retries fail.
+ * Fetch JSON from the API.
+ * On Render.com free tier: the server sleeps after 15 min inactivity and
+ * returns an HTML "starting…" page (status 503/200). In that case we retry
+ * up to `maxRetries` times with a 6-second gap and show the waking banner.
+ * For all other hosts (local dev, custom domains) we never retry — we just
+ * return the JSON or throw a plain error.
  */
 async function apiFetch(
   url: string,
@@ -19,6 +22,8 @@ async function apiFetch(
   onWaking?: (waking: boolean) => void,
   maxRetries = 4,
 ): Promise<{ res: Response; data: any }> {
+  const isRender = url.includes("onrender.com");
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     let res: Response;
     try {
@@ -28,16 +33,22 @@ async function apiFetch(
     }
 
     const ct = res.headers.get("content-type") ?? "";
-    if (!ct.includes("application/json")) {
-      if (attempt < maxRetries) {
-        onWaking?.(true);
-        await new Promise(r => setTimeout(r, 6000));
-        continue;
-      }
-      throw new Error("الخادم في طور الاستعداد، أعد المحاولة بعد لحظة 🔄");
+    const isJson = ct.includes("application/json");
+
+    // Cold-start detection: only on Render.com URLs that return non-JSON
+    if (!isJson && isRender && attempt < maxRetries) {
+      onWaking?.(true);
+      await new Promise(r => setTimeout(r, 6000));
+      continue;
     }
 
     onWaking?.(false);
+
+    // Not JSON and not a Render cold-start → real error, don't retry
+    if (!isJson) {
+      throw new Error("حدث خطأ في الاتصال بالخادم");
+    }
+
     const data = await res.json();
     return { res, data };
   }
