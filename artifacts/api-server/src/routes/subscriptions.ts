@@ -3,7 +3,7 @@ import { db, subscriptionsTable, usersTable, activityTable } from "@workspace/db
 import { eq, desc, and, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { authenticate, requireAdmin } from "../lib/auth";
-import { sendNotification } from "../lib/notifications";
+import { notifyUsers } from "../lib/notifications";
 
 const router: IRouter = Router();
 
@@ -100,12 +100,12 @@ router.post("/subscriptions", authenticate, async (req, res): Promise<void> => {
     });
 
     try {
-      const [admin] = (await db.select({ pushToken: usersTable.pushToken })
+      const [admin] = (await db.select({ id: usersTable.id })
         .from(usersTable)
         .where(eq(usersTable.email, "admin@gaytak.com"))) ?? [];
-      if (admin?.pushToken) {
-        await sendNotification({
-          fcmToken: admin.pushToken,
+      if (admin?.id) {
+        await notifyUsers({
+          userIds: [admin.id],
           title: "طلب اشتراك جديد 💳",
           body: `${user?.name ?? "مستخدم"} يطلب الاشتراك (${planInfo.label}) — ${paymentMethod === "ccp" ? "دفع CCP" : "دفع نقدي"}`,
           data: { type: "subscription_request", subscriptionId: id },
@@ -190,16 +190,14 @@ router.patch("/admin/subscriptions/:id/approve", authenticate, requireAdmin, asy
     });
 
     try {
-      const [user] = (await db.select({ pushToken: usersTable.pushToken, name: usersTable.name })
+      const [user] = (await db.select({ name: usersTable.name })
         .from(usersTable).where(eq(usersTable.id, sub.userId))) ?? [];
-      if (user?.pushToken) {
-        await sendNotification({
-          fcmToken: user.pushToken,
-          title: "تم قبول اشتراكك! 🎉",
-          body: `مبروك ${user.name}! حسابك موثّق الآن ويمكنك نشر منتجاتك وفيديوهاتك`,
-          data: { type: "subscription_approved" },
-        });
-      }
+      await notifyUsers({
+        userIds: [sub.userId],
+        title: "🎉 تهانينا! حسابك موثّق الآن",
+        body: `مبروك ${user?.name ?? ""}! اشتراكك تم قبوله — شارة التوثيق ✅ ستظهر على جميع منتجاتك ومحتواك. ابدأ البيع الآن!`,
+        data: { type: "subscription_approved" },
+      });
     } catch {}
 
     res.json({ success: true, expiresAt });
@@ -225,16 +223,12 @@ router.patch("/admin/subscriptions/:id/reject", authenticate, requireAdmin, asyn
       .where(eq(subscriptionsTable.id, subId));
 
     try {
-      const [user] = (await db.select({ pushToken: usersTable.pushToken, name: usersTable.name })
-        .from(usersTable).where(eq(usersTable.id, sub.userId))) ?? [];
-      if (user?.pushToken) {
-        await sendNotification({
-          fcmToken: user.pushToken,
-          title: "تحديث طلب اشتراكك",
-          body: "للأسف لم يتم قبول طلب اشتراكك. يمكنك التواصل مع الدعم لمزيد من التفاصيل.",
-          data: { type: "subscription_rejected" },
-        });
-      }
+      await notifyUsers({
+        userIds: [sub.userId],
+        title: "تحديث طلب اشتراكك",
+        body: "للأسف لم يتم قبول طلب اشتراكك. يمكنك التواصل مع الدعم لمزيد من التفاصيل.",
+        data: { type: "subscription_rejected" },
+      });
     } catch {}
 
     res.json({ success: true });

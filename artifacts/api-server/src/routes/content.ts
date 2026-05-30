@@ -4,7 +4,7 @@ import { db, contentVideosTable, contentLikesTable, contentCommentsTable, conten
 import { eq, desc, and, sql, inArray } from "drizzle-orm";
 import { createHash } from "crypto";
 import { authenticate, optionalAuthenticate } from "../lib/auth";
-import { sendNotification } from "../lib/notifications";
+import { notifyUsers } from "../lib/notifications";
 import { contentBoost, fakeVideoComments } from "../lib/boost";
 
 const router: IRouter = Router();
@@ -112,15 +112,12 @@ router.post("/content/:id/like", authenticate, async (req, res): Promise<void> =
     // إشعار لصاحب الفيديو (إذا لم يكن هو نفسه)
     if (video.userId !== userId) {
       const [liker] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, userId));
-      const [owner] = await db.select({ pushToken: usersTable.pushToken }).from(usersTable).where(eq(usersTable.id, video.userId));
-      if (owner?.pushToken) {
-        sendNotification({
-          fcmToken: owner.pushToken,
-          title: "❤️ إعجاب جديد",
-          body: `${liker?.name ?? "مستخدم"} أعجب بفيديوك`,
-          data: { type: "video_like", videoId: id as string },
-        }).catch(() => {});
-      }
+      notifyUsers({
+        userIds: [video.userId],
+        title: "❤️ إعجاب جديد",
+        body: `${liker?.name ?? "مستخدم"} أعجب بفيديوك`,
+        data: { type: "video_like", videoId: id as string },
+      }).catch(() => {});
     }
   }
 });
@@ -219,15 +216,12 @@ router.post("/content/:id/comments", authenticate, async (req, res): Promise<voi
   const [video] = await db.select({ userId: contentVideosTable.userId }).from(contentVideosTable).where(eq(contentVideosTable.id, id as string));
   if (video && video.userId !== req.user!.id) {
     const [commenter] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, req.user!.id));
-    const [owner] = await db.select({ pushToken: usersTable.pushToken }).from(usersTable).where(eq(usersTable.id, video.userId));
-    if (owner?.pushToken) {
-      sendNotification({
-        fcmToken: owner.pushToken,
-        title: "💬 تعليق جديد",
-        body: `${commenter?.name ?? "مستخدم"}: ${text.trim().slice(0, 60)}`,
-        data: { type: "video_comment", videoId: id as string },
-      }).catch(() => {});
-    }
+    notifyUsers({
+      userIds: [video.userId],
+      title: "💬 تعليق جديد",
+      body: `${commenter?.name ?? "مستخدم"}: ${text.trim().slice(0, 60)}`,
+      data: { type: "video_comment", videoId: id as string },
+    }).catch(() => {});
   }
 
   res.status(201).json(comment);
