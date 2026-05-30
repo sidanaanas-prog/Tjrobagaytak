@@ -8,9 +8,10 @@ import { Loader2 } from "lucide-react";
 
 setAuthTokenGetter(() => localStorage.getItem("glow_admin_token"));
 
-const isReplit = !!import.meta.env.REPL_ID;
-const isRender = !isReplit;
-const API_URL = import.meta.env.VITE_API_URL || (isRender ? "https://gaytak-api.onrender.com" : null);
+// نتحقق من الـ hostname — الطريقة الوحيدة الموثوقة في البراوزر
+// import.meta.env.REPL_ID لا تصل للبراوزر لأنها ليست VITE_*
+const isOnRender = typeof window !== "undefined" && window.location.hostname.includes(".onrender.com");
+const API_URL = import.meta.env.VITE_API_URL || (isOnRender ? "https://gaytak-api.onrender.com" : null);
 setBaseUrl(API_URL);
 
 type AdminAuthContextType = {
