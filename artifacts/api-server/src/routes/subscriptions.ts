@@ -16,20 +16,20 @@ const PLANS = {
 router.get("/subscriptions/my", authenticate, async (req, res): Promise<void> => {
   try {
     const userId = req.user!.id;
-    const [user] = await db.select({
+    const [user] = (await db.select({
       isVerified: usersTable.isVerified,
       subscriptionExpiresAt: usersTable.subscriptionExpiresAt,
-    }).from(usersTable).where(eq(usersTable.id, userId));
+    }).from(usersTable).where(eq(usersTable.id, userId))) ?? [];
 
     const now = new Date();
     const isActive = !!(user?.isVerified && user.subscriptionExpiresAt && user.subscriptionExpiresAt > now);
 
-    const [latest] = await db
+    const [latest] = (await db
       .select()
       .from(subscriptionsTable)
       .where(eq(subscriptionsTable.userId, userId))
       .orderBy(desc(subscriptionsTable.createdAt))
-      .limit(1);
+      .limit(1)) ?? [];
 
     res.json({
       isActive,
@@ -65,9 +65,9 @@ router.post("/subscriptions", authenticate, async (req, res): Promise<void> => {
       return;
     }
 
-    const [pending] = await db.select().from(subscriptionsTable).where(
+    const [pending] = (await db.select().from(subscriptionsTable).where(
       and(eq(subscriptionsTable.userId, userId), eq(subscriptionsTable.status, "pending"))
-    );
+    )) ?? [];
     if (pending) {
       res.status(409).json({ error: "لديك طلب اشتراك قيد المراجعة بالفعل" });
       return;
@@ -89,7 +89,7 @@ router.post("/subscriptions", authenticate, async (req, res): Promise<void> => {
       createdAt: new Date(),
     });
 
-    const [user] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, userId));
+    const [user] = (await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, userId))) ?? [];
 
     await db.insert(activityTable).values({
       id: randomUUID(),
@@ -100,9 +100,9 @@ router.post("/subscriptions", authenticate, async (req, res): Promise<void> => {
     });
 
     try {
-      const [admin] = await db.select({ pushToken: usersTable.pushToken })
+      const [admin] = (await db.select({ pushToken: usersTable.pushToken })
         .from(usersTable)
-        .where(eq(usersTable.email, "admin@gaytak.com"));
+        .where(eq(usersTable.email, "admin@gaytak.com"))) ?? [];
       if (admin?.pushToken) {
         await sendNotification({
           fcmToken: admin.pushToken,
@@ -124,22 +124,22 @@ router.get("/admin/subscriptions", authenticate, requireAdmin, async (req, res):
   try {
     const status = req.query.status as string | undefined;
 
-    const rows = await db
+    const rows = (await db
       .select()
       .from(subscriptionsTable)
-      .orderBy(desc(subscriptionsTable.createdAt));
+      .orderBy(desc(subscriptionsTable.createdAt))) ?? [];
 
     const filtered = status ? rows.filter((r) => r.status === status) : rows;
 
     const userIds = [...new Set(filtered.map((r) => r.userId))];
     const users = userIds.length > 0
-      ? await db.select({
+      ? (await db.select({
           id: usersTable.id,
           name: usersTable.name,
           phone: usersTable.phone,
           avatar: usersTable.avatar,
           email: usersTable.email,
-        }).from(usersTable).where(inArray(usersTable.id, userIds))
+        }).from(usersTable).where(inArray(usersTable.id, userIds))) ?? []
       : [];
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 
@@ -152,7 +152,7 @@ router.get("/admin/subscriptions", authenticate, requireAdmin, async (req, res):
 // ── الأدمن: عدد الطلبات المعلقة ──────────────────────────────────────────
 router.get("/admin/subscriptions/pending-count", authenticate, requireAdmin, async (req, res): Promise<void> => {
   try {
-    const rows = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.status, "pending"));
+    const rows = (await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.status, "pending"))) ?? [];
     res.json({ count: rows.length });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -165,7 +165,7 @@ router.patch("/admin/subscriptions/:id/approve", authenticate, requireAdmin, asy
     const subId = req.params.id as string;
     const adminId = req.user!.id;
 
-    const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.id, subId));
+    const [sub] = (await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.id, subId))) ?? [];
     if (!sub) { res.status(404).json({ error: "الطلب غير موجود" }); return; }
     if (sub.status !== "pending") { res.status(400).json({ error: "الطلب مُعالج بالفعل" }); return; }
 
@@ -190,8 +190,8 @@ router.patch("/admin/subscriptions/:id/approve", authenticate, requireAdmin, asy
     });
 
     try {
-      const [user] = await db.select({ pushToken: usersTable.pushToken, name: usersTable.name })
-        .from(usersTable).where(eq(usersTable.id, sub.userId));
+      const [user] = (await db.select({ pushToken: usersTable.pushToken, name: usersTable.name })
+        .from(usersTable).where(eq(usersTable.id, sub.userId))) ?? [];
       if (user?.pushToken) {
         await sendNotification({
           fcmToken: user.pushToken,
@@ -216,7 +216,7 @@ router.patch("/admin/subscriptions/:id/reject", authenticate, requireAdmin, asyn
     const { reason, notes: notesBody } = req.body;
     const rejectNotes = reason ?? notesBody ?? null;
 
-    const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.id, subId));
+    const [sub] = (await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.id, subId))) ?? [];
     if (!sub) { res.status(404).json({ error: "الطلب غير موجود" }); return; }
     if (sub.status !== "pending") { res.status(400).json({ error: "الطلب مُعالج بالفعل" }); return; }
 
@@ -225,8 +225,8 @@ router.patch("/admin/subscriptions/:id/reject", authenticate, requireAdmin, asyn
       .where(eq(subscriptionsTable.id, subId));
 
     try {
-      const [user] = await db.select({ pushToken: usersTable.pushToken, name: usersTable.name })
-        .from(usersTable).where(eq(usersTable.id, sub.userId));
+      const [user] = (await db.select({ pushToken: usersTable.pushToken, name: usersTable.name })
+        .from(usersTable).where(eq(usersTable.id, sub.userId))) ?? [];
       if (user?.pushToken) {
         await sendNotification({
           fcmToken: user.pushToken,
