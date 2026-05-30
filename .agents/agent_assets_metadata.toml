@@ -71,3 +71,51 @@ id = "tWe0Jvcq79Ei9yyBPHPFO"
 uri = "file://screenshots/posts-tiktok-style.jpg"
 type = "image"
 title = "Posts Page - TikTok Style Layout"
+
+[[outputs]]
+id = "y0g4Z1lKZGIifyGNK9FNv"
+uri = "file://attached_assets/mauritanian/smile_w.jpg"
+type = "image"
+title = "امرأة موريتانية — ابتسامة"
+
+[[outputs]]
+id = "uGBk0qQKBvDC7g5Ib_qog"
+uri = "file://attached_assets/mauritanian/mother_w.jpg"
+type = "image"
+title = "أم وابنتها — أدرار"
+
+[[outputs]]
+id = "aDNUTKhZ1azjjdXdWKprV"
+uri = "file://attached_assets/mauritanian/young_girl_w.jpg"
+type = "image"
+title = "فتاة من موريتانيا"
+
+[[outputs]]
+id = "u7MUMJ5E78_xF_DI-Kwvg"
+uri = "file://attached_assets/mauritanian/girl2_w.jpg"
+type = "image"
+title = "بنت من موريتانيا"
+
+[[outputs]]
+id = "MnKhAlst9ISC8_XlUeKto"
+uri = "file://attached_assets/mauritanian/guide_m.jpg"
+type = "image"
+title = "دليل سياحي — شنقيط"
+
+[[outputs]]
+id = "dtact58FLZ8otTucBFuvX"
+uri = "file://attached_assets/mauritanian/beach_m.jpg"
+type = "image"
+title = "رجل من نواكشوط"
+
+[[outputs]]
+id = "qgka7wv9m_g0NAHXXVgW5"
+uri = "file://attached_assets/mauritanian/street_m1.jpg"
+type = "image"
+title = "شاب من شوارع نواكشوط"
+
+[[outputs]]
+id = "RqcWdMkO4tg9uRQaeo9DY"
+uri = "file://attached_assets/mauritanian/aziz_m.jpg"
+type = "image"
+title = "رجل من أكجوجط"
