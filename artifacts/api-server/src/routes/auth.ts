@@ -9,52 +9,56 @@ import { activityTable } from "@workspace/db";
 const router: IRouter = Router();
 
 router.post("/auth/register", async (req, res): Promise<void> => {
-  const { name, email, password, avatar } = req.body;
-  if (!name || !email || !password) {
-    res.status(400).json({ error: "Name, email, and password are required" });
-    return;
+  try {
+    const { name, email, password, avatar } = req.body;
+    if (!name || !email || !password) {
+      res.status(400).json({ error: "Name, email, and password are required" });
+      return;
+    }
+
+    const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+    if (existing) {
+      res.status(400).json({ error: "Email already registered" });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const id = randomUUID();
+
+    const [user] = await db.insert(usersTable).values({
+      id,
+      name,
+      email,
+      passwordHash,
+      avatar: avatar ?? null,
+      role: "user",
+      banned: false,
+    }).returning();
+
+    await db.insert(activityTable).values({
+      id: randomUUID(),
+      type: "user_registered",
+      description: `${name} joined the platform`,
+      userId: user.id,
+      userName: user.name,
+    });
+
+    const token = signToken({ userId: user.id, role: user.role });
+    res.status(201).json({
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+        role: user.role,
+        banned: user.banned,
+        createdAt: user.createdAt.toISOString(),
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
   }
-
-  const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email));
-  if (existing) {
-    res.status(400).json({ error: "Email already registered" });
-    return;
-  }
-
-  const passwordHash = await bcrypt.hash(password, 10);
-  const id = randomUUID();
-
-  const [user] = await db.insert(usersTable).values({
-    id,
-    name,
-    email,
-    passwordHash,
-    avatar: avatar ?? null,
-    role: "user",
-    banned: false,
-  }).returning();
-
-  await db.insert(activityTable).values({
-    id: randomUUID(),
-    type: "user_registered",
-    description: `${name} joined the platform`,
-    userId: user.id,
-    userName: user.name,
-  });
-
-  const token = signToken({ userId: user.id, role: user.role });
-  res.status(201).json({
-    token,
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      avatar: user.avatar,
-      role: user.role,
-      banned: user.banned,
-      createdAt: user.createdAt.toISOString(),
-    },
-  });
 });
 
 router.post("/auth/login", async (req, res): Promise<void> => {

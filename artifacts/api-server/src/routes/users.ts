@@ -22,42 +22,46 @@ function formatUser(user: typeof usersTable.$inferSelect, productCount = 0) {
 }
 
 router.get("/users", authenticate, requireAdmin, async (req, res): Promise<void> => {
-  const page = parseInt(String(req.query.page ?? 1), 10);
-  const limit = parseInt(String(req.query.limit ?? 20), 10);
-  const search = String(req.query.search ?? "");
-  const offset = (page - 1) * limit;
+  try {
+    const page = parseInt(String(req.query.page ?? 1), 10);
+    const limit = parseInt(String(req.query.limit ?? 20), 10);
+    const search = String(req.query.search ?? "");
+    const offset = (page - 1) * limit;
 
-  const conditions = [];
-  if (search) {
-    conditions.push(or(ilike(usersTable.name, `%${search}%`), ilike(usersTable.email, `%${search}%`)));
+    const conditions = [];
+    if (search) {
+      conditions.push(or(ilike(usersTable.name, `%${search}%`), ilike(usersTable.email, `%${search}%`)));
+    }
+
+    const [{ total }] = await db
+      .select({ total: count() })
+      .from(usersTable)
+      .where(conditions.length > 0 ? conditions[0] : undefined);
+
+    const users = await db
+      .select()
+      .from(usersTable)
+      .where(conditions.length > 0 ? conditions[0] : undefined)
+      .limit(limit)
+      .offset(offset)
+      .orderBy(usersTable.createdAt);
+
+    const productCounts = await db
+      .select({ sellerId: productsTable.sellerId, cnt: count() })
+      .from(productsTable)
+      .groupBy(productsTable.sellerId);
+
+    const countMap = Object.fromEntries(productCounts.map((p) => [p.sellerId, Number(p.cnt)]));
+
+    res.json({
+      users: users.map((u) => formatUser(u, countMap[u.id] ?? 0)),
+      total: Number(total),
+      page,
+      limit,
+    });
+  } catch (err) {
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
   }
-
-  const [{ total }] = await db
-    .select({ total: count() })
-    .from(usersTable)
-    .where(conditions.length > 0 ? conditions[0] : undefined);
-
-  const users = await db
-    .select()
-    .from(usersTable)
-    .where(conditions.length > 0 ? conditions[0] : undefined)
-    .limit(limit)
-    .offset(offset)
-    .orderBy(usersTable.createdAt);
-
-  const productCounts = await db
-    .select({ sellerId: productsTable.sellerId, cnt: count() })
-    .from(productsTable)
-    .groupBy(productsTable.sellerId);
-
-  const countMap = Object.fromEntries(productCounts.map((p) => [p.sellerId, Number(p.cnt)]));
-
-  res.json({
-    users: users.map((u) => formatUser(u, countMap[u.id] ?? 0)),
-    total: Number(total),
-    page,
-    limit,
-  });
 });
 
 // ── بحث عن البائعين (عام) ────────────────────────────────────
@@ -106,76 +110,96 @@ router.get("/sellers", async (req, res): Promise<void> => {
 });
 
 router.get("/users/:id", async (req, res): Promise<void> => {
-  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id as string));
-  if (!user) {
-    res.status(404).json({ error: "User not found" });
-    return;
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id as string));
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    const [{ cnt }] = await db.select({ cnt: count() }).from(productsTable).where(eq(productsTable.sellerId, id));
+    res.json(formatUser(user, Number(cnt)));
+  } catch (err) {
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
   }
-  const [{ cnt }] = await db.select({ cnt: count() }).from(productsTable).where(eq(productsTable.sellerId, id));
-  res.json(formatUser(user, Number(cnt)));
 });
 
 router.patch("/users/:id", authenticate, async (req, res): Promise<void> => {
-  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  if (req.user!.id !== id && req.user!.role !== "admin") {
-    res.status(403).json({ error: "Forbidden" });
-    return;
-  }
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    if (req.user!.id !== id && req.user!.role !== "admin") {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
 
-  const { name, avatar, role, pushToken } = req.body;
-  const updates: Partial<typeof usersTable.$inferInsert> = {};
-  if (name) updates.name = name;
-  if (avatar !== undefined) updates.avatar = avatar;
-  if (pushToken !== undefined) updates.pushToken = pushToken;
-  if (role && req.user!.role === "admin") updates.role = role;
+    const { name, avatar, role, pushToken } = req.body;
+    const updates: Partial<typeof usersTable.$inferInsert> = {};
+    if (name) updates.name = name;
+    if (avatar !== undefined) updates.avatar = avatar;
+    if (pushToken !== undefined) updates.pushToken = pushToken;
+    if (role && req.user!.role === "admin") updates.role = role;
 
-  const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, id as string)).returning();
-  if (!user) {
-    res.status(404).json({ error: "User not found" });
-    return;
+    const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, id as string)).returning();
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    res.json(formatUser(user));
+  } catch (err) {
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
   }
-  res.json(formatUser(user));
 });
 
 router.delete("/users/me", authenticate, async (req, res): Promise<void> => {
-  const userId = req.user!.id;
-  const [user] = await db.delete(usersTable).where(eq(usersTable.id, userId)).returning();
-  if (!user) {
-    res.status(404).json({ error: "User not found" });
-    return;
+  try {
+    const userId = req.user!.id;
+    const [user] = await db.delete(usersTable).where(eq(usersTable.id, userId)).returning();
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    res.json({ message: "Account deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
   }
-  res.json({ message: "Account deleted successfully" });
 });
 
 router.delete("/users/:id", authenticate, requireAdmin, async (req, res): Promise<void> => {
-  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const [user] = await db.delete(usersTable).where(eq(usersTable.id, id as string)).returning();
-  if (!user) {
-    res.status(404).json({ error: "User not found" });
-    return;
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const [user] = await db.delete(usersTable).where(eq(usersTable.id, id as string)).returning();
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    res.json({ message: "User deleted" });
+  } catch (err) {
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
   }
-  res.json({ message: "User deleted" });
 });
 
 router.post("/users/:id/ban", authenticate, requireAdmin, async (req, res): Promise<void> => {
-  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const { banned } = req.body;
-  const [user] = await db.update(usersTable).set({ banned: !!banned }).where(eq(usersTable.id, id as string)).returning();
-  if (!user) {
-    res.status(404).json({ error: "User not found" });
-    return;
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const { banned } = req.body;
+    const [user] = await db.update(usersTable).set({ banned: !!banned }).where(eq(usersTable.id, id as string)).returning();
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    await db.insert(activityTable).values({
+      id: randomUUID(),
+      type: banned ? "user_banned" : "user_unbanned",
+      description: `${user.name} was ${banned ? "banned" : "unbanned"} by admin`,
+      userId: user.id,
+      userName: user.name,
+    });
+
+    res.json(formatUser(user));
+  } catch (err) {
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
   }
-
-  await db.insert(activityTable).values({
-    id: randomUUID(),
-    type: banned ? "user_banned" : "user_unbanned",
-    description: `${user.name} was ${banned ? "banned" : "unbanned"} by admin`,
-    userId: user.id,
-    userName: user.name,
-  });
-
-  res.json(formatUser(user));
 });
 
 // ── اختبار إشعار OneSignal للمستخدم الحالي ────────────────────────────────
@@ -205,104 +229,112 @@ router.post("/test-notification", authenticate, async (req, res) => {
 
 // ── إرسال رسالة مباشرة من الأدمن لمستخدم محدد ──────────────
 router.post("/admin/users/:userId/message", authenticate, requireAdmin, async (req, res): Promise<void> => {
-  const adminId = req.user!.id;
-  const userId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
-  const { message } = req.body;
+  try {
+    const adminId = req.user!.id;
+    const userId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
+    const { message } = req.body;
 
-  if (!message?.trim()) {
-    res.status(400).json({ error: "الرسالة مطلوبة" });
-    return;
-  }
+    if (!message?.trim()) {
+      res.status(400).json({ error: "الرسالة مطلوبة" });
+      return;
+    }
 
-  const [targetUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId as string));
-  if (!targetUser) {
-    res.status(404).json({ error: "المستخدم غير موجود" });
-    return;
-  }
+    const [targetUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId as string));
+    if (!targetUser) {
+      res.status(404).json({ error: "المستخدم غير موجود" });
+      return;
+    }
 
-  const [existing] = await db
-    .select()
-    .from(conversationsTable)
-    .where(
-      or(
-        and(eq(conversationsTable.participant1Id, adminId), eq(conversationsTable.participant2Id, userId as string)),
-        and(eq(conversationsTable.participant1Id, userId as string), eq(conversationsTable.participant2Id, adminId))
-      )
-    );
+    const [existing] = await db
+      .select()
+      .from(conversationsTable)
+      .where(
+        or(
+          and(eq(conversationsTable.participant1Id, adminId), eq(conversationsTable.participant2Id, userId as string)),
+          and(eq(conversationsTable.participant1Id, userId as string), eq(conversationsTable.participant2Id, adminId))
+        )
+      );
 
-  let convId: string;
-  if (existing) {
-    convId = existing.id;
-  } else {
-    convId = randomUUID();
-    await db.insert(conversationsTable).values({
-      id: convId,
-      participant1Id: adminId,
-      participant2Id: userId as string,
-      updatedAt: new Date(),
+    let convId: string;
+    if (existing) {
+      convId = existing.id;
+    } else {
+      convId = randomUUID();
+      await db.insert(conversationsTable).values({
+        id: convId,
+        participant1Id: adminId,
+        participant2Id: userId as string,
+        updatedAt: new Date(),
+      });
+    }
+
+    await db.insert(messagesTable).values({
+      id: randomUUID(),
+      conversationId: convId,
+      senderId: adminId,
+      content: message.trim(),
     });
+
+    await db.update(conversationsTable)
+      .set({ updatedAt: new Date() })
+      .where(eq(conversationsTable.id, convId));
+
+    if (targetUser.pushToken) {
+      sendNotification({
+        fcmToken: targetUser.pushToken,
+        title: "رسالة جديدة من دعم Gaytak 📩",
+        body: message.trim().slice(0, 80),
+        data: { type: "direct_message", conversationId: convId },
+      }).catch(() => {});
+    }
+
+    res.json({ success: true, conversationId: convId });
+  } catch (err) {
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
   }
-
-  await db.insert(messagesTable).values({
-    id: randomUUID(),
-    conversationId: convId,
-    senderId: adminId,
-    content: message.trim(),
-  });
-
-  await db.update(conversationsTable)
-    .set({ updatedAt: new Date() })
-    .where(eq(conversationsTable.id, convId));
-
-  if (targetUser.pushToken) {
-    sendNotification({
-      fcmToken: targetUser.pushToken,
-      title: "رسالة جديدة من دعم Gaytak 📩",
-      body: message.trim().slice(0, 80),
-      data: { type: "direct_message", conversationId: convId },
-    }).catch(() => {});
-  }
-
-  res.json({ success: true, conversationId: convId });
 });
 
 // ── ping: تحديث lastSeenAt + حساب السلسلة اليومية ──────────────
 router.post("/users/ping", authenticate, async (req, res): Promise<void> => {
-  const userId = req.user!.id;
-  const now = new Date();
-  const todayStr = now.toISOString().slice(0, 10); // "YYYY-MM-DD"
+  try {
+    const userId = req.user!.id;
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  if (!user) {
-    res.status(404).json({ error: "المستخدم غير موجود" });
-    return;
-  }
-
-  const lastDate = user.streakLastDate; // string "YYYY-MM-DD" or null
-  let streakCount = user.streakCount;
-
-  if (!lastDate) {
-    streakCount = 1;
-  } else if (lastDate === todayStr) {
-    // نفس اليوم — لا تغيير
-  } else {
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().slice(0, 10);
-    if (lastDate === yesterdayStr) {
-      streakCount += 1;
-    } else {
-      streakCount = 1;
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    if (!user) {
+      res.status(404).json({ error: "المستخدم غير موجود" });
+      return;
     }
+
+    const lastDate = user.streakLastDate;
+    let streakCount = user.streakCount;
+
+    if (!lastDate) {
+      streakCount = 1;
+    } else if (lastDate === todayStr) {
+      // نفس اليوم — لا تغيير
+    } else {
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().slice(0, 10);
+      if (lastDate === yesterdayStr) {
+        streakCount += 1;
+      } else {
+        streakCount = 1;
+      }
+    }
+
+    await db.update(usersTable).set({
+      lastSeenAt: now,
+      streakCount,
+      streakLastDate: todayStr,
+    }).where(eq(usersTable.id, userId));
+
+    res.json({ streakCount, streakLastDate: todayStr });
+  } catch (err) {
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
   }
-
-  await db.update(usersTable).set({
-    lastSeenAt: now,
-    streakCount,
-    streakLastDate: todayStr,
-  }).where(eq(usersTable.id, userId));
-
-  res.json({ streakCount, streakLastDate: todayStr });
 });
 
 export default router;
