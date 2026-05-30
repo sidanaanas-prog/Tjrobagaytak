@@ -398,10 +398,10 @@ export default function LoginPage() {
                   <motion.button
                     type="submit"
                     whileTap={{ scale: 0.97 }}
-                    disabled={loading || preWarming || !phone.trim()}
+                    disabled={loading || !phone.trim()}
                     className="w-full h-13 py-3.5 bg-primary text-white font-bold rounded-2xl shadow-[0_0_20px_rgba(168,85,247,0.4)] flex items-center justify-center gap-2 disabled:opacity-40 text-base"
                   >
-                    {loading || preWarming
+                    {loading
                       ? <Loader2 className="w-5 h-5 animate-spin" />
                       : <><span>إرسال رمز التحقق</span><ArrowRight className="w-4 h-4" /></>}
                   </motion.button>
