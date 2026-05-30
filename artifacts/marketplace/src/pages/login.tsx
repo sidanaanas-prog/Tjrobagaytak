@@ -395,20 +395,6 @@ export default function LoginPage() {
                     <p className="text-[11px] text-white/30 text-center">سيصلك رمز التحقق عبر واتساب</p>
                   </div>
 
-                  {serverWaking && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="flex items-center gap-2.5 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl px-4 py-3"
-                    >
-                      <Loader2 className="w-4 h-4 text-yellow-400 animate-spin shrink-0" />
-                      <div>
-                        <p className="text-yellow-300 text-xs font-bold">الخادم يستيقظ...</p>
-                        <p className="text-yellow-400/60 text-[10px]">سيُرسَل الرمز تلقائياً بعد لحظة</p>
-                      </div>
-                    </motion.div>
-                  )}
-
                   <motion.button
                     type="submit"
                     whileTap={{ scale: 0.97 }}
@@ -416,7 +402,7 @@ export default function LoginPage() {
                     className="w-full h-13 py-3.5 bg-primary text-white font-bold rounded-2xl shadow-[0_0_20px_rgba(168,85,247,0.4)] flex items-center justify-center gap-2 disabled:opacity-40 text-base"
                   >
                     {loading || preWarming
-                      ? <><Loader2 className="w-5 h-5 animate-spin" />{preWarming && <span className="text-sm">الخادم يستيقظ...</span>}</>
+                      ? <Loader2 className="w-5 h-5 animate-spin" />
                       : <><span>إرسال رمز التحقق</span><ArrowRight className="w-4 h-4" /></>}
                   </motion.button>
                 </motion.form>
@@ -478,19 +464,6 @@ export default function LoginPage() {
                     </motion.div>
                   )}
 
-                  {serverWaking && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="flex items-center gap-2.5 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl px-4 py-3"
-                    >
-                      <Loader2 className="w-4 h-4 text-yellow-400 animate-spin shrink-0" />
-                      <div>
-                        <p className="text-yellow-300 text-xs font-bold">الخادم يستيقظ...</p>
-                        <p className="text-yellow-400/60 text-[10px]">يُعاد المحاولة تلقائياً، انتظر لحظة</p>
-                      </div>
-                    </motion.div>
-                  )}
 
                   <motion.button
                     type="submit"
