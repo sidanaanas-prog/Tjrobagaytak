@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
@@ -30,6 +30,14 @@ app.use(express.json({ limit: "20mb" }));
 app.use(express.urlencoded({ extended: true, limit: "20mb" }));
 
 app.use("/api", router);
+
+// ── Global JSON error handler — يضمن JSON دائماً بدل HTML ──────────────────
+// يجب أن يكون بعد كل الـ routes وله 4 معاملات حتى يتعرف عليه Express كـ error handler
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  logger.error({ err }, "Unhandled error");
+  res.status(500).json({ error: "حدث خطأ في الخادم" });
+});
 
 // ── Digital Asset Links (Play Console domain verification) ──────────────────
 app.get("/.well-known/assetlinks.json", (_req, res) => {

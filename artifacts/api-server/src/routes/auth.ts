@@ -58,42 +58,52 @@ router.post("/auth/register", async (req, res): Promise<void> => {
 });
 
 router.post("/auth/login", async (req, res): Promise<void> => {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    res.status(400).json({ error: "Email and password are required" });
-    return;
-  }
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      res.status(400).json({ error: "Email and password are required" });
+      return;
+    }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
-  if (!user) {
-    res.status(401).json({ error: "Invalid credentials" });
-    return;
-  }
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+    if (!user) {
+      res.status(401).json({ error: "Invalid credentials" });
+      return;
+    }
 
-  if (user.banned) {
-    res.status(401).json({ error: "Account suspended" });
-    return;
-  }
+    if (user.banned) {
+      res.status(401).json({ error: "Account suspended" });
+      return;
+    }
 
-  const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) {
-    res.status(401).json({ error: "Invalid credentials" });
-    return;
-  }
+    // المستخدم سجّل بالهاتف (OTP) وليس عنده كلمة مرور
+    if (!user.passwordHash) {
+      res.status(401).json({ error: "هذا الحساب مرتبط برقم الهاتف، يرجى تسجيل الدخول بالواتساب" });
+      return;
+    }
 
-  const token = signToken({ userId: user.id, role: user.role });
-  res.json({
-    token,
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      avatar: user.avatar,
-      role: user.role,
-      banned: user.banned,
-      createdAt: user.createdAt.toISOString(),
-    },
-  });
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) {
+      res.status(401).json({ error: "Invalid credentials" });
+      return;
+    }
+
+    const token = signToken({ userId: user.id, role: user.role });
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+        role: user.role,
+        banned: user.banned,
+        createdAt: user.createdAt.toISOString(),
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
+  }
 });
 
 router.post("/auth/logout", (_req, res): void => {
