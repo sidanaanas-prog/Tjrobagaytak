@@ -16,6 +16,8 @@ function formatUser(user: typeof usersTable.$inferSelect, productCount = 0) {
     avatar: user.avatar,
     role: user.role,
     banned: user.banned,
+    isVerified: user.isVerified,
+    subscriptionExpiresAt: user.subscriptionExpiresAt ? user.subscriptionExpiresAt.toISOString() : null,
     createdAt: user.createdAt.toISOString(),
     productCount,
   };

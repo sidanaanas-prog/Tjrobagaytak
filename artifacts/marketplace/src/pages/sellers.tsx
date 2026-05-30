@@ -14,6 +14,7 @@ interface Seller {
   name: string;
   avatar: string | null;
   role: string;
+  isVerified?: boolean | null;
   productCount: number;
 }
 
@@ -158,7 +159,7 @@ export default function SellersPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">
                           <p className="font-bold text-white text-sm truncate">{seller.name}</p>
-                          {seller.role === "admin" && <VerifiedBadge size="xs" />}
+                          {(seller.isVerified || seller.role === "admin") && <VerifiedBadge size="xs" />}
                         </div>
                         <div className="flex items-center gap-1 text-white/40">
                           <Package className="w-3 h-3" />

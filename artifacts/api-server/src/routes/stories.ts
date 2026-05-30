@@ -25,6 +25,7 @@ router.get("/stories", optionalAuthenticate, async (req, res): Promise<void> => 
       userName: usersTable.name,
       userAvatar: usersTable.avatar,
       userRole: usersTable.role,
+      userIsVerified: usersTable.isVerified,
     })
     .from(storiesTable)
     .innerJoin(usersTable, eq(storiesTable.userId, usersTable.id))

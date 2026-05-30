@@ -128,6 +128,8 @@ router.get("/auth/me", authenticate, async (req, res): Promise<void> => {
     avatar: user.avatar,
     role: user.role,
     banned: user.banned,
+    isVerified: user.isVerified,
+    subscriptionExpiresAt: user.subscriptionExpiresAt ? user.subscriptionExpiresAt.toISOString() : null,
     lastSeenAt: user.lastSeenAt ? user.lastSeenAt.toISOString() : null,
     createdAt: user.createdAt.toISOString(),
   });

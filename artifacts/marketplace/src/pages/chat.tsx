@@ -375,7 +375,7 @@ export default function ChatPage() {
               <div className="flex-1 min-w-0">
                 <h2 className="font-bold text-white text-sm truncate flex items-center gap-1">
                   {otherParticipant.name}
-                  {(otherParticipant as any).role === "admin" && <VerifiedBadge size="xs" />}
+                  {((otherParticipant as any).isVerified || (otherParticipant as any).role === "admin") && <VerifiedBadge size="xs" />}
                 </h2>
                 {typingIndicator ? (
                   <p className="text-[10px] text-primary/70 truncate">يكتب الآن...</p>
@@ -879,7 +879,7 @@ export default function ChatPage() {
                       <div className="flex items-baseline justify-between">
                         <span className={`font-bold text-sm flex items-center gap-1 ${hasUnread ? "text-white" : "text-white/80"}`}>
                           {other?.name || "مجهول"}
-                          {other?.role === "admin" && <VerifiedBadge size="xs" />}
+                          {(other?.isVerified || other?.role === "admin") && <VerifiedBadge size="xs" />}
                         </span>
                         {conv.lastMessage && (
                           <span className="text-[10px] text-muted-foreground shrink-0">

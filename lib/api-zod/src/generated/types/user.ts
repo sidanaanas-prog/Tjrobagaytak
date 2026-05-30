@@ -17,4 +17,7 @@ export interface User {
   createdAt: string;
   productCount?: number;
   totalSales?: number;
+  isVerified?: boolean;
+  subscriptionExpiresAt?: string | null;
+  phone?: string | null;
 }

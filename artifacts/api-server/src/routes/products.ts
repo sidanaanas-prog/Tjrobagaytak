@@ -46,6 +46,7 @@ function formatProduct(p: typeof productsTable.$inferSelect, seller?: typeof use
           avatar: seller.avatar,
           role: seller.role,
           banned: seller.banned,
+          isVerified: seller.isVerified,
           createdAt: seller.createdAt.toISOString(),
         }
       : null,

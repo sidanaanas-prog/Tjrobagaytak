@@ -44,6 +44,9 @@ export const LoginResponse = zod.object({
     createdAt: zod.string(),
     productCount: zod.number().optional(),
     totalSales: zod.number().optional(),
+    isVerified: zod.boolean().optional(),
+    subscriptionExpiresAt: zod.string().nullish(),
+    phone: zod.string().nullish(),
   }),
 });
 
@@ -67,6 +70,9 @@ export const GetMeResponse = zod.object({
   createdAt: zod.string(),
   productCount: zod.number().optional(),
   totalSales: zod.number().optional(),
+  isVerified: zod.boolean().optional(),
+  subscriptionExpiresAt: zod.string().nullish(),
+  phone: zod.string().nullish(),
 });
 
 /**
@@ -94,6 +100,9 @@ export const ListUsersResponse = zod.object({
       createdAt: zod.string(),
       productCount: zod.number().optional(),
       totalSales: zod.number().optional(),
+      isVerified: zod.boolean().optional(),
+      subscriptionExpiresAt: zod.string().nullish(),
+      phone: zod.string().nullish(),
     }),
   ),
   total: zod.number(),
@@ -118,6 +127,9 @@ export const GetUserResponse = zod.object({
   createdAt: zod.string(),
   productCount: zod.number().optional(),
   totalSales: zod.number().optional(),
+  isVerified: zod.boolean().optional(),
+  subscriptionExpiresAt: zod.string().nullish(),
+  phone: zod.string().nullish(),
 });
 
 /**
@@ -143,6 +155,9 @@ export const UpdateUserResponse = zod.object({
   createdAt: zod.string(),
   productCount: zod.number().optional(),
   totalSales: zod.number().optional(),
+  isVerified: zod.boolean().optional(),
+  subscriptionExpiresAt: zod.string().nullish(),
+  phone: zod.string().nullish(),
 });
 
 /**
@@ -177,6 +192,9 @@ export const BanUserResponse = zod.object({
   createdAt: zod.string(),
   productCount: zod.number().optional(),
   totalSales: zod.number().optional(),
+  isVerified: zod.boolean().optional(),
+  subscriptionExpiresAt: zod.string().nullish(),
+  phone: zod.string().nullish(),
 });
 
 /**
@@ -249,6 +267,9 @@ export const ListProductsResponse = zod.object({
           createdAt: zod.string(),
           productCount: zod.number().optional(),
           totalSales: zod.number().optional(),
+          isVerified: zod.boolean().optional(),
+          subscriptionExpiresAt: zod.string().nullish(),
+          phone: zod.string().nullish(),
         })
         .optional(),
       createdAt: zod.string(),
@@ -295,6 +316,9 @@ export const GetFeaturedProductsResponseItem = zod.object({
       createdAt: zod.string(),
       productCount: zod.number().optional(),
       totalSales: zod.number().optional(),
+      isVerified: zod.boolean().optional(),
+      subscriptionExpiresAt: zod.string().nullish(),
+      phone: zod.string().nullish(),
     })
     .optional(),
   createdAt: zod.string(),
@@ -332,6 +356,9 @@ export const GetProductResponse = zod.object({
       createdAt: zod.string(),
       productCount: zod.number().optional(),
       totalSales: zod.number().optional(),
+      isVerified: zod.boolean().optional(),
+      subscriptionExpiresAt: zod.string().nullish(),
+      phone: zod.string().nullish(),
     })
     .optional(),
   createdAt: zod.string(),
@@ -374,6 +401,9 @@ export const UpdateProductResponse = zod.object({
       createdAt: zod.string(),
       productCount: zod.number().optional(),
       totalSales: zod.number().optional(),
+      isVerified: zod.boolean().optional(),
+      subscriptionExpiresAt: zod.string().nullish(),
+      phone: zod.string().nullish(),
     })
     .optional(),
   createdAt: zod.string(),
@@ -424,6 +454,9 @@ export const ApproveProductResponse = zod.object({
       createdAt: zod.string(),
       productCount: zod.number().optional(),
       totalSales: zod.number().optional(),
+      isVerified: zod.boolean().optional(),
+      subscriptionExpiresAt: zod.string().nullish(),
+      phone: zod.string().nullish(),
     })
     .optional(),
   createdAt: zod.string(),
@@ -446,6 +479,9 @@ export const ListConversationsResponseItem = zod.object({
       createdAt: zod.string(),
       productCount: zod.number().optional(),
       totalSales: zod.number().optional(),
+      isVerified: zod.boolean().optional(),
+      subscriptionExpiresAt: zod.string().nullish(),
+      phone: zod.string().nullish(),
     }),
   ),
   product: zod
@@ -470,6 +506,9 @@ export const ListConversationsResponseItem = zod.object({
           createdAt: zod.string(),
           productCount: zod.number().optional(),
           totalSales: zod.number().optional(),
+          isVerified: zod.boolean().optional(),
+          subscriptionExpiresAt: zod.string().nullish(),
+          phone: zod.string().nullish(),
         })
         .optional(),
       createdAt: zod.string(),
@@ -492,6 +531,9 @@ export const ListConversationsResponseItem = zod.object({
           createdAt: zod.string(),
           productCount: zod.number().optional(),
           totalSales: zod.number().optional(),
+          isVerified: zod.boolean().optional(),
+          subscriptionExpiresAt: zod.string().nullish(),
+          phone: zod.string().nullish(),
         })
         .optional(),
       content: zod.string(),
@@ -526,6 +568,9 @@ export const CreateConversationResponse = zod.object({
       createdAt: zod.string(),
       productCount: zod.number().optional(),
       totalSales: zod.number().optional(),
+      isVerified: zod.boolean().optional(),
+      subscriptionExpiresAt: zod.string().nullish(),
+      phone: zod.string().nullish(),
     }),
   ),
   product: zod
@@ -550,6 +595,9 @@ export const CreateConversationResponse = zod.object({
           createdAt: zod.string(),
           productCount: zod.number().optional(),
           totalSales: zod.number().optional(),
+          isVerified: zod.boolean().optional(),
+          subscriptionExpiresAt: zod.string().nullish(),
+          phone: zod.string().nullish(),
         })
         .optional(),
       createdAt: zod.string(),
@@ -572,6 +620,9 @@ export const CreateConversationResponse = zod.object({
           createdAt: zod.string(),
           productCount: zod.number().optional(),
           totalSales: zod.number().optional(),
+          isVerified: zod.boolean().optional(),
+          subscriptionExpiresAt: zod.string().nullish(),
+          phone: zod.string().nullish(),
         })
         .optional(),
       content: zod.string(),
@@ -610,6 +661,9 @@ export const GetMessagesResponseItem = zod.object({
       createdAt: zod.string(),
       productCount: zod.number().optional(),
       totalSales: zod.number().optional(),
+      isVerified: zod.boolean().optional(),
+      subscriptionExpiresAt: zod.string().nullish(),
+      phone: zod.string().nullish(),
     })
     .optional(),
   content: zod.string(),

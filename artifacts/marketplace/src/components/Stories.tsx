@@ -27,6 +27,7 @@ interface StoryGroup {
   userName: string;
   userAvatar: string | null;
   userRole?: string | null;
+  userIsVerified?: boolean | null;
   stories: StoryItem[];
   allViewed?: boolean;
 }
@@ -327,7 +328,7 @@ function StoryViewer({ groups, startGroupIndex, onClose, currentUserId, onLikeTo
           <div className="flex-1 min-w-0">
             <p className="text-white font-bold text-sm truncate flex items-center gap-1">
               {group.userName}
-              {group.userRole === "admin" && <VerifiedBadge size="xs" />}
+              {(group.userIsVerified || group.userRole === "admin") && <VerifiedBadge size="xs" />}
             </p>
             <p className="text-white/50 text-[10px]">
               {new Date(story.createdAt).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}

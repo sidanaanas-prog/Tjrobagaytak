@@ -217,7 +217,7 @@ export default function ProfilePage() {
             <div className="text-center">
               <div className="flex items-center justify-center gap-1.5">
                 <h1 className="text-xl font-black text-white">{user.name}</h1>
-                {user.role === "admin" && <VerifiedBadge size="md" />}
+                {(user.isVerified || user.role === "admin") && <VerifiedBadge size="md" />}
               </div>
               <p className="text-sm text-muted-foreground">{user.email}</p>
               <div className="flex items-center justify-center gap-1.5 mt-1.5">

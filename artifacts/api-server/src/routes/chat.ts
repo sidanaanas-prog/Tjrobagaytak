@@ -15,6 +15,7 @@ function formatUser(user: typeof usersTable.$inferSelect) {
     avatar: user.avatar,
     role: user.role,
     banned: user.banned,
+    isVerified: user.isVerified,
     lastSeenAt: user.lastSeenAt ? user.lastSeenAt.toISOString() : null,
     createdAt: user.createdAt.toISOString(),
   };

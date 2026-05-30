@@ -28,6 +28,7 @@ router.get("/content", optionalAuthenticate, async (req, res): Promise<void> => 
       userName: usersTable.name,
       userAvatar: usersTable.avatar,
       userRole: usersTable.role,
+      userIsVerified: usersTable.isVerified,
     })
     .from(contentVideosTable)
     .innerJoin(usersTable, eq(contentVideosTable.userId, usersTable.id))
@@ -138,7 +139,7 @@ router.post("/content/:id/view", optionalAuthenticate, async (req, res): Promise
     videoId: id as string,
     userId: userId ?? null,
     ipHash: userId ? null : ipHash,
-  }).onConflictDoNothing().returning({ id: contentViewsTable.id });
+  }).onConflictDoNothing().returning();
 
   // نزيد العداد فقط عند مشاهدة جديدة حقيقية
   if (inserted.length > 0) {
@@ -187,6 +188,7 @@ router.get("/content/:id/comments", async (req, res): Promise<void> => {
       userName: usersTable.name,
       userAvatar: usersTable.avatar,
       userRole: usersTable.role,
+      userIsVerified: usersTable.isVerified,
     })
     .from(contentCommentsTable)
     .innerJoin(usersTable, eq(contentCommentsTable.userId, usersTable.id))

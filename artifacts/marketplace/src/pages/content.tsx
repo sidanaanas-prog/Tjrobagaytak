@@ -44,6 +44,7 @@ interface Comment {
   userName: string;
   userAvatar: string | null;
   userRole?: string | null;
+  userIsVerified?: boolean | null;
   createdAt: string;
 }
 
@@ -163,7 +164,7 @@ function CommentsDrawer({
                   <div className="flex-1 min-w-0">
                     <span className="text-white/70 text-xs font-bold flex items-center gap-1">
                       @{c.userName}
-                      {c.userRole === "admin" && <VerifiedBadge size="xs" />}
+                      {(c.userIsVerified || c.userRole === "admin") && <VerifiedBadge size="xs" />}
                     </span>
                     <p className="text-white text-sm leading-snug mt-0.5">{c.text}</p>
                   </div>
@@ -560,7 +561,7 @@ function VideoCard({
       <div className="absolute bottom-24 left-14 right-16 z-10">
         <span className="text-white font-bold text-sm drop-shadow flex items-center gap-1 mb-1">
           @{video.userName}
-          {(video as any).userRole === "admin" && <VerifiedBadge size="xs" />}
+          {((video as any).userIsVerified || (video as any).userRole === "admin") && <VerifiedBadge size="xs" />}
         </span>
         {video.caption && (
           <p className="text-white/90 text-sm leading-relaxed drop-shadow line-clamp-3">{video.caption}</p>

@@ -668,6 +668,14 @@ components:
           type: integer
         totalSales:
           type: number
+        isVerified:
+          type: boolean
+        subscriptionExpiresAt:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
       required:
         - id
         - name
