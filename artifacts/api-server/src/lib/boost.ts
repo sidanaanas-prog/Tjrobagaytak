@@ -419,10 +419,8 @@ export function fakeVideoComments(
   aiComments: { text: string; userName: string }[] = [],
 ) {
   const boost = contentBoost(id, createdAt);
-  // حد أدنى 8 تعليقات وهمية حتى للفيديوهات الجديدة جداً
-  const minFake = 8;
-  const fakeCount = Math.max(minFake, boost.commentBoost) - realComments.length;
-  const displayCount = Math.min(Math.max(0, fakeCount), 30);
+  const fakeCount = Math.max(0, boost.commentBoost - realComments.length);
+  const displayCount = Math.min(fakeCount, 30);
   if (displayCount === 0) return realComments;
 
   // اختر المصدر: AI أولاً، وإلا القوائم الثابتة كـ fallback
