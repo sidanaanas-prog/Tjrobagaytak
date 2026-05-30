@@ -97,11 +97,9 @@ export function contentBoost(id: string, createdAt: Date) {
 
 /** Generate N deterministic fake users from a seeded PRNG state */
 function buildFakeUsers(count: number, seed0: number, createdAt: Date) {
-  const users: { id: string; name: string; avatar: string | null; color: string }[] = [];
+  const users: { id: string; name: string; avatar: string; color: string }[] = [];
   let s = seed0;
   const usedNames = new Set<number>();
-  const now = Date.now();
-  const postTime = new Date(createdAt).getTime();
 
   for (let i = 0; i < count; i++) {
     const r1 = lcgRand(s);
@@ -110,16 +108,19 @@ function buildFakeUsers(count: number, seed0: number, createdAt: Date) {
     s = r3.next;
 
     const nameIdx = Math.floor(r1.val * ARABIC_NAMES.length) % ARABIC_NAMES.length;
-    // avoid duplicate names when possible
     const finalIdx = usedNames.has(nameIdx)
       ? (nameIdx + 1) % ARABIC_NAMES.length
       : nameIdx;
     usedNames.add(finalIdx);
 
+    // pravatar.cc has 70 unique real human photos (img=1..70), deterministic
+    const avatarNum = (Math.floor(r2.val * 70) % 70) + 1;
+    const avatar = `https://i.pravatar.cc/100?img=${avatarNum}`;
+
     users.push({
       id: `fake-${seed0}-${i}`,
       name: ARABIC_NAMES[finalIdx]!,
-      avatar: null,
+      avatar,
       color: AVATAR_COLORS[Math.floor(r3.val * AVATAR_COLORS.length) % AVATAR_COLORS.length]!,
     });
   }
