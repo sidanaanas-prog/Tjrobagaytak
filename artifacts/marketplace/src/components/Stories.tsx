@@ -171,7 +171,7 @@ function StoryViewer({ groups, startGroupIndex, onClose, currentUserId, onLikeTo
       setProgress((p) => {
         if (p >= 100) {
           clearInterval(timerRef.current!);
-          goNext();
+          setTimeout(goNext, 0);
           return 0;
         }
         return p + 100 / (DURATION / 100);

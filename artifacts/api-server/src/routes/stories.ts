@@ -3,7 +3,7 @@ import { randomUUID } from "crypto";
 import { db, storiesTable, usersTable, storyViewsTable, storyLikesTable } from "@workspace/db";
 import { eq, gt, and, desc, sql, inArray } from "drizzle-orm";
 import { authenticate, optionalAuthenticate } from "../lib/auth";
-import { storyBoost } from "../lib/boost";
+import { storyBoost, fakeStoryViewers, fakeStoryLikers } from "../lib/boost";
 
 const router: IRouter = Router();
 
@@ -256,7 +256,7 @@ router.get("/stories/:id/viewers", authenticate, async (req, res): Promise<void>
     .where(eq(storyViewsTable.storyId, id as string))
     .orderBy(desc(storyViewsTable.viewedAt));
 
-  res.json(viewers);
+  res.json(fakeStoryViewers(id as string, story.createdAt as Date, viewers as any[]));
 });
 
 router.get("/stories/:id/likes", authenticate, async (req, res): Promise<void> => {
@@ -285,7 +285,7 @@ router.get("/stories/:id/likes", authenticate, async (req, res): Promise<void> =
     .where(eq(storyLikesTable.storyId, id as string))
     .orderBy(desc(storyLikesTable.likedAt));
 
-  res.json(likers);
+  res.json(fakeStoryLikers(id as string, story.createdAt as Date, likers as any[]));
 });
 
 router.delete("/stories/:id", authenticate, async (req, res): Promise<void> => {
