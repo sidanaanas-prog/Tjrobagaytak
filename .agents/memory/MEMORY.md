@@ -1,2 +1,4 @@
 - [Neon DB driver fix](neon-driver.md) — pg.Pool يتسبب في crash كل ~78ث مع Neon، الحل: @neondatabase/serverless (HTTP mode)
 - [Neon HTTP null results](neon-null-results.md) — @neondatabase/serverless يُرجع null بدلاً من [] عند عدم وجود نتائج، يجب إضافة ?? []
+- [Render OTP cold-start fix](render-otp-fix.md) — Wasender OTP كان في Map بالذاكرة، يُمسح عند cold-start. الحل: جدول phone_otps في DB
+- [Browser env detection](browser-env-detection.md) — import.meta.env.REPL_ID لا تصل للبراوزر (ليست VITE_*)، استخدم window.location.hostname بدلاً منها

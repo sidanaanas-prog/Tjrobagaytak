@@ -22,3 +22,4 @@ export * from "./blocks";
 export * from "./wishlists";
 export * from "./flash_sales";
 export * from "./subscriptions";
+export * from "./phone_otps";
