@@ -291,7 +291,7 @@ function VideoCard({
   currentUserId?: string;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(false);
   const [paused, setPaused] = useState(false);
   const [liked, setLiked] = useState(video.likedByMe);
   const [likesCount, setLikesCount] = useState(video.likesCount);
@@ -311,9 +311,17 @@ function VideoCard({
     const el = videoRef.current;
     if (!el) return;
     if (isActive) {
+      // حاول التشغيل بصوت أولاً — إذا منعه المتصفح جرّب بكتم ثم أظهر زر التشغيل
+      el.muted = false;
       el.play()
-        .then(() => setPaused(false))
-        .catch(() => setPaused(true)); // autoplay blocked — أظهر زر التشغيل
+        .then(() => { setMuted(false); setPaused(false); })
+        .catch(() => {
+          el.muted = true;
+          setMuted(true);
+          el.play()
+            .then(() => setPaused(false))
+            .catch(() => setPaused(true));
+        });
       if (!viewed.current) { onView(video.id); viewed.current = true; }
     } else {
       el.pause();
