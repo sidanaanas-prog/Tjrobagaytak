@@ -3,29 +3,7 @@ import { db, ordersTable, usersTable, productsTable, activityTable } from "@work
 import { eq, and, or, desc, count, inArray } from "drizzle-orm";
 import { authenticate } from "../lib/auth";
 import { randomUUID } from "crypto";
-import { sendNotification } from "../lib/notifications";
-
-// إرسال إشعار لمستخدم واحد بنفس أسلوب الدردشة (users.pushToken)
-async function pushToUser(
-  userId: string,
-  title: string,
-  body: string,
-  data?: Record<string, string>
-) {
-  const [u] = (await db
-    .select({ pushToken: usersTable.pushToken })
-    .from(usersTable)
-    .where(eq(usersTable.id, userId))) ?? [];
-  if (u?.pushToken) {
-    try {
-      await sendNotification({ fcmToken: u.pushToken, title, body, data: data ?? {} });
-    } catch (e: any) {
-      console.warn("[FCM] orders pushToUser failed:", e?.message);
-    }
-  } else {
-    console.warn("[FCM] no pushToken for user:", userId);
-  }
-}
+import { notifyUsers } from "../lib/notifications";
 
 const router: IRouter = Router();
 
@@ -104,14 +82,14 @@ router.post("/orders", authenticate, async (req, res): Promise<void> => {
     userName: buyerUser?.name ?? "مستخدم",
   });
 
-  // إرسال إشعار للبائع (نفس أسلوب الدردشة)
+  // إرسال إشعار للبائع
   const [seller] = (await db.select().from(usersTable).where(eq(usersTable.id, product.sellerId))) ?? [];
-  await pushToUser(
-    product.sellerId,
-    "طلب جديد! 📦",
-    `تم طلب منتجك "${product.title}" من ${buyerUser?.name ?? "مستخدم"}`,
-    { type: "new_order", orderId: order.id, productId }
-  );
+  notifyUsers({
+    userIds: [product.sellerId],
+    title: "طلب جديد! 📦",
+    body: `تم طلب منتجك "${product.title}" من ${buyerUser?.name ?? "مستخدم"}`,
+    data: { type: "new_order", orderId: order.id, productId },
+  }).catch(() => {});
 
   res.json(formatOrder(order, undefined, seller, product));
 });
@@ -182,7 +160,7 @@ router.patch("/orders/:id/status", authenticate, async (req, res): Promise<void>
     userName: actor?.name ?? "مستخدم",
   });
 
-  // إشعار للطرف الآخر (نفس أسلوب الدردشة)
+  // إشعار للطرف الآخر
   const notifyId = order.sellerId === userId ? order.buyerId : order.sellerId;
   const statusLabels: Record<string, string> = {
     pending: "قيد الانتظار",
@@ -191,12 +169,12 @@ router.patch("/orders/:id/status", authenticate, async (req, res): Promise<void>
     delivered: "تم التسليم 🎉",
     cancelled: "ملغي ❌",
   };
-  await pushToUser(
-    notifyId,
-    "تحديث الطلب 📦",
-    `تم تحديث حالة الطلب إلى: ${statusLabels[status] ?? status}`,
-    { type: "order_status", orderId: orderId as string, status: status as string }
-  );
+  notifyUsers({
+    userIds: [notifyId],
+    title: "تحديث الطلب 📦",
+    body: `تم تحديث حالة الطلب إلى: ${statusLabels[status] ?? status}`,
+    data: { type: "order_status", orderId: orderId as string, status: status as string },
+  }).catch(() => {});
 
   res.json({ success: true, status });
 });
@@ -223,12 +201,12 @@ router.patch("/orders/:id/delivery-type", authenticate, async (req, res): Promis
     .where(eq(ordersTable.id, orderId));
 
   if (deliveryType === "service") {
-    await pushToUser(
-      order.buyerId,
-      "تحديث طلبك 🚚",
-      "البائع طلب خدمة التوصيل لطلبك، سيتم التواصل معك قريباً",
-      { type: "delivery_requested", orderId }
-    );
+    notifyUsers({
+      userIds: [order.buyerId],
+      title: "تحديث طلبك 🚚",
+      body: "البائع طلب خدمة التوصيل لطلبك، سيتم التواصل معك قريباً",
+      data: { type: "delivery_requested", orderId },
+    }).catch(() => {});
   }
 
   res.json({ success: true, deliveryType, deliveryStatus });

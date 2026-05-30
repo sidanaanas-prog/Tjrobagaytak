@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db, followsTable, usersTable, productsTable } from "@workspace/db";
 import { eq, and, count, inArray } from "drizzle-orm";
 import { authenticate } from "../lib/auth";
-import { sendNotification } from "../lib/notifications";
+import { notifyUsers } from "../lib/notifications";
 
 const router: IRouter = Router();
 
@@ -23,19 +23,14 @@ router.post("/follows", authenticate, async (req, res): Promise<void> => {
   try {
     await db.insert(followsTable).values({ followerId, sellerId }).onConflictDoNothing();
 
-    // إشعار للبائع بمتابع جديد (من users.pushToken مباشرة)
+    // إشعار للبائع بمتابع جديد
     const [follower] = (await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, followerId))) ?? [];
-    const [sellerRow] = (await db.select({ pushToken: usersTable.pushToken }).from(usersTable).where(eq(usersTable.id, sellerId))) ?? [];
-    if (sellerRow?.pushToken) {
-      try {
-        await sendNotification({
-          fcmToken: sellerRow.pushToken,
-          title: "متابع جديد! 👥",
-          body: `${follower?.name ?? "مستخدم"} بدأ بمتابعة متجرك`,
-          data: { type: "new_follower", followerId },
-        });
-      } catch {}
-    }
+    notifyUsers({
+      userIds: [sellerId],
+      title: "متابع جديد! 👥",
+      body: `${follower?.name ?? "مستخدم"} بدأ بمتابعة متجرك`,
+      data: { type: "new_follower", followerId },
+    }).catch(() => {});
 
     res.json({ success: true, following: true });
   } catch (e: any) {

@@ -23,3 +23,4 @@ export * from "./wishlists";
 export * from "./flash_sales";
 export * from "./subscriptions";
 export * from "./phone_otps";
+export * from "./video_ai_comments";

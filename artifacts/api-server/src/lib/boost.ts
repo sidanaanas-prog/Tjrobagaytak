@@ -391,14 +391,21 @@ export function fakeVideoComments(
   createdAt: Date,
   caption: string | null | undefined,
   realComments: { id: string; text: string; createdAt: Date | string; userId: string; userName: string; userAvatar: string | null; userRole: string }[],
+  aiComments: { text: string; userName: string }[] = [],
 ) {
   const boost = contentBoost(id, createdAt);
   const fakeCount = Math.max(0, boost.commentBoost - realComments.length);
   const displayCount = Math.min(fakeCount, 30);
   if (displayCount === 0) return realComments;
 
-  const category = detectCategory(caption);
-  const pool = getCommentPool(category);
+  // اختر المصدر: AI أولاً، وإلا القوائم الثابتة كـ fallback
+  const useAi = aiComments.length >= 5;
+  const pool = useAi
+    ? aiComments.map((c) => c.text)
+    : getCommentPool(detectCategory(caption));
+
+  // استخدم أسماء AI إذا توفرت، وإلا أسماء عشوائية
+  const aiNamePool = useAi ? aiComments.map((c) => c.userName) : null;
 
   const s0 = (hashId(id) ^ 0x1357cafe) >>> 0;
   const fakeUsers = buildFakeUsers(displayCount, s0, createdAt);
@@ -410,12 +417,19 @@ export function fakeVideoComments(
     const rc = lcgRand(commentSeed);
     commentSeed = rc.next;
     const commentIdx = Math.floor(rc.val * pool.length) % pool.length;
+
+    let userName = u.name;
+    if (aiNamePool && aiNamePool.length > 0) {
+      const nameIdx = Math.floor(rc.val * aiNamePool.length) % aiNamePool.length;
+      userName = aiNamePool[nameIdx] ?? u.name;
+    }
+
     return {
       id: `fake-c-${s0}-${i}`,
       text: pool[commentIdx]!,
       createdAt: new Date(Date.now() - Math.round((i / displayCount) * span * 0.85)).toISOString(),
       userId: u.id,
-      userName: u.name,
+      userName,
       userAvatar: u.avatar,
       userRole: "user",
     };

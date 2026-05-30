@@ -6,6 +6,7 @@ import { createHash } from "crypto";
 import { authenticate, optionalAuthenticate } from "../lib/auth";
 import { notifyUsers } from "../lib/notifications";
 import { contentBoost, fakeVideoComments } from "../lib/boost";
+import { generateAiCommentsAsync, getOrGenerateAiComments } from "../lib/smart-comments";
 
 const router: IRouter = Router();
 
@@ -102,6 +103,9 @@ router.post("/content", authenticate, async (req, res): Promise<void> => {
     .returning();
 
   res.status(201).json(video);
+
+  // توليد تعليقات ذكية في الخلفية (لا تُعيق الاستجابة)
+  generateAiCommentsAsync(video.id, video.caption);
 });
 
 router.post("/content/:id/like", authenticate, async (req, res): Promise<void> => {
@@ -221,7 +225,10 @@ router.get("/content/:id/comments", async (req, res): Promise<void> => {
 
   if (!video) { res.json(rows); return; }
 
-  res.json(fakeVideoComments(id as string, video.createdAt as Date, video.caption, rows as any[]));
+  // جلب التعليقات الذكية من DB (أو توليدها لأول مرة)
+  const aiComments = await getOrGenerateAiComments(id as string, video.caption);
+
+  res.json(fakeVideoComments(id as string, video.createdAt as Date, video.caption, rows as any[], aiComments));
 });
 
 router.post("/content/:id/comments", authenticate, async (req, res): Promise<void> => {

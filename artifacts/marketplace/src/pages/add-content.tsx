@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Link as LinkIcon, Play, Upload, Video, X, CheckCircle, Image as ImageIcon, ShoppingBag, ChevronDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { getMemToken, handle401 } from "@/hooks/use-auth";
+import { getMemToken, handle401, useAuth } from "@/hooks/use-auth";
 import { getApiUrl } from "@/lib/api-url";
 import { SubscriptionGate } from "@/components/SubscriptionGate";
 
@@ -22,6 +22,7 @@ export default function AddContentPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
 
   const [tab, setTab] = useState<UploadTab>("file");
   const [mediaUrl, setMediaUrl] = useState("");
@@ -40,8 +41,8 @@ export default function AddContentPage() {
   const token = getMemToken();
 
   useEffect(() => {
-    if (!token) return;
-    fetch(`${BASE}/api/products?mine=true&status=approved&limit=50`, {
+    if (!token || !user?.id) return;
+    fetch(`${BASE}/api/products?sellerId=${user.id}&status=approved&limit=50`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())
@@ -50,7 +51,7 @@ export default function AddContentPage() {
         setMyProducts(list);
       })
       .catch(() => {});
-  }, [token]);
+  }, [token, user?.id]);
 
   const selectedProduct = myProducts.find((p) => p.id === selectedProductId) ?? null;
 
