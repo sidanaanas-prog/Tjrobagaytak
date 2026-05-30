@@ -104,10 +104,11 @@ export function handle401(): void {
 // even before AuthProvider mounts.
 setAuthTokenGetter(getMemToken);
 
-// اكتشاف Render: REPL_ID موجود فقط في Replit
-const isReplit = !!import.meta.env.REPL_ID;
-const isRender = !isReplit;
-const API_URL = import.meta.env.VITE_API_URL || (isRender ? RENDER_API_URL : null);
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  (typeof window !== "undefined" && window.location.hostname.includes(".onrender.com")
+    ? RENDER_API_URL
+    : null);
 setBaseUrl(API_URL);
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
