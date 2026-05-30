@@ -1,5 +1,6 @@
 import { pgTable, text, integer, timestamp } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
+import { productsTable } from "./products";
 
 export const contentVideosTable = pgTable("content_videos", {
   id: text("id").primaryKey(),
@@ -7,6 +8,7 @@ export const contentVideosTable = pgTable("content_videos", {
   videoUrl: text("video_url").notNull(),
   thumbnailUrl: text("thumbnail_url"),
   caption: text("caption"),
+  productId: text("product_id").references(() => productsTable.id, { onDelete: "set null" }),
   likesCount: integer("likes_count").notNull().default(0),
   viewsCount: integer("views_count").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

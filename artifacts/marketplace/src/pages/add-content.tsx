@@ -1,7 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Link as LinkIcon, Play, Upload, Video, X, CheckCircle, Image as ImageIcon } from "lucide-react";
+import { ArrowRight, Link as LinkIcon, Play, Upload, Video, X, CheckCircle, Image as ImageIcon, ShoppingBag, ChevronDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getMemToken, handle401 } from "@/hooks/use-auth";
 import { getApiUrl } from "@/lib/api-url";
@@ -10,6 +10,13 @@ import { SubscriptionGate } from "@/components/SubscriptionGate";
 const BASE = getApiUrl("");
 
 type UploadTab = "file" | "url";
+
+interface MyProduct {
+  id: string;
+  title: string;
+  price: number;
+  images: string[];
+}
 
 export default function AddContentPage() {
   const [, navigate] = useLocation();
@@ -25,6 +32,27 @@ export default function AddContentPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [saving, setSaving] = useState(false);
+
+  const [myProducts, setMyProducts] = useState<MyProduct[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [showProductPicker, setShowProductPicker] = useState(false);
+
+  const token = getMemToken();
+
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${BASE}/api/products?mine=true&status=approved&limit=50`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const list = Array.isArray(data) ? data : (data?.products ?? []);
+        setMyProducts(list);
+      })
+      .catch(() => {});
+  }, [token]);
+
+  const selectedProduct = myProducts.find((p) => p.id === selectedProductId) ?? null;
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -125,6 +153,7 @@ export default function AddContentPage() {
         body: JSON.stringify({
           videoUrl: finalUrl,
           caption: caption.trim() || null,
+          productId: selectedProductId ?? null,
         }),
       });
 
@@ -297,6 +326,56 @@ export default function AddContentPage() {
               />
             </div>
 
+            {/* ── ربط منتج (اختياري) ── */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-white/70 text-sm flex items-center gap-1.5">
+                  <ShoppingBag className="w-4 h-4 text-primary/70" />
+                  ربط منتج (اختياري)
+                </label>
+                {selectedProductId && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedProductId(null)}
+                    className="text-white/40 text-xs hover:text-white/70 transition-colors"
+                  >
+                    إلغاء الربط
+                  </button>
+                )}
+              </div>
+
+              {selectedProduct ? (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex items-center gap-3 bg-primary/10 border border-primary/30 rounded-xl p-3"
+                >
+                  {selectedProduct.images[0] && (
+                    <img
+                      src={selectedProduct.images[0]}
+                      alt={selectedProduct.title}
+                      className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                    />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-semibold truncate">{selectedProduct.title}</p>
+                    <p className="text-primary text-xs font-bold mt-0.5">{selectedProduct.price.toLocaleString()} د.ج</p>
+                  </div>
+                  <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
+                </motion.div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowProductPicker(true)}
+                  disabled={myProducts.length === 0}
+                  className="w-full flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white/50 text-sm hover:border-primary/40 hover:text-white/70 transition-all disabled:opacity-30"
+                >
+                  <span>{myProducts.length === 0 ? "لا توجد منتجات معتمدة" : "اختر منتجاً لعرضه في المنشور"}</span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
             <motion.button
               type="submit"
               disabled={isLoading || (tab === "file" ? !selectedFile : !mediaUrl.trim())}
@@ -319,6 +398,69 @@ export default function AddContentPage() {
         </div>
         </SubscriptionGate>
       </div>
+
+      {/* ── منتقي المنتجات ── */}
+      <AnimatePresence>
+        {showProductPicker && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/70 z-40 backdrop-blur-sm"
+              onClick={() => setShowProductPicker(false)}
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-[#111] border-t border-white/10 rounded-t-3xl z-50 max-h-[70vh] flex flex-col"
+              dir="rtl"
+            >
+              <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 flex-shrink-0">
+                <h3 className="text-white font-bold text-base">اختر منتجاً</h3>
+                <button onClick={() => setShowProductPicker(false)} className="text-white/50 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="overflow-y-auto flex-1 p-4 flex flex-col gap-2">
+                {myProducts.map((p) => (
+                  <motion.button
+                    key={p.id}
+                    type="button"
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      setSelectedProductId(p.id);
+                      setShowProductPicker(false);
+                    }}
+                    className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-right w-full ${
+                      selectedProductId === p.id
+                        ? "bg-primary/15 border-primary/40"
+                        : "bg-white/5 border-white/10 hover:border-white/20"
+                    }`}
+                  >
+                    {p.images[0] ? (
+                      <img src={p.images[0]} alt={p.title} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
+                    ) : (
+                      <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <ShoppingBag className="w-6 h-6 text-primary/50" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm font-semibold truncate">{p.title}</p>
+                      <p className="text-primary text-sm font-bold mt-0.5">{p.price.toLocaleString()} د.ج</p>
+                    </div>
+                    {selectedProductId === p.id && (
+                      <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
+                    )}
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { Link, useLocation } from "wouter";
 import {
   Heart, MessageCircle, Plus, Trash2, Play,
   Volume2, VolumeX, ChevronUp, ChevronDown, UserCheck,
-  Eye, TrendingUp, TrendingDown, Send, X, Clock,
+  Eye, TrendingUp, TrendingDown, Send, X, Clock, ShoppingBag,
 } from "lucide-react";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { motion, AnimatePresence } from "framer-motion";
@@ -35,6 +35,10 @@ interface ContentVideo {
   userName: string;
   userAvatar: string | null;
   likedByMe: boolean;
+  productId?: string | null;
+  productTitle?: string | null;
+  productPrice?: number | null;
+  productImage?: string | null;
 }
 
 interface Comment {
@@ -557,8 +561,52 @@ function VideoCard({
         )}
       </div>
 
+      {/* ── بطاقة المنتج العائمة ── */}
+      <AnimatePresence>
+        {video.productId && video.productTitle && isActive && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ delay: 0.5, duration: 0.4 }}
+            className="absolute bottom-[152px] right-2 left-14 z-20"
+          >
+            <Link
+              href={`/product/${video.productId}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <motion.div
+                whileTap={{ scale: 0.97 }}
+                className="flex items-center gap-2.5 bg-black/70 backdrop-blur-md border border-white/15 rounded-2xl p-2 shadow-[0_4px_24px_rgba(0,0,0,0.6)]"
+              >
+                {video.productImage ? (
+                  <img
+                    src={video.productImage}
+                    alt={video.productTitle}
+                    className="w-11 h-11 rounded-xl object-cover flex-shrink-0 border border-white/10"
+                  />
+                ) : (
+                  <div className="w-11 h-11 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
+                    <ShoppingBag className="w-5 h-5 text-primary" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-xs font-semibold truncate leading-tight">{video.productTitle}</p>
+                  {video.productPrice != null && (
+                    <p className="text-primary text-xs font-black mt-0.5">{video.productPrice.toLocaleString()} د.ج</p>
+                  )}
+                </div>
+                <div className="bg-primary rounded-xl px-3 py-1.5 flex-shrink-0 shadow-[0_0_12px_rgba(168,85,247,0.5)]">
+                  <span className="text-white text-xs font-black whitespace-nowrap">اطلب الآن</span>
+                </div>
+              </motion.div>
+            </Link>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* اسم صاحب الفيديو + وصف */}
-      <div className="absolute bottom-24 left-14 right-16 z-10">
+      <div className={`absolute left-14 right-16 z-10 ${video.productId && video.productTitle ? "bottom-[208px]" : "bottom-24"}`}>
         <span className="text-white font-bold text-sm drop-shadow flex items-center gap-1 mb-1">
           @{video.userName}
           {((video as any).userIsVerified || (video as any).userRole === "admin") && <VerifiedBadge size="xs" />}

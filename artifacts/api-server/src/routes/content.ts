@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { randomUUID } from "crypto";
-import { db, contentVideosTable, contentLikesTable, contentCommentsTable, contentViewsTable, usersTable } from "@workspace/db";
+import { db, contentVideosTable, contentLikesTable, contentCommentsTable, contentViewsTable, usersTable, productsTable } from "@workspace/db";
 import { eq, desc, and, sql, inArray } from "drizzle-orm";
 import { createHash } from "crypto";
 import { authenticate, optionalAuthenticate } from "../lib/auth";
@@ -22,6 +22,7 @@ router.get("/content", optionalAuthenticate, async (req, res): Promise<void> => 
       videoUrl: contentVideosTable.videoUrl,
       thumbnailUrl: contentVideosTable.thumbnailUrl,
       caption: contentVideosTable.caption,
+      productId: contentVideosTable.productId,
       likesCount: contentVideosTable.likesCount,
       viewsCount: contentVideosTable.viewsCount,
       createdAt: contentVideosTable.createdAt,
@@ -29,9 +30,13 @@ router.get("/content", optionalAuthenticate, async (req, res): Promise<void> => 
       userAvatar: usersTable.avatar,
       userRole: usersTable.role,
       userIsVerified: usersTable.isVerified,
+      productTitle: productsTable.title,
+      productPrice: productsTable.price,
+      productImages: productsTable.images,
     })
     .from(contentVideosTable)
     .innerJoin(usersTable, eq(contentVideosTable.userId, usersTable.id))
+    .leftJoin(productsTable, eq(contentVideosTable.productId, productsTable.id))
     .where(filterUserId ? eq(contentVideosTable.userId, filterUserId) : undefined)
     .orderBy(desc(contentVideosTable.createdAt))
     .limit(limit)
@@ -58,15 +63,30 @@ router.get("/content", optionalAuthenticate, async (req, res): Promise<void> => 
       viewsCount: (v.viewsCount ?? 0) + boost.viewBoost,
       likesCount: (v.likesCount ?? 0) + boost.likeBoost,
       commentsCount: boost.commentBoost,
+      productPrice: v.productPrice != null ? Number(v.productPrice) : null,
+      productImage: (v.productImages as string[] | null)?.[0] ?? null,
+      productImages: undefined,
     };
   }));
 });
 
 router.post("/content", authenticate, async (req, res): Promise<void> => {
-  const { videoUrl, thumbnailUrl, caption } = req.body;
+  const { videoUrl, thumbnailUrl, caption, productId } = req.body;
   if (!videoUrl) {
     res.status(400).json({ error: "رابط الفيديو مطلوب" });
     return;
+  }
+
+  // تحقق أن المنتج ملك للمستخدم إذا أُرسل productId
+  if (productId) {
+    const [product] = (await db
+      .select({ id: productsTable.id, sellerId: productsTable.sellerId })
+      .from(productsTable)
+      .where(eq(productsTable.id, productId as string))) ?? [];
+    if (!product || product.sellerId !== req.user!.id) {
+      res.status(403).json({ error: "المنتج غير موجود أو لا يخصك" });
+      return;
+    }
   }
 
   const [video] = await db
@@ -77,6 +97,7 @@ router.post("/content", authenticate, async (req, res): Promise<void> => {
       videoUrl,
       thumbnailUrl: thumbnailUrl ?? null,
       caption: caption ?? null,
+      productId: productId ?? null,
     })
     .returning();
 
