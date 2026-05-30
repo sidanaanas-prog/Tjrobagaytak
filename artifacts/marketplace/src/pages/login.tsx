@@ -1,10 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowRight, ChevronDown, ChevronRight, Shield } from "lucide-react";
-import { getApiUrl } from "@/lib/api-url";
+import { getApiUrl, RENDER_API_URL } from "@/lib/api-url";
 
 const BASE = getApiUrl("");
 
@@ -41,7 +41,7 @@ async function apiFetch(
       // JSON parse failed: server returned HTML (Render cold-start)
       if (isRender && attempt < maxRetries) {
         onWaking?.(true);
-        await new Promise(r => setTimeout(r, 6000));
+        await new Promise(r => setTimeout(r, 3000));
         continue;
       }
       throw new Error("حدث خطأ في الاتصال بالخادم");
@@ -191,6 +191,33 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [serverWaking, setServerWaking] = useState(false);
 
+  // ── Pre-warm على Render: نُنبّه الخادم فور فتح الصفحة (في الخلفية وهو يكتب رقمه)
+  // بدل الانتظار عند الضغط على "إرسال الرمز"
+  useEffect(() => {
+    const onRender = typeof window !== "undefined" &&
+      window.location.hostname.includes(".onrender.com");
+    if (!onRender) return;
+
+    let cancelled = false;
+    async function warmUp() {
+      setServerWaking(true);
+      for (let i = 0; i < 8; i++) {
+        if (cancelled) return;
+        try {
+          const r = await fetch(`${RENDER_API_URL}/api/healthz`);
+          const text = await r.text();
+          // JSON يعني الخادم مستيقظ
+          try { JSON.parse(text); break; } catch { /* لا يزال ينام */ }
+        } catch { /* شبكة */ }
+        if (cancelled) return;
+        await new Promise(res => setTimeout(res, 4000));
+      }
+      if (!cancelled) setServerWaking(false);
+    }
+    warmUp();
+    return () => { cancelled = true; };
+  }, []);
+
   const selectedCountry = COUNTRIES.find(c => c.code === countryCode) || COUNTRIES[0];
   const fullPhone = countryCode + phone.replace(/^0+/, "");
 
@@ -198,7 +225,6 @@ export default function LoginPage() {
     e.preventDefault();
     if (!phone.trim()) return;
     setLoading(true);
-    setServerWaking(false);
     try {
       const { res, data } = await apiFetch(
         `${BASE}/api/auth/otp/send`,
