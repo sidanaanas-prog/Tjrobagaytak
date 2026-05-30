@@ -16,11 +16,12 @@ const BASE = getApiUrl("");
  *   show waking banner and retry up to maxRetries times with 6-second gaps.
  * – Parse fails + non-Render → real server error, throw immediately.
  */
+// Render cold-start يحتاج حتى 60 ثانية — 12 محاولة × 5s = 60s
 async function apiFetch(
   url: string,
   options: RequestInit,
   onWaking?: (waking: boolean) => void,
-  maxRetries = 4,
+  maxRetries = 12,
 ): Promise<{ res: Response; data: any }> {
   const isRender = url.includes("onrender.com");
 
@@ -32,16 +33,13 @@ async function apiFetch(
       throw new Error("تعذر الاتصال بالخادم، تحقق من اتصالك بالإنترنت");
     }
 
-    // Try to parse JSON — this is the only reliable check
-    // (Replit proxy may strip Content-Type headers)
     let data: any;
     try {
       data = await res.json();
     } catch {
-      // JSON parse failed: server returned HTML (Render cold-start)
       if (isRender && attempt < maxRetries) {
         onWaking?.(true);
-        await new Promise(r => setTimeout(r, 3000));
+        await new Promise(r => setTimeout(r, 5000));
         continue;
       }
       throw new Error("حدث خطأ في الاتصال بالخادم");
@@ -190,9 +188,10 @@ export default function LoginPage() {
   const [isNewUser, setIsNewUser] = useState(false);
   const [loading, setLoading] = useState(false);
   const [serverWaking, setServerWaking] = useState(false);
+  // true طالما الـ pre-warm لم يتأكد بعد أن الخادم جاهز
+  const [preWarming, setPreWarming] = useState(false);
 
-  // ── Pre-warm على Render: نُنبّه الخادم فور فتح الصفحة (في الخلفية وهو يكتب رقمه)
-  // بدل الانتظار عند الضغط على "إرسال الرمز"
+  // ── Pre-warm على Render فور فتح الصفحة ──────────────────────────────────
   useEffect(() => {
     const onRender = typeof window !== "undefined" &&
       window.location.hostname.includes(".onrender.com");
@@ -200,35 +199,43 @@ export default function LoginPage() {
 
     let cancelled = false;
 
-    async function pingOnce(timeoutMs = 4000): Promise<boolean> {
+    async function pingOnce(timeoutMs = 5000): Promise<boolean> {
       try {
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), timeoutMs);
         const r = await fetch(`${RENDER_API_URL}/api/healthz`, { signal: ctrl.signal });
         clearTimeout(t);
         const text = await r.text();
-        JSON.parse(text); // يرمي exception إذا لم يكن JSON
-        return true;       // مستيقظ ✅
+        JSON.parse(text);
+        return true;
       } catch {
-        return false;      // نائم أو timeout ❌
+        return false;
       }
     }
 
     async function warmUp() {
-      // الـ ping الأول صامت — لا نُظهر أي banner حتى نعرف هل هو نائم
+      // الـ ping الأول صامت بدون banner
       const awake = await pingOnce();
-      if (awake || cancelled) return; // مستيقظ → لا شيء يظهر للمستخدم
+      if (cancelled) return;
+      if (awake) { setPreWarming(false); return; }
 
-      // نائم → نُظهر الـ banner ونُعيد المحاولة
+      // الخادم نائم — نُظهر الـ banner ونُعطّل الزر
       setServerWaking(true);
-      for (let i = 0; i < 7; i++) {
+      setPreWarming(true);
+
+      // نُعيد المحاولة كل 4 ثواني (أقصى 60 ثانية)
+      for (let i = 0; i < 15; i++) {
         if (cancelled) return;
-        await new Promise(r => setTimeout(r, 3500));
+        await new Promise(r => setTimeout(r, 4000));
         if (cancelled) return;
         const ok = await pingOnce();
         if (ok) break;
       }
-      if (!cancelled) setServerWaking(false);
+
+      if (!cancelled) {
+        setServerWaking(false);
+        setPreWarming(false);
+      }
     }
 
     warmUp();
@@ -405,11 +412,11 @@ export default function LoginPage() {
                   <motion.button
                     type="submit"
                     whileTap={{ scale: 0.97 }}
-                    disabled={loading || !phone.trim()}
+                    disabled={loading || preWarming || !phone.trim()}
                     className="w-full h-13 py-3.5 bg-primary text-white font-bold rounded-2xl shadow-[0_0_20px_rgba(168,85,247,0.4)] flex items-center justify-center gap-2 disabled:opacity-40 text-base"
                   >
-                    {loading
-                      ? <Loader2 className="w-5 h-5 animate-spin" />
+                    {loading || preWarming
+                      ? <><Loader2 className="w-5 h-5 animate-spin" />{preWarming && <span className="text-sm">الخادم يستيقظ...</span>}</>
                       : <><span>إرسال رمز التحقق</span><ArrowRight className="w-4 h-4" /></>}
                   </motion.button>
                 </motion.form>
