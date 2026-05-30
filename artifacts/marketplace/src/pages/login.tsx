@@ -199,21 +199,38 @@ export default function LoginPage() {
     if (!onRender) return;
 
     let cancelled = false;
+
+    async function pingOnce(timeoutMs = 4000): Promise<boolean> {
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), timeoutMs);
+        const r = await fetch(`${RENDER_API_URL}/api/healthz`, { signal: ctrl.signal });
+        clearTimeout(t);
+        const text = await r.text();
+        JSON.parse(text); // يرمي exception إذا لم يكن JSON
+        return true;       // مستيقظ ✅
+      } catch {
+        return false;      // نائم أو timeout ❌
+      }
+    }
+
     async function warmUp() {
+      // الـ ping الأول صامت — لا نُظهر أي banner حتى نعرف هل هو نائم
+      const awake = await pingOnce();
+      if (awake || cancelled) return; // مستيقظ → لا شيء يظهر للمستخدم
+
+      // نائم → نُظهر الـ banner ونُعيد المحاولة
       setServerWaking(true);
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 7; i++) {
         if (cancelled) return;
-        try {
-          const r = await fetch(`${RENDER_API_URL}/api/healthz`);
-          const text = await r.text();
-          // JSON يعني الخادم مستيقظ
-          try { JSON.parse(text); break; } catch { /* لا يزال ينام */ }
-        } catch { /* شبكة */ }
+        await new Promise(r => setTimeout(r, 3500));
         if (cancelled) return;
-        await new Promise(res => setTimeout(res, 4000));
+        const ok = await pingOnce();
+        if (ok) break;
       }
       if (!cancelled) setServerWaking(false);
     }
+
     warmUp();
     return () => { cancelled = true; };
   }, []);
