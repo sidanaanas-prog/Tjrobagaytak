@@ -168,7 +168,7 @@ function CommentsDrawer({
                   <div className="flex-1 min-w-0">
                     <span className="text-white/70 text-xs font-bold flex items-center gap-1">
                       @{c.userName}
-                      {(c.userIsVerified || c.userRole === "admin") && <VerifiedBadge size="xs" />}
+                      {(c.userIsVerified || c.userRole === "admin") && <VerifiedBadge size="xs" role={c.userRole} />}
                     </span>
                     <p className="text-white text-sm leading-snug mt-0.5">{c.text}</p>
                   </div>
@@ -609,7 +609,7 @@ function VideoCard({
       <div className={`absolute left-14 right-16 z-10 ${video.productId && video.productTitle ? "bottom-[208px]" : "bottom-24"}`}>
         <span className="text-white font-bold text-sm drop-shadow flex items-center gap-1 mb-1">
           @{video.userName}
-          {((video as any).userIsVerified || (video as any).userRole === "admin") && <VerifiedBadge size="xs" />}
+          {((video as any).userIsVerified || (video as any).userRole === "admin") && <VerifiedBadge size="xs" role={(video as any).userRole} />}
         </span>
         {video.caption && (
           <p className="text-white/90 text-sm leading-relaxed drop-shadow line-clamp-3">{video.caption}</p>

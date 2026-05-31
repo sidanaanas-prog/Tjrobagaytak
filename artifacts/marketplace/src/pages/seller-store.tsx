@@ -169,7 +169,7 @@ export default function SellerStorePage() {
               <div className="pb-1 flex-1">
                 <div className="flex items-center gap-2">
                   <h1 className="text-lg font-black text-white">{seller.name}</h1>
-                  {((seller as any).isVerified || (seller as any).role === "admin") && <VerifiedBadge size="sm" />}
+                  {((seller as any).isVerified || (seller as any).role === "admin") && <VerifiedBadge size="sm" role={(seller as any).role} />}
                   {!isMe && (
                     <button
                       onClick={toggleFollow}

@@ -84,7 +84,7 @@ export default function FollowingPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-white truncate flex items-center gap-1">
                         {seller.name}
-                        {(seller.isVerified || seller.role === "admin") && <VerifiedBadge size="xs" />}
+                        {(seller.isVerified || seller.role === "admin") && <VerifiedBadge size="xs" role={seller.role} />}
                       </p>
                       <p className="text-[11px] text-white/40 mt-0.5">
                         <Store className="w-3 h-3 inline mr-1" />

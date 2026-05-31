@@ -230,7 +230,7 @@ export default function ProductDetailPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-1.5">
                       <span className="font-semibold text-white text-sm">{product.seller?.name || "بائع مجهول"}</span>
-                      {(product.seller?.isVerified || product.seller?.role === "admin") && <VerifiedBadge size="xs" />}
+                      {(product.seller?.isVerified || product.seller?.role === "admin") && <VerifiedBadge size="xs" role={product.seller?.role} />}
                     </div>
                     <span className="text-xs text-muted-foreground">اضغط لزيارة المتجر ←</span>
                   </div>

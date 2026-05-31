@@ -162,7 +162,7 @@ export function ProductCard({ product, index = 0, compact = false, showStatus = 
             )}
             <div className="mt-2 text-xs text-white/40 flex items-center gap-1">
               بواسطة {product.seller?.name || "مجهول"}
-              {(product.seller?.isVerified || product.seller?.role === "admin") && <VerifiedBadge size="xs" />}
+              {(product.seller?.isVerified || product.seller?.role === "admin") && <VerifiedBadge size="xs" role={product.seller?.role} />}
             </div>
           </div>
         </div>
