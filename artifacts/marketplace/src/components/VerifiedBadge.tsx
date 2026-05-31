@@ -7,9 +7,9 @@ interface VerifiedBadgeProps {
 }
 
 const sizes = {
-  xs: "w-3 h-3",
-  sm: "w-4 h-4",
-  md: "w-5 h-5",
+  xs: "w-4 h-4",
+  sm: "w-5 h-5",
+  md: "w-6 h-6",
 };
 
 export function VerifiedBadge({ className = "", size = "sm", role }: VerifiedBadgeProps) {
@@ -17,17 +17,29 @@ export function VerifiedBadge({ className = "", size = "sm", role }: VerifiedBad
 
   if (isAdmin) {
     return (
-      <ShieldCheck
-        className={`inline-block shrink-0 fill-purple-500 text-white ${sizes[size]} ${className}`}
+      <span
+        className={`inline-flex items-center justify-center shrink-0 animate-pulse ${className}`}
+        style={{
+          filter:
+            "drop-shadow(0 0 4px #c084fc) drop-shadow(0 0 8px #a855f7) drop-shadow(0 0 16px #7c3aed)",
+        }}
         aria-label="دعم"
-      />
+      >
+        <ShieldCheck className={`${sizes[size]} fill-purple-400 text-white`} />
+      </span>
     );
   }
 
   return (
-    <BadgeCheck
-      className={`inline-block shrink-0 fill-blue-500 text-white ${sizes[size]} ${className}`}
+    <span
+      className={`inline-flex items-center justify-center shrink-0 ${className}`}
+      style={{
+        filter:
+          "drop-shadow(0 0 4px #60a5fa) drop-shadow(0 0 8px #3b82f6) drop-shadow(0 0 14px #1d4ed8)",
+      }}
       aria-label="موثق"
-    />
+    >
+      <BadgeCheck className={`${sizes[size]} fill-blue-400 text-white`} />
+    </span>
   );
 }
