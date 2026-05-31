@@ -7,13 +7,13 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { AppLayout } from "@/components/AppLayout";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MessageSquare, ArrowRight, Store, Phone, MapPin, Package, Loader2 } from "lucide-react";
+import { MessageSquare, ArrowRight, Store, Phone, MapPin, Package, Loader2, ZoomIn, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { Link } from "wouter";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { getMemToken } from "@/hooks/use-auth";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { SkeletonCard } from "@/components/SkeletonCard";
 import { getApiUrl } from "@/lib/api-url";
 import {
@@ -136,6 +136,28 @@ export default function ProductDetailPage() {
     }
   }
 
+  // Gallery state
+  const [activeImg, setActiveImg] = useState(0);
+  const [lightbox, setLightbox] = useState(false);
+  const dragStartX = useRef(0);
+
+  const images = product?.images && product.images.length > 0 ? product.images : [];
+
+  const goNext = useCallback(() => setActiveImg((i) => (i + 1) % images.length), [images.length]);
+  const goPrev = useCallback(() => setActiveImg((i) => (i - 1 + images.length) % images.length), [images.length]);
+
+  // keyboard nav in lightbox
+  useEffect(() => {
+    if (!lightbox) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") goPrev();
+      if (e.key === "ArrowRight") goNext();
+      if (e.key === "Escape") setLightbox(false);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [lightbox, goNext, goPrev]);
+
   const hash = id ? id.split("").reduce((a, c) => a + c.charCodeAt(0), 0) : 0;
   const hue1 = hash % 360;
   const hue2 = (hash * 2) % 360;
@@ -172,10 +194,30 @@ export default function ProductDetailPage() {
           </div>
         ) : (
           <>
-            {/* Image */}
-            <div className="relative w-full aspect-square bg-black">
-              {product.images && product.images.length > 0 ? (
-                <img src={product.images[0]} alt={product.title} className="w-full h-full object-cover" loading="eager" decoding="async" />
+            {/* ── Image Gallery ── */}
+            <div className="relative w-full aspect-square bg-black overflow-hidden select-none"
+              onTouchStart={(e) => { dragStartX.current = e.touches[0].clientX; }}
+              onTouchEnd={(e) => {
+                const dx = e.changedTouches[0].clientX - dragStartX.current;
+                if (Math.abs(dx) > 40 && images.length > 1) dx < 0 ? goNext() : goPrev();
+              }}
+            >
+              {images.length > 0 ? (
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.img
+                    key={activeImg}
+                    src={images[activeImg]}
+                    alt={`${product.title} - ${activeImg + 1}`}
+                    className="w-full h-full object-cover cursor-zoom-in"
+                    loading="eager"
+                    decoding="async"
+                    onClick={() => setLightbox(true)}
+                    initial={{ opacity: 0, scale: 1.04 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.97 }}
+                    transition={{ duration: 0.22 }}
+                  />
+                </AnimatePresence>
               ) : (
                 <div className="w-full h-full flex items-center justify-center" style={{ background: fallback }}>
                   <span className="text-4xl font-black text-white/10 uppercase">Gaytak</span>
@@ -185,18 +227,152 @@ export default function ProductDetailPage() {
               {/* Back Button */}
               <button
                 onClick={() => window.history.back()}
-                className="absolute top-12 right-4 w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 flex items-center justify-center"
+                className="absolute top-12 right-4 w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 flex items-center justify-center z-10"
               >
                 <ArrowRight className="w-5 h-5 text-white" />
               </button>
 
+              {/* Zoom hint */}
+              {images.length > 0 && (
+                <button
+                  onClick={() => setLightbox(true)}
+                  className="absolute top-12 left-4 w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 flex items-center justify-center z-10"
+                >
+                  <ZoomIn className="w-4 h-4 text-white/70" />
+                </button>
+              )}
+
+              {/* Arrow buttons — only when > 1 image */}
+              {images.length > 1 && (
+                <>
+                  <button
+                    onClick={goPrev}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 flex items-center justify-center z-10"
+                  >
+                    <ChevronLeft className="w-5 h-5 text-white" />
+                  </button>
+                  <button
+                    onClick={goNext}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 flex items-center justify-center z-10"
+                  >
+                    <ChevronRight className="w-5 h-5 text-white" />
+                  </button>
+                </>
+              )}
+
+              {/* Dot indicators */}
+              {images.length > 1 && (
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-10">
+                  {images.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setActiveImg(i)}
+                      className={`rounded-full transition-all duration-200 ${
+                        i === activeImg
+                          ? "w-5 h-1.5 bg-white shadow-[0_0_6px_rgba(255,255,255,0.6)]"
+                          : "w-1.5 h-1.5 bg-white/40"
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Image counter badge */}
+              {images.length > 1 && (
+                <div className="absolute bottom-3 left-4 bg-black/60 backdrop-blur-sm text-white/70 text-[11px] font-bold px-2 py-0.5 rounded-full z-10">
+                  {activeImg + 1}/{images.length}
+                </div>
+              )}
+
               {/* Status Badge */}
               {product.status !== "active" && (
-                <div className="absolute top-12 left-4 bg-black/70 text-red-400 text-xs font-bold px-3 py-1 rounded-full uppercase">
+                <div className="absolute top-12 left-16 bg-black/70 text-red-400 text-xs font-bold px-3 py-1 rounded-full uppercase z-10">
                   {product.status}
                 </div>
               )}
             </div>
+
+            {/* Thumbnail strip */}
+            {images.length > 1 && (
+              <div className="flex gap-2 px-4 py-3 bg-black/30 overflow-x-auto scrollbar-none">
+                {images.map((src, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setActiveImg(i)}
+                    className={`shrink-0 w-14 h-14 rounded-xl overflow-hidden border-2 transition-all ${
+                      i === activeImg
+                        ? "border-accent shadow-[0_0_10px_rgba(168,85,247,0.5)] scale-105"
+                        : "border-white/10 opacity-50"
+                    }`}
+                  >
+                    <img src={src} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* ── Lightbox ── */}
+            <AnimatePresence>
+              {lightbox && (
+                <motion.div
+                  key="lightbox"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/95"
+                  onClick={() => setLightbox(false)}
+                  onTouchStart={(e) => { dragStartX.current = e.touches[0].clientX; }}
+                  onTouchEnd={(e) => {
+                    const dx = e.changedTouches[0].clientX - dragStartX.current;
+                    if (Math.abs(dx) > 40 && images.length > 1) { dx < 0 ? goNext() : goPrev(); }
+                  }}
+                >
+                  <button
+                    onClick={() => setLightbox(false)}
+                    className="absolute top-12 right-4 w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center z-10"
+                  >
+                    <X className="w-5 h-5 text-white" />
+                  </button>
+
+                  {images.length > 1 && (
+                    <>
+                      <button onClick={(e) => { e.stopPropagation(); goPrev(); }}
+                        className="absolute left-4 w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center z-10">
+                        <ChevronLeft className="w-6 h-6 text-white" />
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); goNext(); }}
+                        className="absolute right-4 w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center z-10">
+                        <ChevronRight className="w-6 h-6 text-white" />
+                      </button>
+                    </>
+                  )}
+
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.img
+                      key={`lb-${activeImg}`}
+                      src={images[activeImg]}
+                      alt=""
+                      className="max-w-full max-h-screen object-contain px-16"
+                      onClick={(e) => e.stopPropagation()}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.18 }}
+                    />
+                  </AnimatePresence>
+
+                  {images.length > 1 && (
+                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2">
+                      {images.map((_, i) => (
+                        <button key={i} onClick={(e) => { e.stopPropagation(); setActiveImg(i); }}
+                          className={`rounded-full transition-all ${i === activeImg ? "w-5 h-1.5 bg-white" : "w-1.5 h-1.5 bg-white/30"}`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Content */}
             <motion.div
