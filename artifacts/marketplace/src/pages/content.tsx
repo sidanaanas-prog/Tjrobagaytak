@@ -50,6 +50,8 @@ interface Comment {
   userRole?: string | null;
   userIsVerified?: boolean | null;
   createdAt: string;
+  parentId?: string | null;
+  isFake?: boolean;
 }
 
 function getEmbedUrl(url: string): { type: "iframe" | "video"; src: string } {
@@ -69,6 +71,65 @@ function getEmbedUrl(url: string): { type: "iframe" | "video"; src: string } {
   }
 }
 
+function CommentItem({
+  c, i, currentUserId, videoId, onDelete, onReply,
+  replyTo, children,
+}: {
+  c: Comment;
+  i: number;
+  currentUserId?: string;
+  videoId: string;
+  onDelete: (id: string) => void;
+  onReply: (parentId: string, userName: string) => void;
+  replyTo?: string | null;
+  children?: React.ReactNode;
+}) {
+  return (
+    <motion.div
+      key={c.id}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: i * 0.04, duration: 0.22, ease: "easeOut" }}
+      className="flex items-start gap-3"
+    >
+      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0 overflow-hidden">
+        {c.userAvatar
+          ? <img src={c.userAvatar} className="w-full h-full object-cover" alt={c.userName} />
+          : <span className="text-white text-xs font-black">{c.userName?.[0]}</span>}
+      </div>
+      <div className="flex-1 min-w-0">
+        <span className="text-white/70 text-xs font-bold flex items-center gap-1">
+          @{c.userName}
+          {c.isFake && <span className="text-[10px] text-white/20 bg-white/10 rounded px-1">·</span>}
+          {(c.userIsVerified || c.userRole === "admin") && <VerifiedBadge size="xs" role={c.userRole} />}
+        </span>
+        {replyTo && (
+          <span className="text-white/30 text-[10px] block mt-0.5">رداً على @{replyTo}</span>
+        )}
+        <p className="text-white text-sm leading-snug mt-0.5">{c.text}</p>
+        <div className="flex items-center gap-3 mt-1">
+          <button
+            onClick={() => onReply(c.id, c.userName)}
+            className="text-white/30 hover:text-primary text-[11px] transition-colors"
+          >
+            رد
+          </button>
+          {c.userId === currentUserId && (
+            <button onClick={() => onDelete(c.id)} className="text-white/30 hover:text-red-400 text-[11px] transition-colors">
+              حذف
+            </button>
+          )}
+        </div>
+        {children && (
+          <div className="mt-2 ml-3 border-r-2 border-white/10 pr-3 space-y-2">
+            {children}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
 function CommentsDrawer({
   videoId, open, onClose, currentUserId,
 }: {
@@ -78,6 +139,7 @@ function CommentsDrawer({
   const [loading, setLoading] = useState(false);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<{ parentId: string; userName: string } | null>(null);
   const token = getMemToken();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -98,12 +160,13 @@ function CommentsDrawer({
       const res = await fetch(`${BASE}/api/content/${videoId}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, parentId: replyingTo?.parentId ?? null }),
       });
       if (res.ok) {
         const c = await res.json();
         setComments((prev) => [c, ...prev]);
         setText("");
+        setReplyingTo(null);
       }
     } finally {
       setSending(false);
@@ -117,6 +180,24 @@ function CommentsDrawer({
     });
     if (res.ok) setComments((prev) => prev.filter((c) => c.id !== commentId));
   };
+
+  const handleReply = (parentId: string, userName: string) => {
+    setReplyingTo({ parentId, userName });
+    setTimeout(() => inputRef.current?.focus(), 100);
+  };
+
+  const cancelReply = () => setReplyingTo(null);
+
+  // Organize into root + replies
+  const rootComments = comments.filter((c) => !c.parentId);
+  const replyMap = new Map<string, Comment[]>();
+  for (const c of comments) {
+    if (c.parentId) {
+      const list = replyMap.get(c.parentId) || [];
+      list.push(c);
+      replyMap.set(c.parentId, list);
+    }
+  }
 
   return (
     <AnimatePresence>
@@ -152,45 +233,46 @@ function CommentsDrawer({
               {!loading && comments.length === 0 && (
                 <p className="text-center text-white/40 text-sm py-8">لا توجد تعليقات بعد — كن أول من يعلّق!</p>
               )}
-              {comments.map((c, i) => (
-                <motion.div
+              {rootComments.map((c, i) => (
+                <CommentItem
                   key={c.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.04, duration: 0.22, ease: "easeOut" }}
-                  className="flex items-start gap-3"
-                >
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0 overflow-hidden">
-                    {c.userAvatar
-                      ? <img src={c.userAvatar} className="w-full h-full object-cover" alt={c.userName} />
-                      : <span className="text-white text-xs font-black">{c.userName?.[0]}</span>}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-white/70 text-xs font-bold flex items-center gap-1">
-                      @{c.userName}
-                      {(c.userIsVerified || c.userRole === "admin") && <VerifiedBadge size="xs" role={c.userRole} />}
-                    </span>
-                    <p className="text-white text-sm leading-snug mt-0.5">{c.text}</p>
-                  </div>
-                  {c.userId === currentUserId && (
-                    <button onClick={() => handleDelete(c.id)} className="text-white/30 hover:text-red-400 transition-colors shrink-0 mt-1">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </motion.div>
+                  c={c} i={i} currentUserId={currentUserId} videoId={videoId}
+                  onDelete={handleDelete} onReply={handleReply}
+                  children={
+                    replyMap.get(c.id)?.length
+                      ? replyMap.get(c.id)!.map((r, ri) => (
+                          <CommentItem
+                            key={r.id} c={r} i={ri} currentUserId={currentUserId} videoId={videoId}
+                            onDelete={handleDelete} onReply={handleReply}
+                            replyTo={c.userName}
+                          />
+                        ))
+                      : undefined
+                  }
+                />
               ))}
             </div>
 
             {/* Input */}
-            <div className="flex items-center gap-3 px-4 py-3 border-t border-white/10">
+            <div className="flex flex-col gap-2 px-4 py-3 border-t border-white/10">
+              {replyingTo && (
+                <div className="flex items-center justify-between">
+                  <span className="text-white/50 text-xs">
+                    رداً على @{replyingTo.userName}
+                  </span>
+                  <button onClick={cancelReply} className="text-white/30 hover:text-white text-xs">
+                    إلغاء
+                  </button>
+                </div>
+              )}
               {token ? (
-                <>
+                <div className="flex items-center gap-3">
                   <input
                     ref={inputRef}
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                    placeholder="اكتب تعليقاً..."
+                    placeholder={replyingTo ? "اكتب رداً..." : "اكتب تعليقاً..."}
                     className="flex-1 bg-white/10 text-white placeholder:text-white/30 rounded-full px-4 py-2 text-sm outline-none border border-white/10 focus:border-primary/50"
                   />
                   <motion.button
@@ -201,7 +283,7 @@ function CommentsDrawer({
                   >
                     <Send className="w-4 h-4 text-white" />
                   </motion.button>
-                </>
+                </div>
               ) : (
                 <p className="text-white/50 text-sm text-center w-full py-1">
                   <Link href="/login" onClick={onClose} className="text-primary underline">سجّل دخول</Link> للتعليق

@@ -236,6 +236,7 @@ router.get("/content/:id/comments", async (req, res): Promise<void> => {
     .select({
       id: contentCommentsTable.id,
       text: contentCommentsTable.text,
+      parentId: contentCommentsTable.parentId,
       createdAt: contentCommentsTable.createdAt,
       userId: contentCommentsTable.userId,
       userName: usersTable.name,
@@ -290,12 +291,12 @@ router.get("/content/:id/comments", async (req, res): Promise<void> => {
 
 router.post("/content/:id/comments", authenticate, async (req, res): Promise<void> => {
   const { id } = req.params;
-  const { text } = req.body;
+  const { text, parentId } = req.body;
   if (!text?.trim()) { res.status(400).json({ error: "التعليق فارغ" }); return; }
 
   const [comment] = await db
     .insert(contentCommentsTable)
-    .values({ id: randomUUID(), videoId: id as string, userId: req.user!.id, text: text.trim() })
+    .values({ id: randomUUID(), videoId: id as string, userId: req.user!.id, text: text.trim(), parentId: parentId ?? null })
     .returning();
 
   const [video] = await db.select({ userId: contentVideosTable.userId }).from(contentVideosTable).where(eq(contentVideosTable.id, id as string));
