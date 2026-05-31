@@ -10,6 +10,7 @@ export interface UpdateProductInput {
   title?: string;
   description?: string;
   price?: number;
+  originalPrice?: number | null;
   images?: string[];
   categoryId?: string;
 }

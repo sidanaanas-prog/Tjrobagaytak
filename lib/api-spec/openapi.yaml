@@ -750,6 +750,9 @@ components:
           type: string
         price:
           type: number
+        originalPrice:
+          type: number
+          nullable: true
         images:
           type: array
           items:
@@ -786,6 +789,9 @@ components:
           type: string
         price:
           type: number
+        originalPrice:
+          type: number
+          nullable: true
         images:
           type: array
           items:
@@ -805,6 +811,9 @@ components:
           type: string
         price:
           type: number
+        originalPrice:
+          type: number
+          nullable: true
         images:
           type: array
           items:

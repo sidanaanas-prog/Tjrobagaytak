@@ -207,9 +207,21 @@ export default function ProductDetailPage() {
               {/* Title & Price */}
               <div className="flex items-start justify-between gap-3 mb-2">
                 <h1 className="text-xl font-black text-white flex-1">{product.title}</h1>
-                <span className="text-2xl font-black text-accent font-mono">
-                  {product.price.toFixed(0)} د.ج
-                </span>
+                <div className="text-right shrink-0">
+                  <span className="text-2xl font-black text-accent font-mono block">
+                    {product.price.toFixed(0)} د.ج
+                  </span>
+                  {(product as any).originalPrice != null && (product as any).originalPrice > product.price && (
+                    <div className="flex items-center gap-1.5 justify-end mt-0.5">
+                      <span className="font-mono text-sm text-white/30 line-through">
+                        {Number((product as any).originalPrice).toFixed(0)} د.ج
+                      </span>
+                      <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded-full">
+                        -{Math.round((1 - product.price / (product as any).originalPrice) * 100)}%
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {product.category && (

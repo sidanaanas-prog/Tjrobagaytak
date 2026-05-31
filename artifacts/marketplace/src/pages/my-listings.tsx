@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useListProducts, getListProductsQueryKey } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Link, useLocation } from "wouter";
-import { Loader2, Package, Plus, CheckCircle, XCircle, AlertCircle, Trash2 } from "lucide-react";
+import { Loader2, Package, Plus, CheckCircle, XCircle, AlertCircle, Trash2, Pencil } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { getMemToken } from "@/hooks/use-auth";
@@ -230,31 +230,32 @@ export default function MyListingsPage() {
                             </div>
                           </div>
 
-                          {/* Delete Button */}
-                          {confirmId === product.id ? (
-                            <div className="flex flex-col gap-1.5 shrink-0">
-                              <button
-                                onClick={() => handleDelete(product.id)}
-                                disabled={deletingId === product.id}
-                                className="px-3 py-1.5 rounded-xl bg-red-500 text-white text-xs font-bold"
-                              >
-                                {deletingId === product.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "تأكيد"}
-                              </button>
-                              <button
-                                onClick={() => setConfirmId(null)}
-                                className="px-3 py-1.5 rounded-xl bg-white/10 text-white/50 text-xs"
-                              >
-                                إلغاء
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => setConfirmId(product.id)}
-                              className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0"
-                            >
-                              <Trash2 className="w-4 h-4 text-red-400" />
-                            </button>
-                          )}
+                          {/* Actions */}
+                          <div className="flex flex-col gap-1.5 shrink-0">
+                            {confirmId === product.id ? (
+                              <>
+                                <button onClick={() => handleDelete(product.id)} disabled={deletingId === product.id}
+                                  className="px-3 py-1.5 rounded-xl bg-red-500 text-white text-xs font-bold">
+                                  {deletingId === product.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "تأكيد"}
+                                </button>
+                                <button onClick={() => setConfirmId(null)}
+                                  className="px-3 py-1.5 rounded-xl bg-white/10 text-white/50 text-xs">
+                                  إلغاء
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button onClick={() => setLocation(`/edit-product/${product.id}`)}
+                                  className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                                  <Pencil className="w-4 h-4 text-primary" />
+                                </button>
+                                <button onClick={() => setConfirmId(product.id)}
+                                  className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                                  <Trash2 className="w-4 h-4 text-red-400" />
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </motion.div>
                       );
                     })}

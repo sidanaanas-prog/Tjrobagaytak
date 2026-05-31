@@ -4,3 +4,5 @@
 - [Browser env detection](browser-env-detection.md) — import.meta.env.REPL_ID لا تصل للبراوزر (ليست VITE_*)، استخدم window.location.hostname بدلاً منها
 - [Firebase-only notifications](firebase-notifications.md) — المشروع يستخدم Firebase فقط للإشعارات، لا OneSignal أبدًا
 - [Admin panel API URL routing](admin-panel-api-url.md) — getApiUrl() يجب أن يُرجع path مباشرة (لا BASE_URL) وإلا تصير الـ URLs خاطئة على Replit deployment
+- [api-zod types dir conflict](api-zod-types-dir.md) — lib/api-zod/src/generated/ لا تصدّر من ./generated/types (مجلد وليس ملف)، فقط export * من ./generated/api
+- [OpenAPI codegen + originalPrice](openapi-originalPrice.md) — أي حقل nullable جديد يحتاج إضافة في 3 schemas: Product + CreateProductInput + UpdateProductInput، ثم pnpm codegen ثم typecheck:libs لتحديث dist

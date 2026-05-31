@@ -13,6 +13,7 @@ import ProductsPage from "@/pages/products";
 import ProductDetailPage from "@/pages/product-detail";
 import SellerStorePage from "@/pages/seller-store";
 import SellPage from "@/pages/sell";
+import EditProductPage from "@/pages/edit-product";
 import MyListingsPage from "@/pages/my-listings";
 import ChatPage from "@/pages/chat";
 import ProfilePage from "@/pages/profile";
@@ -93,6 +94,9 @@ function Router() {
       
       <Route path="/sell">
         <RequireAuth><SellPage /></RequireAuth>
+      </Route>
+      <Route path="/edit-product/:id">
+        <RequireAuth><EditProductPage /></RequireAuth>
       </Route>
       <Route path="/my-listings">
         <RequireAuth><MyListingsPage /></RequireAuth>

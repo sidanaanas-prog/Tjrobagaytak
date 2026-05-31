@@ -3,7 +3,7 @@ import { BadgeCheck, ShieldCheck } from "lucide-react";
 interface VerifiedBadgeProps {
   className?: string;
   size?: "xs" | "sm" | "md";
-  role?: string;
+  role?: string | null;
 }
 
 const sizes = {
@@ -13,7 +13,7 @@ const sizes = {
 };
 
 export function VerifiedBadge({ className = "", size = "sm", role }: VerifiedBadgeProps) {
-  const isAdmin = role === "admin";
+  const isAdmin = role != null && role === "admin";
 
   if (isAdmin) {
     return (

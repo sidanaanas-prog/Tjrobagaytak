@@ -31,6 +31,7 @@ function formatProduct(p: typeof productsTable.$inferSelect, seller?: typeof use
     title: p.title,
     description: p.description,
     price: Number(p.price),
+    originalPrice: p.originalPrice != null ? Number(p.originalPrice) : null,
     images: p.images ?? [],
     category: categoryName ?? null,
     categoryId: p.categoryId,
@@ -155,7 +156,7 @@ router.get("/products", async (req, res): Promise<void> => {
 });
 
 router.post("/products", authenticate, async (req, res): Promise<void> => {
-  const { title, description, price, images, categoryId } = req.body;
+  const { title, description, price, originalPrice, images, categoryId } = req.body;
   if (!title || price === undefined) {
     res.status(400).json({ error: "Title and price are required" });
     return;
@@ -167,6 +168,7 @@ router.post("/products", authenticate, async (req, res): Promise<void> => {
     title,
     description: description ?? null,
     price: String(price),
+    originalPrice: originalPrice != null ? String(originalPrice) : null,
     images: images ?? [],
     categoryId: categoryId ?? null,
     status: "active",
@@ -227,11 +229,12 @@ router.patch("/products/:id", authenticate, async (req, res): Promise<void> => {
     return;
   }
 
-  const { title, description, price, images, categoryId } = req.body;
+  const { title, description, price, originalPrice, images, categoryId } = req.body;
   const updates: Partial<typeof productsTable.$inferInsert> = {};
   if (title) updates.title = title;
   if (description !== undefined) updates.description = description;
   if (price !== undefined) updates.price = String(price);
+  if (originalPrice !== undefined) updates.originalPrice = originalPrice != null ? String(originalPrice) : null;
   if (images !== undefined) updates.images = images;
   if (categoryId !== undefined) updates.categoryId = categoryId;
 

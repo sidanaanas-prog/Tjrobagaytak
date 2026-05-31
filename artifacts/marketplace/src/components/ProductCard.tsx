@@ -153,9 +153,16 @@ export function ProductCard({ product, index = 0, compact = false, showStatus = 
           <div className="p-4">
             <div className="flex justify-between items-start gap-2 mb-1">
               <h3 className="font-semibold text-base text-white line-clamp-1">{product.title}</h3>
-              <span className="font-mono font-bold text-accent whitespace-nowrap">
-                {product.price.toFixed(0)} د.ج
-              </span>
+              <div className="text-right shrink-0">
+                <span className="font-mono font-bold text-accent whitespace-nowrap block">
+                  {product.price.toFixed(0)} د.ج
+                </span>
+                {(product as any).originalPrice != null && (product as any).originalPrice > product.price && (
+                  <span className="font-mono text-xs text-white/30 line-through whitespace-nowrap block">
+                    {Number((product as any).originalPrice).toFixed(0)} د.ج
+                  </span>
+                )}
+              </div>
             </div>
             {product.category && (
               <span className="text-xs text-muted-foreground">{product.category}</span>

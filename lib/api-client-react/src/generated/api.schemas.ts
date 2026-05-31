@@ -102,6 +102,7 @@ export interface Product {
   title: string;
   description?: string;
   price: number;
+  originalPrice?: number | null;
   images?: string[];
   category?: string;
   categoryId?: string;
@@ -116,6 +117,7 @@ export interface CreateProductInput {
   title: string;
   description?: string;
   price: number;
+  originalPrice?: number | null;
   images?: string[];
   categoryId?: string;
 }
@@ -124,6 +126,7 @@ export interface UpdateProductInput {
   title?: string;
   description?: string;
   price?: number;
+  originalPrice?: number | null;
   images?: string[];
   categoryId?: string;
 }
