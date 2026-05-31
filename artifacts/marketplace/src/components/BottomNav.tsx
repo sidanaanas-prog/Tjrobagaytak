@@ -25,7 +25,7 @@ const tabs: NavTab[] = [
   { href: "/content", icon: Play, label: "المحتوى", auth: false },
   { href: "/sell", icon: Plus, label: "بيع", auth: true, isSell: true },
   { href: "/chat", icon: MessageCircle, label: "محادثات", auth: true, isChat: true },
-  { href: "/orders", icon: Package, label: "طلباتي", auth: true, isOrders: true },
+  { href: "/dashboard", icon: Store, label: "أعمالي", auth: true, isOrders: true },
   { href: "/profile", icon: User, label: "حسابي", auth: true },
 ];
 
@@ -82,7 +82,7 @@ export function BottomNav() {
           }
 
           const showChatBadge = tab.isChat && !!user && totalUnread > 0 && !location.startsWith("/chat");
-          const showOrdersBadge = tab.isOrders && !!user && pendingOrders > 0 && !location.startsWith("/orders");
+          const showOrdersBadge = tab.isOrders && !!user && pendingOrders > 0 && !location.startsWith("/dashboard");
 
           return (
             <Link key={tab.href} href={href}>

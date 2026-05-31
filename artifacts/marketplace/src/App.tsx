@@ -14,10 +14,9 @@ import ProductDetailPage from "@/pages/product-detail";
 import SellerStorePage from "@/pages/seller-store";
 import SellPage from "@/pages/sell";
 import EditProductPage from "@/pages/edit-product";
-import MyListingsPage from "@/pages/my-listings";
+import DashboardPage from "@/pages/dashboard";
 import ChatPage from "@/pages/chat";
 import ProfilePage from "@/pages/profile";
-import OrdersPage from "@/pages/orders";
 import FollowingPage from "@/pages/following";
 import AddStoryPage from "@/pages/add-story";
 import PrivacyPolicyPage from "@/pages/privacy-policy";
@@ -98,22 +97,25 @@ function Router() {
       <Route path="/edit-product/:id">
         <RequireAuth><EditProductPage /></RequireAuth>
       </Route>
-      <Route path="/my-listings">
-        <RequireAuth><MyListingsPage /></RequireAuth>
+      <Route path="/dashboard">
+        <RequireAuth><DashboardPage /></RequireAuth>
       </Route>
-      
+      <Route path="/my-listings">
+        <RequireAuth><DashboardPage /></RequireAuth>
+      </Route>
+      <Route path="/orders">
+        <RequireAuth><DashboardPage /></RequireAuth>
+      </Route>
+
       <Route path="/chat">
         <RequireAuth><ChatPage /></RequireAuth>
       </Route>
       <Route path="/chat/:id">
         <RequireAuth><ChatPage /></RequireAuth>
       </Route>
-      
+
       <Route path="/profile">
         <RequireAuth><ProfilePage /></RequireAuth>
-      </Route>
-      <Route path="/orders">
-        <RequireAuth><OrdersPage /></RequireAuth>
       </Route>
       <Route path="/following">
         <RequireAuth><FollowingPage /></RequireAuth>
