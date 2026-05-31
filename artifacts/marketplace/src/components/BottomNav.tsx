@@ -2,7 +2,12 @@ import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Home, Search, Plus, MessageCircle, User, Package, Store } from "lucide-react";
 import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
 import { useListConversations, getListConversationsQueryKey } from "@workspace/api-client-react";
+import { getMemToken } from "@/hooks/use-auth";
+import { getApiUrl } from "@/lib/api-url";
+
+const BASE = getApiUrl("");
 
 type NavTab = {
   href: string;
@@ -11,12 +16,13 @@ type NavTab = {
   auth: boolean;
   isSell?: boolean;
   isChat?: boolean;
+  isOrders?: boolean;
 };
 
 const tabs: NavTab[] = [
   { href: "/", icon: Home, label: "الرئيسية", auth: false },
   { href: "/products", icon: Search, label: "استكشف", auth: false },
-  { href: "/orders", icon: Package, label: "طلباتي", auth: true },
+  { href: "/orders", icon: Package, label: "طلباتي", auth: true, isOrders: true },
   { href: "/sell", icon: Plus, label: "بيع", auth: true, isSell: true },
   { href: "/chat", icon: MessageCircle, label: "محادثات", auth: true, isChat: true },
   { href: "/my-listings", icon: Store, label: "منتجاتي", auth: true },
@@ -26,12 +32,33 @@ const tabs: NavTab[] = [
 export function BottomNav() {
   const [location] = useLocation();
   const { user } = useAuth();
+  const [pendingOrders, setPendingOrders] = useState(0);
 
   const { data: conversations } = useListConversations({
     query: { enabled: !!user, refetchInterval: 15_000, queryKey: getListConversationsQueryKey() },
   });
 
   const totalUnread = conversations?.reduce((sum, c) => sum + (c.unreadCount ?? 0), 0) ?? 0;
+
+  // جلب عدد الطلبات المعلقة (كبائع) كل 15 ثانية
+  useEffect(() => {
+    if (!user) { setPendingOrders(0); return; }
+
+    const fetchPending = () => {
+      const token = getMemToken();
+      fetch(`${BASE}/api/orders?role=seller`, { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => r.ok ? r.json() : [])
+        .then((orders: any[]) => {
+          const count = Array.isArray(orders) ? orders.filter((o) => o.status === "pending").length : 0;
+          setPendingOrders(count);
+        })
+        .catch(() => {});
+    };
+
+    fetchPending();
+    const interval = setInterval(fetchPending, 15_000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 h-[68px] bg-black/80 backdrop-blur-xl border-t border-white/10">
@@ -54,7 +81,8 @@ export function BottomNav() {
             );
           }
 
-          const showBadge = tab.isChat && !!user && totalUnread > 0 && !location.startsWith("/chat");
+          const showChatBadge = tab.isChat && !!user && totalUnread > 0 && !location.startsWith("/chat");
+          const showOrdersBadge = tab.isOrders && !!user && pendingOrders > 0 && !location.startsWith("/orders");
 
           return (
             <Link key={tab.href} href={href}>
@@ -70,7 +98,7 @@ export function BottomNav() {
                 )}
                 <div className="relative">
                   <Icon className={`w-5 h-5 transition-colors ${isActive ? "text-primary" : "text-white/40"}`} />
-                  {showBadge && (
+                  {showChatBadge && (
                     <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
@@ -78,6 +106,17 @@ export function BottomNav() {
                     >
                       <span className="text-[8px] text-white font-bold px-0.5">
                         {totalUnread > 9 ? "9+" : totalUnread}
+                      </span>
+                    </motion.div>
+                  )}
+                  {showOrdersBadge && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute -top-1 -right-1 min-w-[15px] h-3.5 rounded-full bg-orange-500 flex items-center justify-center shadow-[0_0_8px_rgba(249,115,22,0.8)]"
+                    >
+                      <span className="text-[8px] text-white font-bold px-0.5">
+                        {pendingOrders > 9 ? "9+" : pendingOrders}
                       </span>
                     </motion.div>
                   )}

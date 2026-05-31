@@ -81,13 +81,20 @@ export default function OrdersPage() {
 
   useEffect(() => {
     if (!user) return;
-    setLoading(true);
-    const token = getMemToken();
-    fetch(`${BASE}/api/orders?role=${activeTab}`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json())
-      .then((d) => setOrders(Array.isArray(d) ? d : []))
-      .catch(() => setOrders([]))
-      .finally(() => setLoading(false));
+
+    const fetchOrders = (showLoading = false) => {
+      if (showLoading) setLoading(true);
+      const token = getMemToken();
+      fetch(`${BASE}/api/orders?role=${activeTab}`, { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => r.json())
+        .then((d) => setOrders(Array.isArray(d) ? d : []))
+        .catch(() => setOrders([]))
+        .finally(() => { if (showLoading) setLoading(false); });
+    };
+
+    fetchOrders(true);
+    const interval = setInterval(() => fetchOrders(false), 15_000);
+    return () => clearInterval(interval);
   }, [user, activeTab]);
 
   async function updateStatus(orderId: string, status: string) {
