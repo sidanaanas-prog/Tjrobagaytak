@@ -13,7 +13,7 @@ import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { getMemToken } from "@/hooks/use-auth";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SkeletonCard } from "@/components/SkeletonCard";
 import { getApiUrl } from "@/lib/api-url";
 import {
@@ -45,6 +45,23 @@ export default function ProductDetailPage() {
   const [orderAddress, setOrderAddress] = useState("");
   const [orderNotes, setOrderNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [hasOrder, setHasOrder] = useState(false);
+
+  // تحقق هل المستخدم طلب منتجاً من هذا البائع
+  useEffect(() => {
+    if (!user || !product?.sellerId) return;
+    const token = getMemToken();
+    fetch(`${BASE}/api/orders?role=buyer`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((orders: any[]) => {
+        const found = Array.isArray(orders) && orders.some(
+          (o) => (o.seller?.id === product.sellerId || o.sellerId === product.sellerId)
+               && o.status !== "cancelled"
+        );
+        setHasOrder(found);
+      })
+      .catch(() => {});
+  }, [user, product?.sellerId]);
 
   const handleContact = () => {
     if (!user) {
@@ -110,6 +127,7 @@ export default function ProductDetailPage() {
       setShowOrderDialog(false);
       setOrderAddress("");
       setOrderNotes("");
+      setHasOrder(true);
       setLocation("/orders");
     } catch {
       toast({ variant: "destructive", title: "خطأ", description: "تعذر إنشاء الطلب" });
@@ -239,35 +257,39 @@ export default function ProductDetailPage() {
                 </div>
               ) : (
                 <div className="flex gap-2">
-                  <Link href={`/seller/${product.sellerId}`} className="flex-1">
+                  {/* دردشة — تظهر فقط بعد طلب */}
+                  {hasOrder ? (
                     <motion.button
                       whileTap={{ scale: 0.97 }}
-                      className="w-full h-14 bg-primary/15 border border-primary/30 text-primary font-bold text-sm rounded-2xl flex items-center justify-center gap-2"
+                      onClick={handleContact}
+                      disabled={createConversation.isPending}
+                      className="flex-1 h-14 bg-primary/15 border border-primary/30 text-primary font-bold text-sm rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50"
                     >
-                      <Store className="w-4 h-4" />
-                      دخل المتجر
+                      {createConversation.isPending ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <>
+                          <MessageSquare className="w-4 h-4" />
+                          دردشة
+                        </>
+                      )}
                     </motion.button>
-                  </Link>
-                  <motion.button
-                    whileTap={{ scale: 0.97 }}
-                    onClick={handleContact}
-                    disabled={createConversation.isPending || product.status !== "active"}
-                    className="flex-1 h-14 bg-primary text-white font-black text-sm rounded-2xl shadow-[0_0_24px_rgba(168,85,247,0.4)] flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    {createConversation.isPending ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <>
-                        <MessageSquare className="w-4 h-4" />
-                        دردشة
-                      </>
-                    )}
-                  </motion.button>
+                  ) : (
+                    <Link href={`/seller/${product.sellerId}`} className="flex-1">
+                      <motion.button
+                        whileTap={{ scale: 0.97 }}
+                        className="w-full h-14 bg-white/5 border border-white/10 text-white/60 font-bold text-sm rounded-2xl flex items-center justify-center gap-2"
+                      >
+                        <Store className="w-4 h-4" />
+                        المتجر
+                      </motion.button>
+                    </Link>
+                  )}
                   <motion.button
                     whileTap={{ scale: 0.97 }}
                     onClick={handleOrderClick}
                     disabled={product.status !== "active"}
-                    className="flex-1 h-14 bg-accent text-white font-black text-sm rounded-2xl shadow-[0_0_24px_rgba(236,72,153,0.4)] flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="flex-1 h-14 bg-primary text-white font-black text-sm rounded-2xl shadow-[0_0_24px_rgba(168,85,247,0.4)] flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     <Package className="w-4 h-4" />
                     اطلب الآن
