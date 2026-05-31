@@ -1,6 +1,6 @@
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { Home, Search, Plus, MessageCircle, User, Heart, Play } from "lucide-react";
+import { Home, Search, Plus, MessageCircle, User, Package, Store } from "lucide-react";
 import { motion } from "framer-motion";
 import { useListConversations, getListConversationsQueryKey } from "@workspace/api-client-react";
 
@@ -16,10 +16,10 @@ type NavTab = {
 const tabs: NavTab[] = [
   { href: "/", icon: Home, label: "الرئيسية", auth: false },
   { href: "/products", icon: Search, label: "استكشف", auth: false },
-  { href: "/content", icon: Play, label: "المحتوى", auth: false },
+  { href: "/orders", icon: Package, label: "طلباتي", auth: true },
   { href: "/sell", icon: Plus, label: "بيع", auth: true, isSell: true },
   { href: "/chat", icon: MessageCircle, label: "محادثات", auth: true, isChat: true },
-  { href: "/wishlist", icon: Heart, label: "مفضلتي", auth: true },
+  { href: "/my-listings", icon: Store, label: "منتجاتي", auth: true },
   { href: "/profile", icon: User, label: "حسابي", auth: true },
 ];
 
