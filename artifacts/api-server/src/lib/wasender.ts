@@ -77,6 +77,23 @@ export async function sendOtp(phone: string): Promise<{ success: boolean; error?
   }
 }
 
+// ── إرسال رسالة نصية عادية (غير OTP) ─────────────────────────────────────────
+export async function sendWasenderText(phone: string, text: string): Promise<void> {
+  if (!API_KEY) return;
+  try {
+    await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${API_KEY}`,
+      },
+      body: JSON.stringify({ to: phone, text }),
+    });
+  } catch (e: any) {
+    console.warn("[Wasender] Failed to send text:", e.message);
+  }
+}
+
 export async function verifyOtp(phone: string, code: string): Promise<{ valid: boolean; error?: string }> {
   const [entry] = (await db.select().from(phoneOtpsTable).where(eq(phoneOtpsTable.phone, phone))) ?? [];
 

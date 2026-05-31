@@ -4,6 +4,9 @@ import { eq, and, or, desc, inArray, ne, gte, sql } from "drizzle-orm";
 import { authenticate } from "../lib/auth";
 import { randomUUID } from "crypto";
 import { sendNotification } from "../lib/notifications";
+import { sendWasenderText } from "../lib/wasender";
+
+const ADMIN_PHONE = process.env.ADMIN_PHONE || "";
 
 const router: IRouter = Router();
 
@@ -285,8 +288,18 @@ router.post("/conversations/:id/messages", authenticate, async (req, res): Promi
       } catch (e: any) {
         console.warn("[Chat] Failed to send push notification:", e.message);
       }
-    } else {
-      console.log("[Chat] No pushToken for recipient", recipientId);
+    }
+
+    // إشعار WhatsApp للأدمن عند رسائل الدعم (حتى بدون pushToken)
+    if (recipient?.role === "admin" && ADMIN_PHONE) {
+      try {
+        await sendWasenderText(
+          ADMIN_PHONE,
+          `📩 *رسالة دعم جديدة*\n\n👤 *المستخدم:* ${senderName}\n💬 ${preview}\n\n_Gaytak Support_`
+        );
+      } catch (e: any) {
+        console.warn("[Chat] Failed to send WhatsApp admin notification:", e.message);
+      }
     }
   }
 
