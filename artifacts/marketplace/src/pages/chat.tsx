@@ -366,6 +366,12 @@ export default function ChatPage() {
               <ArrowRight className="w-5 h-5 text-white/60" />
             </button>
           </Link>
+          {loadingConversations && !activeConversation && (
+            <div className="flex items-center gap-3 flex-1">
+              <div className="w-9 h-9 rounded-full bg-white/10 animate-pulse" />
+              <div className="h-4 w-32 rounded bg-white/10 animate-pulse" />
+            </div>
+          )}
           {otherParticipant && (
             <>
               <Avatar className="w-9 h-9 border border-primary/30">

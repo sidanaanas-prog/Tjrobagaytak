@@ -3,7 +3,9 @@ import {
   useGetProduct,
   getGetProductQueryKey,
   useCreateConversation,
+  getListConversationsQueryKey,
 } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { AppLayout } from "@/components/AppLayout";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -38,6 +40,7 @@ export default function ProductDetailPage() {
   });
 
   const createConversation = useCreateConversation();
+  const queryClient = useQueryClient();
 
   // Order dialog state
   const [showOrderDialog, setShowOrderDialog] = useState(false);
@@ -76,7 +79,10 @@ export default function ProductDetailPage() {
     createConversation.mutate(
       { data: { recipientId: product!.sellerId, productId: product!.id } },
       {
-        onSuccess: (conv) => setLocation(`/chat/${conv.id}`),
+        onSuccess: async (conv) => {
+          await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
+          setLocation(`/chat/${conv.id}`);
+        },
         onError: (err: any) => toast({ variant: "destructive", title: "خطأ", description: err?.message }),
       }
     );

@@ -4,7 +4,8 @@ import { useToast } from "@/hooks/use-toast";
 import { getMemToken } from "@/hooks/use-auth";
 import { motion, AnimatePresence as AP } from "framer-motion";
 import { useState, useEffect } from "react";
-import { Link } from "wouter";
+import { useLocation, Link } from "wouter";
+import { useCreateConversation } from "@workspace/api-client-react";
 import { Loader2, Package, ChevronLeft, Truck, CheckCircle, XCircle, Clock, Phone, MapPin, MessageSquare, UserCheck, Navigation } from "lucide-react";
 import { getApiUrl } from "@/lib/api-url";
 const BASE = getApiUrl("");
@@ -68,12 +69,15 @@ const deliveryStatusColors: Record<string, string> = {
 export default function OrdersPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState<"buyer" | "seller">("buyer");
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [contactingId, setContactingId] = useState<string | null>(null);
   const [deliveryModal, setDeliveryModal] = useState<string | null>(null); // orderId
   const [settingDelivery, setSettingDelivery] = useState(false);
+  const createConversation = useCreateConversation();
 
   useEffect(() => {
     if (!user) return;
@@ -347,14 +351,30 @@ export default function OrdersPage() {
                 )}
 
                 {/* Buyer: contact seller button */}
-                {activeTab === "buyer" && order.status !== "cancelled" && order.status !== "delivered" && (
+                {activeTab === "buyer" && order.status !== "cancelled" && order.status !== "delivered" && order.seller && (
                   <div className="px-4 pb-4">
-                    <Link href={`/chat`} className="block">
-                      <button className="w-full h-9 rounded-xl bg-white/5 border border-white/10 text-white/60 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-white/10 transition-colors">
+                    <button
+                      disabled={contactingId === order.id}
+                      onClick={() => {
+                        setContactingId(order.id);
+                        createConversation.mutate(
+                          { data: { recipientId: order.seller!.id, productId: order.product?.id } },
+                          {
+                            onSuccess: (conv) => setLocation(`/chat/${conv.id}`),
+                            onError: () => toast({ variant: "destructive", title: "خطأ", description: "تعذر فتح المحادثة" }),
+                            onSettled: () => setContactingId(null),
+                          }
+                        );
+                      }}
+                      className="w-full h-9 rounded-xl bg-white/5 border border-white/10 text-white/60 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-white/10 transition-colors disabled:opacity-50"
+                    >
+                      {contactingId === order.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
                         <MessageSquare className="w-3.5 h-3.5" />
-                        مراسلة البائع
-                      </button>
-                    </Link>
+                      )}
+                      مراسلة البائع
+                    </button>
                   </div>
                 )}
               </motion.div>
