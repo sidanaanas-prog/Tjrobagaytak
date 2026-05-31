@@ -247,20 +247,40 @@ export function contentBoost(id: string, createdAt: Date) {
  */
 // ── صور بروفايل موريتانية حقيقية ─────────────────────────────────────────────
 
-/** صور رجال موريتانيين حقيقيين — Wikimedia Commons (CC) */
+/** صور رجال موريتانيين حقيقيين — 10 صور — Wikimedia Commons (CC) */
 const MAURITANIAN_MEN_AVATARS = [
   "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Chinguetti-Guide.JPG/250px-Chinguetti-Guide.JPG",
   "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Nouakchott_Beach_Portrait_%2817638535788%29.jpg/250px-Nouakchott_Beach_Portrait_%2817638535788%29.jpg",
   "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Nouakchott_Street_Portrait_%2817086858110%29.jpg/250px-Nouakchott_Street_Portrait_%2817086858110%29.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Nouakchott_Street_Portrait_%2817568034755%29.jpg/250px-Nouakchott_Street_Portrait_%2817568034755%29.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Nouakchott_Street_Portrait_%2817333802316%29.jpg/250px-Nouakchott_Street_Portrait_%2817333802316%29.jpg",
   "https://upload.wikimedia.org/wikipedia/commons/2/2a/Mauritania-aziz-in-his-home-city-Akjoujt-15mar09_1.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Mauritania_boy1.jpg/250px-Mauritania_boy1.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/Nouakchott_Vendor.jpg/250px-Nouakchott_Vendor.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Photo_A_Mauritanian_blacksmith_at_work_1965_-_Touring_Club_Italiano_BBC_21.jpg/250px-Photo_A_Mauritanian_blacksmith_at_work_1965_-_Touring_Club_Italiano_BBC_21.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Smiling_man_in_front_of_a_car%2C_Mauritania.jpg/250px-Smiling_man_in_front_of_a_car%2C_Mauritania.jpg",
 ];
 
-/** صور نساء موريتانيات حقيقيات — Wikimedia Commons (CC) */
+/** صور نساء موريتانيات حقيقيات — 10 صور — Wikimedia Commons (CC) */
 const MAURITANIAN_WOMEN_AVATARS = [
   "https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/A_big_smile_from_Mauretania.jpg/250px-A_big_smile_from_Mauretania.jpg",
   "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Adrar-Mother%26daughter.JPG/250px-Adrar-Mother%26daughter.JPG",
   "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Young_girl_in_Mauritania.jpg/250px-Young_girl_in_Mauritania.jpg",
   "https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Girl_from_Mauritania.jpg/250px-Girl_from_Mauritania.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Mauritanian_girl_portrait.jpg/250px-Mauritanian_girl_portrait.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Girl_in_Bareina.jpg/250px-Girl_in_Bareina.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Mauritanian_woman_with_fish.jpg/250px-Mauritanian_woman_with_fish.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Adrar-Nomadic_woman_selling_handicraft_%282%29.JPG/250px-Adrar-Nomadic_woman_selling_handicraft_%282%29.JPG",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Adrar-Nomadic_woman_selling_handicraft%281%29.JPG/250px-Adrar-Nomadic_woman_selling_handicraft%281%29.JPG",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/DSC_1381_%284307384434%29.jpg/250px-DSC_1381_%284307384434%29.jpg",
+];
+
+/** صور منتجات وأسواق موريتانية — 4 صور */
+const MAURITANIAN_PRODUCT_AVATARS = [
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Nouakchott_camel_market2.jpg/250px-Nouakchott_camel_market2.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Oasis_de_Tergit_%2802%29.jpg/250px-Oasis_de_Tergit_%2802%29.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Fish_market_in_Nouakchott_-_Mauritania.jpg/250px-Fish_market_in_Nouakchott_-_Mauritania.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Nouakchott_beach_-_fishing_boat.jpg/250px-Nouakchott_beach_-_fishing_boat.jpg",
 ];
 
 /** ألوان خلفية ui-avatars (fallback) */
@@ -270,20 +290,31 @@ const UI_AVATAR_BG = [
 ];
 
 /**
- * يختار صورة بروفايل:
- *  ~60% صورة موريتانية حقيقية (رجال/نساء حسب الاسم)
- *  ~25% ui-avatars حرف عربي ملوّن
- *  ~15% null → التطبيق يعرض الحرف الأول بلون
+ * يختار صورة بروفايل مختلفة لكل مستخدم:
+ *  ~70% صورة موريتانية حقيقية (رجال/نساء حسب الاسم)
+ *  ~15% صورة منتج/سوق موريتاني
+ *  ~10% ui-avatars حرف عربي ملوّن
+ *  ~5%  null → التطبيق يعرض الحرف الأول بلون
+ *
+ * userIndex يضمن أن كل مستخدم في نفس الفيديو يحصل على صورة مختلفة
  */
-function pickAvatar(seed: number, name: string): string | null {
+function pickAvatar(seed: number, name: string, userIndex: number): string | null {
   const bucket = seed % 100;
-  if (bucket < 15) return null;
+  if (bucket < 5) return null;
+
   const isFemale = name.includes("بنت");
-  const pool = isFemale ? MAURITANIAN_WOMEN_AVATARS : MAURITANIAN_MEN_AVATARS;
-  if (bucket < 75) {
-    return pool[seed % pool.length]!;
+  const photoPool = isFemale ? MAURITANIAN_WOMEN_AVATARS : MAURITANIAN_MEN_AVATARS;
+
+  // استخدام (seed + userIndex * prime) % poolSize لضمان التنويع
+  const diverseIdx = (seed + userIndex * 7) % photoPool.length;
+
+  if (bucket < 75) return photoPool[diverseIdx]!;
+
+  if (bucket < 90) {
+    return MAURITANIAN_PRODUCT_AVATARS[(seed + userIndex * 3) % MAURITANIAN_PRODUCT_AVATARS.length]!;
   }
-  const bg  = UI_AVATAR_BG[seed % UI_AVATAR_BG.length]!;
+
+  const bg  = UI_AVATAR_BG[(seed + userIndex) % UI_AVATAR_BG.length]!;
   const enc = encodeURIComponent(name.slice(0, 8));
   return `https://ui-avatars.com/api/?name=${enc}&background=${bg}&color=fff&size=100&bold=true&font-size=0.45`;
 }
@@ -308,7 +339,7 @@ function buildFakeUsers(count: number, seed0: number, createdAt: Date) {
 
     // Deterministic avatar: Arabic initials via ui-avatars or null
     const avatarSeed = Math.floor(r2.val * 10000);
-    const avatar = pickAvatar(avatarSeed, ARABIC_NAMES[finalIdx]!);
+    const avatar = pickAvatar(avatarSeed, ARABIC_NAMES[finalIdx]!, i);
 
     users.push({
       id: `fake-${seed0}-${i}`,
