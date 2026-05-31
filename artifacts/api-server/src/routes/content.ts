@@ -100,15 +100,17 @@ router.post("/content", authenticate, async (req, res): Promise<void> => {
   }
 
   // تحقق أن المنتج ملك للمستخدم إذا أُرسل productId
+  let productData: { id: string; title: string; description: string | null; price: number | null; category: string | null } | null = null;
   if (productId) {
     const [product] = (await db
-      .select({ id: productsTable.id, sellerId: productsTable.sellerId })
+      .select({ id: productsTable.id, sellerId: productsTable.sellerId, title: productsTable.title, description: productsTable.description, price: productsTable.price, categoryId: productsTable.categoryId })
       .from(productsTable)
       .where(eq(productsTable.id, productId as string))) ?? [];
     if (!product || product.sellerId !== req.user!.id) {
       res.status(403).json({ error: "المنتج غير موجود أو لا يخصك" });
       return;
     }
+    productData = product as any;
   }
 
   const [video] = await db
@@ -125,8 +127,13 @@ router.post("/content", authenticate, async (req, res): Promise<void> => {
 
   res.status(201).json(video);
 
-  // توليد تعليقات ذكية في الخلفية (لا تُعيق الاستجابة)
-  generateAiCommentsAsync(video.id, video.caption);
+  // توليد تعليقات ذكية في الخلفية (لا تُعيق الاستجابة) — مع بيانات المنتج
+  generateAiCommentsAsync(video.id, video.caption, productData ? {
+    title: productData.title,
+    description: productData.description,
+    price: productData.price ? Number(productData.price) : null,
+    thumbnailUrl: thumbnailUrl ?? null,
+  } : undefined);
 
   // إشعارات وهمية بتأخير 1-18 دقيقة لمحاكاة نشاط حقيقي
   scheduleFakeCommentNotifications(video.id, req.user!.id, video.caption);
@@ -243,14 +250,40 @@ router.get("/content/:id/comments", async (req, res): Promise<void> => {
     .limit(50);
 
   const [video] = await db
-    .select({ createdAt: contentVideosTable.createdAt, caption: contentVideosTable.caption })
+    .select({
+      createdAt: contentVideosTable.createdAt,
+      caption: contentVideosTable.caption,
+      productId: contentVideosTable.productId,
+      thumbnailUrl: contentVideosTable.thumbnailUrl,
+    })
     .from(contentVideosTable)
     .where(eq(contentVideosTable.id, id as string));
 
   if (!video) { res.json(rows); return; }
 
-  // جلب التعليقات الذكية من DB (أو توليدها لأول مرة)
-  const aiComments = await getOrGenerateAiComments(id as string, video.caption);
+  // جلب بيانات المنتج إذا موجود ( للـ AI والـ fallback)
+  let productData: { title: string; description: string | null; price: number | null } | null = null;
+  if (video.productId) {
+    const [product] = (await db
+      .select({ title: productsTable.title, description: productsTable.description, price: productsTable.price })
+      .from(productsTable)
+      .where(eq(productsTable.id, video.productId))) ?? [];
+    if (product) {
+      productData = {
+        title: product.title,
+        description: product.description,
+        price: product.price ? Number(product.price) : null,
+      };
+    }
+  }
+
+  // جلب التعليقات الذكية من DB (أو توليدها لأول مرة) — مع بيانات المنتج
+  const aiComments = await getOrGenerateAiComments(id as string, video.caption, productData ? {
+    title: productData.title,
+    description: productData.description,
+    price: productData.price,
+    thumbnailUrl: video.thumbnailUrl ?? null,
+  } : undefined);
 
   res.json(fakeVideoComments(id as string, video.createdAt as Date, video.caption, rows as any[], aiComments));
 });
