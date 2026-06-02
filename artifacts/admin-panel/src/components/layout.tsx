@@ -100,6 +100,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/reports", label: "التبليغات", icon: Flag, badge: pendingReports },
     { href: "/delivery-requests", label: "التوصيل", icon: Truck, badge: pendingDeliveries },
     { href: "/subscriptions", label: "الاشتراكات", icon: CreditCard, badge: pendingSubscriptions },
+    { href: "/promotions", label: "العروض الترويجية", icon: Zap },
     { href: "/flash-sales", label: "Flash Sales", icon: Zap },
     { href: "/activity", label: "Activity", icon: Activity },
   ];
