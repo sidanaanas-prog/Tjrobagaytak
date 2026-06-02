@@ -123,6 +123,46 @@ router.post("/subscriptions", authenticate, async (req, res): Promise<void> => {
   }
 });
 
+// ── الأدمن: قائمة طلبات الاشتراك ─────────────────────────────────────────
+router.get("/admin/subscriptions", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const status = req.query.status as string | undefined;
+
+    const rows = (await db
+      .select()
+      .from(subscriptionsTable)
+      .orderBy(desc(subscriptionsTable.createdAt))) ?? [];
+
+    const filtered = status ? rows.filter((r) => r.status === status) : rows;
+
+    const userIds = [...new Set(filtered.map((r) => r.userId))];
+    const users = userIds.length > 0
+      ? (await db.select({
+          id: usersTable.id,
+          name: usersTable.name,
+          phone: usersTable.phone,
+          avatar: usersTable.avatar,
+          email: usersTable.email,
+        }).from(usersTable).where(inArray(usersTable.id, userIds))) ?? []
+      : [];
+    const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
+
+    res.json(filtered.map((s) => ({ ...s, user: userMap[s.userId] ?? null })));
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── الأدمن: عدد الطلبات المعلقة ──────────────────────────────────────────
+router.get("/admin/subscriptions/pending-count", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const rows = (await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.status, "pending"))) ?? [];
+    res.json({ count: rows.length });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── الأدمن: قبول طلب اشتراك ──────────────────────────────────────────────
 router.patch("/admin/subscriptions/:id/approve", authenticate, requireAdmin, async (req, res): Promise<void> => {
   try {
