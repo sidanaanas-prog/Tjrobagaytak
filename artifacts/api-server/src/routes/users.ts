@@ -180,6 +180,53 @@ router.delete("/users/:id", authenticate, requireAdmin, async (req, res): Promis
   }
 });
 
+// ── أدمن: إعادة تفعيل متجر معلّق (انتهاء اشتراك) ──────────────────────────────
+router.post("/admin/users/:id/reactivate", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const { months = 6 } = req.body;
+    const monthsNum = Math.min(Math.max(parseInt(String(months), 10) || 6, 1), 24);
+
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id as string));
+    if (!user) {
+      res.status(404).json({ error: "المستخدم غير موجود" });
+      return;
+    }
+
+    const expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + monthsNum);
+
+    const [updated] = await db.update(usersTable)
+      .set({ isVerified: true, subscriptionExpiresAt: expiresAt })
+      .where(eq(usersTable.id, id as string))
+      .returning();
+
+    await db.insert(activityTable).values({
+      id: randomUUID(),
+      type: "subscription_reactivated",
+      description: `تم إعادة تفعيل المتجر ${user.name} (${monthsNum} أشهر) — بواسطة الأدمن`,
+      userId: user.id,
+      userName: user.name,
+    });
+
+    // إشعار للمستخدم
+    try {
+      if (user.pushToken) {
+        await sendNotification({
+          fcmToken: user.pushToken,
+          title: "🎉 تم إعادة تفعيل حسابك",
+          body: `تم تفعيل اشتراكك لمدة ${monthsNum} أشهر. ابدأ البيع الآن!`,
+          data: { type: "subscription_reactivated" },
+        });
+      }
+    } catch {}
+
+    res.json({ success: true, expiresAt: expiresAt.toISOString(), user: formatUser(updated) });
+  } catch (err) {
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
+  }
+});
+
 router.post("/users/:id/ban", authenticate, requireAdmin, async (req, res): Promise<void> => {
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
