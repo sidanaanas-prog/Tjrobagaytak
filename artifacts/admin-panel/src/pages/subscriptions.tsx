@@ -206,7 +206,7 @@ export default function Subscriptions() {
                       className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-medium hover:bg-purple-500/20 transition-all"
                     >
                       <Eye className="w-3.5 h-3.5" />
-                      عرض الوثيقة
+                      {sub.paymentMethod === "ccp" ? "عرض بطاقة الهوية" : "عرض الوثيقة"}
                     </button>
                   )}
                 </div>

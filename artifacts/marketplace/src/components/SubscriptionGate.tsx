@@ -125,13 +125,18 @@ export function SubscriptionGate({ children, type }: Props) {
       toast({ variant: "destructive", title: "أرفق صورة وصل الدفع" });
       return;
     }
+    if (!idFile) {
+      toast({ variant: "destructive", title: "أرفق صورة بطاقة الهوية للتحقق" });
+      return;
+    }
     setSubmitting(true);
     try {
       const proofBase64 = await fileToBase64(proofFile);
+      const idBase64 = await fileToBase64(idFile);
       const res = await fetch(`${BASE}/api/subscriptions`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${getMemToken()}` },
-        body: JSON.stringify({ plan, paymentMethod: "ccp", paymentProofUrl: proofBase64 }),
+        body: JSON.stringify({ plan, paymentMethod: "ccp", paymentProofUrl: proofBase64, idDocumentUrl: idBase64 }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "خطأ");
@@ -615,9 +620,36 @@ export function SubscriptionGate({ children, type }: Props) {
                       )}
                     </div>
 
+                    {/* رفع بطاقة الهوية (Bankily) */}
+                    <div>
+                      <p className="text-xs text-white/45 mb-2 font-medium">
+                        أرفق صورة بطاقة هويتك <span className="text-red-400">*</span>
+                      </p>
+                      <p className="text-[11px] text-white/30 mb-3">
+                        بطاقة التعريف أو جواز السفر — للتحقق من الهوية
+                      </p>
+                      <input ref={idRef} type="file" accept="image/*" className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f, "id"); }} />
+                      {idPreview ? (
+                        <div className="relative rounded-2xl overflow-hidden border border-blue-500/30">
+                          <img src={idPreview} alt="بطاقة" className="w-full max-h-44 object-cover" />
+                          <button onClick={() => { setIdFile(null); setIdPreview(null); }}
+                            className="absolute top-2 left-2 w-7 h-7 rounded-full bg-black/70 flex items-center justify-center">
+                            <X className="w-3.5 h-3.5 text-white" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => idRef.current?.click()}
+                          className="w-full h-24 rounded-2xl border-2 border-dashed border-blue-500/25 flex flex-col items-center justify-center gap-2 hover:border-blue-500/50 hover:bg-blue-500/4 transition-all active:scale-[0.98]">
+                          <Upload className="w-6 h-6 text-blue-400/50" />
+                          <span className="text-xs text-white/30">اضغط لرفع صورة بطاقة الهوية</span>
+                        </button>
+                      )}
+                    </div>
+
                     <button
                       onClick={submitBankily}
-                      disabled={submitting || !proofFile}
+                      disabled={submitting || !proofFile || !idFile}
                       className="w-full py-3.5 rounded-2xl bg-primary text-white font-black text-sm shadow-[0_0_22px_rgba(168,85,247,0.3)] active:scale-[0.97] transition-all flex items-center justify-center gap-2 disabled:opacity-45"
                     >
                       {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
