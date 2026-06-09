@@ -47,6 +47,9 @@ export const driverProfilesTable = pgTable("driver_profiles", {
   totalEarnings: numeric("total_earnings", { precision: 12, scale: 2 }).notNull().default("0"),
   avgRating: numeric("avg_rating", { precision: 3, scale: 2 }).notNull().default("0"),
   ratingCount: integer("rating_count").notNull().default(0),
+  // اشتراك السائق الشهري
+  isSubscribed: boolean("is_subscribed").notNull().default(false),
+  subscriptionExpiresAt: timestamp("subscription_expires_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
