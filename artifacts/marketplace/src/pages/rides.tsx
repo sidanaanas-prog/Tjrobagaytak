@@ -302,20 +302,50 @@ function DriverDashboard() {
           </button>
         </div>
         {profile && (
-          <div className="grid grid-cols-3 gap-3 text-center">
-            <div className="bg-primary/10 rounded-xl p-2">
-              <p className="text-lg font-bold text-primary">{profile.totalRides}</p>
-              <p className="text-[10px] text-muted-foreground">رحلات</p>
+          <>
+            {/* الاشتراك الشهري */}
+            <div className={`mb-4 rounded-xl p-3 border ${profile.subscriptionExpiresAt ? "bg-green-500/8 border-green-500/20" : "bg-red-500/8 border-red-500/20"}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${profile.subscriptionExpiresAt ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400"}`}>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white">
+                      {profile.subscriptionExpiresAt ? "الاشتراك نشط" : "الاشتراك منتهي"}
+                    </p>
+                    {profile.subscriptionExpiresAt && (
+                      <p className="text-[10px] text-white/50">
+                        ينتهي: {new Date(profile.subscriptionExpiresAt).toLocaleDateString("ar-DZ", { year: "numeric", month: "short", day: "numeric" })}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {profile.subscriptionExpiresAt ? (
+                  <span className="text-[10px] px-2 py-1 rounded-full bg-green-500/15 text-green-400 font-bold">نشط</span>
+                ) : (
+                  <span className="text-[10px] px-2 py-1 rounded-full bg-red-500/15 text-red-400 font-bold">منتهي</span>
+                )}
+              </div>
             </div>
-            <div className="bg-primary/10 rounded-xl p-2">
-              <p className="text-lg font-bold text-primary">{profile.totalEarnings}</p>
-              <p className="text-[10px] text-muted-foreground">أرباح</p>
+
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="bg-primary/10 rounded-xl p-2">
+                <p className="text-lg font-bold text-primary">{profile.totalRides}</p>
+                <p className="text-[10px] text-muted-foreground">رحلات</p>
+              </div>
+              <div className="bg-primary/10 rounded-xl p-2">
+                <p className="text-lg font-bold text-primary">{profile.totalEarnings}</p>
+                <p className="text-[10px] text-muted-foreground">أرباح</p>
+              </div>
+              <div className="bg-primary/10 rounded-xl p-2">
+                <p className="text-lg font-bold text-primary">{profile.avgRating}</p>
+                <p className="text-[10px] text-muted-foreground">تقييم</p>
+              </div>
             </div>
-            <div className="bg-primary/10 rounded-xl p-2">
-              <p className="text-lg font-bold text-primary">{profile.avgRating}</p>
-              <p className="text-[10px] text-muted-foreground">تقييم</p>
-            </div>
-          </div>
+          </>
         )}
       </div>
 
