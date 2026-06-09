@@ -13,6 +13,14 @@ import {
 const BASE = getApiUrl("");
 
 const PLANS = {
+  "1month": {
+    label: "1 شهر",
+    price: "2,000",
+    priceNum: 2000,
+    doro: "20,000",
+    tag: "أشهر",
+    desc: "جرّب واحد مشاهد مخصرات",
+  },
   "6months": {
     label: "6 أشهر",
     price: "5,000",
@@ -83,7 +91,7 @@ export function SubscriptionGate({ children, type }: Props) {
 
   const [showModal, setShowModal] = useState(false);
   const [step, setStep] = useState<Step>("plan");
-  const [plan, setPlan] = useState<Plan>("12months");
+  const [plan, setPlan] = useState<Plan>("1month");
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [proofPreview, setProofPreview] = useState<string | null>(null);
   const [idFile, setIdFile] = useState<File | null>(null);
@@ -297,7 +305,7 @@ export function SubscriptionGate({ children, type }: Props) {
           {/* عرض الأسعار السريع */}
           <motion.div
             initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.12 }}
-            className="grid grid-cols-2 gap-3 mb-5"
+            className="grid grid-cols-3 gap-3 mb-5"
           >
             {(Object.entries(PLANS) as [Plan, typeof PLANS[Plan]][]).map(([key, info]) => (
               <div key={key} className={`relative rounded-2xl border p-4 text-center ${key === "12months" ? "border-primary/30 bg-primary/8" : "border-white/10 bg-white/4"}`}>
@@ -370,7 +378,7 @@ export function SubscriptionGate({ children, type }: Props) {
         {/* الأسعار */}
         <motion.div
           initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.22 }}
-          className="grid grid-cols-2 gap-3 mb-5"
+          className="grid grid-cols-3 gap-3 mb-5"
         >
           {(Object.entries(PLANS) as [Plan, typeof PLANS[Plan]][]).map(([key, info]) => (
             <div key={key} className={`relative rounded-2xl border p-4 text-center ${key === "12months" ? "border-primary/30 bg-primary/8 shadow-[0_0_20px_rgba(168,85,247,0.1)]" : "border-white/10 bg-white/4"}`}>
@@ -464,7 +472,7 @@ export function SubscriptionGate({ children, type }: Props) {
                 {/* ── الخطوة 1: اختيار الباقة ── */}
                 {step === "plan" && (
                   <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-3 gap-3">
                       {(Object.entries(PLANS) as [Plan, typeof PLANS[Plan]][]).map(([key, info]) => (
                         <button
                           key={key}

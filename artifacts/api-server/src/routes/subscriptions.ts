@@ -8,6 +8,7 @@ import { notifyUsers } from "../lib/notifications";
 const router: IRouter = Router();
 
 const PLANS = {
+  "1month": { price: 2000, months: 1, label: "1 شهر" },
   "6months": { price: 5000, months: 6, label: "6 أشهر" },
   "12months": { price: 10000, months: 12, label: "12 شهر" },
 };

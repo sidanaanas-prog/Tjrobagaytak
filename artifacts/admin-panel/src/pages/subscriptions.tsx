@@ -19,7 +19,7 @@ type Sub = {
   user: { id: string; name: string; phone: string | null; email: string; avatar: string | null };
 };
 
-const PLAN_LABELS: Record<string, string> = { "6months": "6 أشهر", "12months": "12 شهر" };
+const PLAN_LABELS: Record<string, string> = { "1month": "1 شهر", "6months": "6 أشهر", "12months": "12 شهر" };
 const STATUS_COLORS: Record<string, string> = {
   pending: "text-yellow-400 bg-yellow-400/10 border-yellow-400/25",
   approved: "text-green-400 bg-green-400/10 border-green-400/25",
