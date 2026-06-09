@@ -25,3 +25,5 @@ export * from "./subscriptions";
 export * from "./phone_otps";
 export * from "./video_ai_comments";
 export * from "./promotions";
+export * from "./user_roles";
+export * from "./rides";

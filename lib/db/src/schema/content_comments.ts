@@ -1,8 +1,8 @@
-import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, type PgTableWithColumns } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 import { contentVideosTable } from "./content_videos";
 
-export const contentCommentsTable = pgTable("content_comments", {
+export const contentCommentsTable: PgTableWithColumns<any> = pgTable("content_comments", {
   id: text("id").primaryKey(),
   videoId: text("video_id").notNull().references(() => contentVideosTable.id, { onDelete: "cascade" }),
   userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),

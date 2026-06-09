@@ -5,7 +5,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, LogOut, Shield, User as UserIcon, Camera, ChevronLeft, Bell, Trash2, AlertTriangle, Package, Users, Play, Image } from "lucide-react";
+import { Loader2, LogOut, Shield, User as UserIcon, Camera, ChevronLeft, Bell, Trash2, AlertTriangle, Package, Users, Play, Image, Car, Store, UserCheck, Check } from "lucide-react";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { useToast } from "@/hooks/use-toast";
 import { getMemToken } from "@/hooks/use-auth";
@@ -230,6 +230,20 @@ export default function ProfilePage() {
 
         {/* ── Quick Links ── */}
         <div className="px-5 py-2 space-y-3">
+          <Link href="/role-select">
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-primary/20 hover:border-primary/50 transition-all">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center">
+                  <Shield className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <span className="text-sm font-semibold text-white">أدواري</span>
+                  <p className="text-[10px] text-muted-foreground">اختر بائع، سائق، راكب، أو متسوق</p>
+                </div>
+              </div>
+              <span className="text-muted-foreground text-xs">←</span>
+            </div>
+          </Link>
           <Link href="/my-listings">
             <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5">
               <div className="flex items-center gap-3">

@@ -1,6 +1,6 @@
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { Home, Search, Plus, MessageCircle, User, Package, Store, Play } from "lucide-react";
+import { Home, Search, Plus, MessageCircle, User, Package, Store, Play, Car, ShoppingBag } from "lucide-react";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { useListConversations, getListConversationsQueryKey } from "@workspace/api-client-react";
@@ -8,6 +8,8 @@ import { getMemToken } from "@/hooks/use-auth";
 import { getApiUrl } from "@/lib/api-url";
 
 const BASE = getApiUrl("");
+
+type UserRole = "seller" | "driver" | "passenger" | "shopper" | null;
 
 type NavTab = {
   href: string;
@@ -17,22 +19,36 @@ type NavTab = {
   isSell?: boolean;
   isChat?: boolean;
   isOrders?: boolean;
+  roles?: UserRole[];
 };
 
-const tabs: NavTab[] = [
+const ALL_TABS: NavTab[] = [
   { href: "/", icon: Home, label: "الرئيسية", auth: false },
-  { href: "/products", icon: Search, label: "استكشف", auth: false },
-  { href: "/content", icon: Play, label: "المحتوى", auth: false },
-  { href: "/sell", icon: Plus, label: "بيع", auth: true, isSell: true },
+  { href: "/products", icon: Search, label: "استكشف", auth: false, roles: ["seller", "shopper", null] },
+  { href: "/content", icon: Play, label: "المحتوى", auth: false, roles: ["seller", "shopper", null] },
+  { href: "/sell", icon: Plus, label: "بيع", auth: true, isSell: true, roles: ["seller"] },
+  { href: "/rides", icon: Car, label: "نقل", auth: false, roles: ["driver", "passenger", null] },
   { href: "/chat", icon: MessageCircle, label: "محادثات", auth: true, isChat: true },
-  { href: "/dashboard", icon: Store, label: "أعمالي", auth: true, isOrders: true },
+  { href: "/dashboard", icon: Store, label: "أعمالي", auth: true, isOrders: true, roles: ["seller"] },
   { href: "/profile", icon: User, label: "حسابي", auth: true },
 ];
+
+function getActiveRole(): UserRole {
+  const saved = localStorage.getItem("gaytak_active_role");
+  if (saved === "seller" || saved === "driver" || saved === "passenger" || saved === "shopper") return saved;
+  return null;
+}
 
 export function BottomNav() {
   const [location] = useLocation();
   const { user } = useAuth();
+  const activeRole = getActiveRole();
   const [pendingOrders, setPendingOrders] = useState(0);
+
+  const tabs = ALL_TABS.filter((t) => {
+    if (!t.roles) return true;
+    return t.roles.includes(activeRole);
+  });
 
   const { data: conversations } = useListConversations({
     query: { enabled: !!user, refetchInterval: 15_000, queryKey: getListConversationsQueryKey() },

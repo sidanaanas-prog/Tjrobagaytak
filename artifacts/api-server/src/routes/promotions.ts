@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, promotionsTable, usersTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { authenticate, requireAdmin } from "../lib/auth";
 const router: IRouter = Router();
@@ -46,9 +46,9 @@ router.get("/admin/promotions", authenticate, requireAdmin, async (req, res): Pr
       .from(promotionsTable)
       .orderBy(desc(promotionsTable.createdAt))) ?? [];
 
-    const userIds = [...new Set(rows.filter((r) => r.createdBy).map((r) => r.createdBy))];
+    const userIds = [...new Set(rows.filter((r) => r.createdBy).map((r) => r.createdBy))].filter(Boolean) as string[];
     const users = userIds.length > 0
-      ? (await db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(eq(usersTable.id, userIds[0]))) ?? []
+      ? (await db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(inArray(usersTable.id, userIds))) ?? []
       : [];
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 
@@ -122,7 +122,7 @@ router.put("/admin/promotions/:id", authenticate, requireAdmin, async (req, res)
     if (body.countdownMessage !== undefined) updates.countdownMessage = body.countdownMessage;
     if (body.maxUsers !== undefined) updates.maxUsers = body.maxUsers;
 
-    await db.update(promotionsTable).set(updates).where(eq(promotionsTable.id, req.params.id));
+    await db.update(promotionsTable).set(updates).where(eq(promotionsTable.id, req.params.id as string));
     res.json({ success: true });
   } catch (e: any) {
     res.status(400).json({ error: e.message });
@@ -132,12 +132,12 @@ router.put("/admin/promotions/:id", authenticate, requireAdmin, async (req, res)
 // ── الأدمن: تبديل التفعيل/إيقاف ──────────────────────────────────────────────────
 router.patch("/admin/promotions/:id/toggle", authenticate, requireAdmin, async (req, res): Promise<void> => {
   try {
-    const [existing] = (await db.select().from(promotionsTable).where(eq(promotionsTable.id, req.params.id))) ?? [];
+    const [existing] = (await db.select().from(promotionsTable).where(eq(promotionsTable.id, req.params.id as string))) ?? [];
     if (!existing) {
       res.status(404).json({ error: "العرض غير موجود" });
       return;
     }
-    await db.update(promotionsTable).set({ isActive: !existing.isActive }).where(eq(promotionsTable.id, req.params.id));
+    await db.update(promotionsTable).set({ isActive: !existing.isActive }).where(eq(promotionsTable.id, req.params.id as string));
     res.json({ success: true, isActive: !existing.isActive });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -147,7 +147,7 @@ router.patch("/admin/promotions/:id/toggle", authenticate, requireAdmin, async (
 // ── الأدمن: حذف عرض ──────────────────────────────────────────────────
 router.delete("/admin/promotions/:id", authenticate, requireAdmin, async (req, res): Promise<void> => {
   try {
-    await db.delete(promotionsTable).where(eq(promotionsTable.id, req.params.id));
+    await db.delete(promotionsTable).where(eq(promotionsTable.id, req.params.id as string));
     res.json({ success: true });
   } catch (e: any) {
     res.status(500).json({ error: e.message });

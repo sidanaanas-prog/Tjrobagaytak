@@ -23,6 +23,8 @@ import wishlistRouter from "./wishlist";
 import flashSalesRouter from "./flash-sales";
 import subscriptionsRouter from "./subscriptions";
 import promotionsRouter from "./promotions";
+import ridesRouter from "./rides";
+import userRolesRouter from "./user-roles";
 
 const router: IRouter = Router();
 
@@ -49,6 +51,8 @@ router.use(wishlistRouter);
 router.use(flashSalesRouter);
 router.use(subscriptionsRouter);
 router.use(promotionsRouter);
+router.use(ridesRouter);
+router.use(userRolesRouter);
 router.use(wasenderApiRouter);
 
 export default router;

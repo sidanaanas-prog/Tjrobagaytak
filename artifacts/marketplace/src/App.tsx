@@ -25,6 +25,8 @@ import ContentPage from "@/pages/content";
 import AddContentPage from "@/pages/add-content";
 import SellersPage from "@/pages/sellers";
 import WishlistPage from "@/pages/wishlist";
+import RidesPage from "@/pages/rides";
+import RoleSelectPage from "@/pages/role-select";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -132,6 +134,10 @@ function Router() {
       <Route path="/content" component={ContentPage} />
       <Route path="/add-content">
         <RequireAuth><AddContentPage /></RequireAuth>
+      </Route>
+      <Route path="/rides" component={RidesPage} />
+      <Route path="/role-select">
+        <RequireAuth><RoleSelectPage /></RequireAuth>
       </Route>
 
       <Route component={NotFound} />

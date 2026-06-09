@@ -1,0 +1,55 @@
+import { pgTable, text, numeric, timestamp, integer, boolean } from "drizzle-orm/pg-core";
+import { usersTable } from "./users";
+
+export const ridesTable = pgTable("rides", {
+  id: text("id").primaryKey(),
+  passengerId: text("passenger_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  driverId: text("driver_id").references(() => usersTable.id, { onDelete: "set null" }),
+  status: text("status").notNull().default("pending"), // "pending" | "accepted" | "picked_up" | "completed" | "cancelled"
+  fromAddress: text("from_address").notNull(),
+  toAddress: text("to_address").notNull(),
+  fromLat: numeric("from_lat"),
+  fromLng: numeric("from_lng"),
+  toLat: numeric("to_lat"),
+  toLng: numeric("to_lng"),
+  price: numeric("price", { precision: 12, scale: 2 }).notNull(),
+  distance: numeric("distance"), // km
+  notes: text("notes"),
+  rating: integer("rating"), // 1-5
+  driverRating: integer("driver_rating"), // 1-5
+  passengerRating: integer("passenger_rating"), // 1-5
+  review: text("review"),
+  driverReview: text("driver_review"),
+  cancelledBy: text("cancelled_by"),
+  cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+  pickedUpAt: timestamp("picked_up_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type Ride = typeof ridesTable.$inferSelect;
+export type InsertRide = typeof ridesTable.$inferInsert;
+
+export const driverProfilesTable = pgTable("driver_profiles", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }).unique(),
+  vehicleType: text("vehicle_type"), // "car" | "van" | "bike"
+  vehicleModel: text("vehicle_model"),
+  vehiclePlate: text("vehicle_plate"),
+  vehicleColor: text("vehicle_color"),
+  isAvailable: boolean("is_available").notNull().default(true),
+  isOnline: boolean("is_online").notNull().default(false),
+  currentLat: numeric("current_lat"),
+  currentLng: numeric("current_lng"),
+  totalRides: integer("total_rides").notNull().default(0),
+  totalEarnings: numeric("total_earnings", { precision: 12, scale: 2 }).notNull().default("0"),
+  avgRating: numeric("avg_rating", { precision: 3, scale: 2 }).notNull().default("0"),
+  ratingCount: integer("rating_count").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type DriverProfile = typeof driverProfilesTable.$inferSelect;
+export type InsertDriverProfile = typeof driverProfilesTable.$inferInsert;
