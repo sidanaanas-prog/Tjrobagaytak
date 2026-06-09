@@ -159,7 +159,7 @@ function PassengerRequest() {
           </div>
           <div className="relative">
             <DollarSign className="absolute right-3 top-2.5 w-4 h-4 text-primary" />
-            <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="السعر (د.ج)" className="w-full bg-background border rounded-xl pr-10 pl-3 py-2.5 text-sm focus:outline-none focus:border-primary" />
+            <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="السعر (دج)" className="w-full bg-background border rounded-xl pr-10 pl-3 py-2.5 text-sm focus:outline-none focus:border-primary" />
           </div>
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="ملاحظات (اختياري)" className="w-full bg-background border rounded-xl p-3 text-sm focus:outline-none focus:border-primary min-h-[60px]" />
         </div>
@@ -192,7 +192,7 @@ function PassengerRequest() {
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <span className={`text-xs font-bold ${s.color}`}>{s.label}</span>
-                        <span className="text-xs text-muted-foreground">{r.price} د.ج</span>
+                        <span className="text-xs text-muted-foreground">{r.price} دج</span>
                       </div>
                       <p className="text-sm mt-1">
                         <span className="text-green-400">{r.fromAddress}</span> → <span className="text-red-400">{r.toAddress}</span>
@@ -460,7 +460,7 @@ function DriverDashboard() {
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <DollarSign className="w-4 h-4 text-primary" />
-                <span className="text-white font-bold">{alertRide.price} د.ج</span>
+                <span className="text-white font-bold">{alertRide.price} دج</span>
               </div>
 
               {/* العداد التنازلي */}
@@ -526,7 +526,7 @@ function DriverDashboard() {
                     <p className="text-xs text-muted-foreground">
                       <span className="text-green-400">{r.fromAddress}</span> → <span className="text-red-400">{r.toAddress}</span>
                     </p>
-                    <p className="text-xs text-primary font-bold mt-1">{r.price} د.ج</p>
+                    <p className="text-xs text-primary font-bold mt-1">{r.price} دج</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
