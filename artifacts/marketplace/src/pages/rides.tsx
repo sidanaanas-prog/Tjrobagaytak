@@ -79,6 +79,7 @@ function PassengerRequest() {
   const [showPriceTip, setShowPriceTip] = useState(false);
   const [editingPrice, setEditingPrice] = useState<string | null>(null);
   const [newPrice, setNewPrice] = useState("");
+  const [countdownTrigger, setCountdownTrigger] = useState(0); // لإعادة تشغيل العداد بعد تحديث السعر
 
   const fetchMyRides = useCallback(async () => {
     const token = getMemToken();
@@ -117,7 +118,7 @@ function PassengerRequest() {
       });
     }, 1000);
     return () => clearInterval(iv);
-  }, [pendingRide?.id]);
+  }, [pendingRide?.id, countdownTrigger]);
 
   const handleSubmit = async () => {
     if (!fromAddress || !toAddress || !price) {
@@ -134,7 +135,7 @@ function PassengerRequest() {
       });
       if (res.ok) {
         toast({ title: "✅ تم!", description: "تم إرسال الطلب" });
-        setFromAddress(""); setToAddress(""); setPrice(""); setPassengerCount("1"); setNotes("");
+        setFromAddress(""); setToAddress(""); setPrice(""); setNotes("");
         fetchMyRides();
       } else {
         const err = await res.json();
@@ -171,8 +172,7 @@ function PassengerRequest() {
       toast({ title: "✅ تم!", description: "تم تحديث السعر" });
       setEditingPrice(null);
       setNewPrice("");
-      setPendingCountdown(30);
-      setShowPriceTip(false);
+      setCountdownTrigger((t) => t + 1);
       fetchMyRides();
     } else {
       const err = await res.json();
@@ -264,19 +264,14 @@ function PassengerRequest() {
         <div className="grid grid-cols-2 gap-3">
           {/* السعر */}
           <div className="relative">
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10">
-              <div className="w-7 h-7 rounded-full bg-yellow-500/20 flex items-center justify-center">
-                <DollarSign className="w-3.5 h-3.5 text-yellow-400" />
-              </div>
-            </div>
             <input
               type="number"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               placeholder="السعر"
-              className="w-full bg-background border border-yellow-500/30 rounded-xl pr-12 pl-3 py-3 text-sm font-bold text-yellow-400 placeholder:text-muted-foreground placeholder:font-normal focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/20 transition-all"
+              className="w-full bg-background border border-yellow-500/30 rounded-xl pr-3 pl-10 py-3 text-sm font-bold text-yellow-400 placeholder:text-muted-foreground placeholder:font-normal focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/20 transition-all"
             />
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">دج</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-yellow-400">دج</span>
           </div>
 
           {/* عدد الركاب */}
