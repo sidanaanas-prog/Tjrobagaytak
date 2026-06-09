@@ -15,6 +15,7 @@ export const ridesTable = pgTable("rides", {
   price: numeric("price", { precision: 12, scale: 2 }).notNull(),
   distance: numeric("distance"), // km
   notes: text("notes"),
+  passengerCount: integer("passenger_count").default(1), // عدد الركاب
   rating: integer("rating"), // 1-5
   driverRating: integer("driver_rating"), // 1-5
   passengerRating: integer("passenger_rating"), // 1-5

@@ -56,6 +56,7 @@ type Ride = {
   completedAt?: string | null;
   rating?: number;
   driverRating?: number;
+  passengerCount?: number;
 };
 
 function getRole(): string | null {
@@ -68,10 +69,16 @@ function PassengerRequest() {
   const [fromAddress, setFromAddress] = useState("");
   const [toAddress, setToAddress] = useState("");
   const [price, setPrice] = useState("");
+  const [passengerCount, setPassengerCount] = useState("1");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [myRides, setMyRides] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
+  // الراكب: اعداد تنازلي للطلب المحدد
+  const [pendingCountdown, setPendingCountdown] = useState<number | null>(null);
+  const [showPriceTip, setShowPriceTip] = useState(false);
+  const [editingPrice, setEditingPrice] = useState<string | null>(null);
+  const [newPrice, setNewPrice] = useState("");
 
   const fetchMyRides = useCallback(async () => {
     const token = getMemToken();
@@ -90,6 +97,28 @@ function PassengerRequest() {
     return () => clearInterval(iv);
   }, [fetchMyRides]);
 
+  // عداد تنازلي لرحلات الراكب القيد الانتظار
+  const pendingRide = myRides.find((r) => r.status === "pending");
+  useEffect(() => {
+    if (!pendingRide) {
+      setPendingCountdown(null);
+      setShowPriceTip(false);
+      return;
+    }
+    setPendingCountdown(30);
+    setShowPriceTip(false);
+    const iv = setInterval(() => {
+      setPendingCountdown((c) => {
+        if (c === null || c <= 1) {
+          setShowPriceTip(true);
+          return null;
+        }
+        return c - 1;
+      });
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [pendingRide?.id]);
+
   const handleSubmit = async () => {
     if (!fromAddress || !toAddress || !price) {
       toast({ title: "المرجو", description: "املأ المكان والسعر", variant: "destructive" });
@@ -101,11 +130,11 @@ function PassengerRequest() {
       const res = await fetch(`${BASE}/api/rides`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ fromAddress, toAddress, price: Number(price), notes }),
+        body: JSON.stringify({ fromAddress, toAddress, price: Number(price), passengerCount: Number(passengerCount), notes }),
       });
       if (res.ok) {
         toast({ title: "✅ تم!", description: "تم إرسال الطلب" });
-        setFromAddress(""); setToAddress(""); setPrice(""); setNotes("");
+        setFromAddress(""); setToAddress(""); setPrice(""); setPassengerCount("1"); setNotes("");
         fetchMyRides();
       } else {
         const err = await res.json();
@@ -121,7 +150,34 @@ function PassengerRequest() {
   const handleCancel = async (id: string) => {
     const token = getMemToken();
     await fetch(`${BASE}/api/rides/${id}/cancel`, { method: "PATCH", headers: { Authorization: `Bearer ${token}` } });
+    setPendingCountdown(null);
+    setShowPriceTip(false);
+    setEditingPrice(null);
     fetchMyRides();
+  };
+
+  const handleChangePrice = async (rideId: string) => {
+    if (!newPrice || Number(newPrice) <= 0) {
+      toast({ title: "المرجو", description: "أدخل سعراً صالحاً", variant: "destructive" });
+      return;
+    }
+    const token = getMemToken();
+    const res = await fetch(`${BASE}/api/rides/${rideId}/price`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ price: Number(newPrice) }),
+    });
+    if (res.ok) {
+      toast({ title: "✅ تم!", description: "تم تحديث السعر" });
+      setEditingPrice(null);
+      setNewPrice("");
+      setPendingCountdown(30);
+      setShowPriceTip(false);
+      fetchMyRides();
+    } else {
+      const err = await res.json();
+      toast({ title: "خطأ", description: err.error, variant: "destructive" });
+    }
   };
 
   const handleRate = async (id: string, rating: number) => {
@@ -143,29 +199,128 @@ function PassengerRequest() {
 
   return (
     <div className="space-y-6">
-      {/* فورم الطلب */}
-      <div className="bg-card border rounded-2xl p-4 space-y-3">
-        <h3 className="font-bold text-lg flex items-center gap-2">
-          <Car className="w-5 h-5 text-primary" /> احجز نقل
-        </h3>
-        <div className="space-y-2">
-          <div className="relative">
-            <MapPin className="absolute right-3 top-2.5 w-4 h-4 text-green-400" />
-            <input value={fromAddress} onChange={(e) => setFromAddress(e.target.value)} placeholder="من: اكتب المكان" className="w-full bg-background border rounded-xl pr-10 pl-3 py-2.5 text-sm focus:outline-none focus:border-primary" />
-          </div>
-          <div className="relative">
-            <MapPin className="absolute right-3 top-2.5 w-4 h-4 text-red-400" />
-            <input value={toAddress} onChange={(e) => setToAddress(e.target.value)} placeholder="إلى: اكتب الوجهة" className="w-full bg-background border rounded-xl pr-10 pl-3 py-2.5 text-sm focus:outline-none focus:border-primary" />
-          </div>
-          <div className="relative">
-            <DollarSign className="absolute right-3 top-2.5 w-4 h-4 text-primary" />
-            <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="السعر (دج)" className="w-full bg-background border rounded-xl pr-10 pl-3 py-2.5 text-sm focus:outline-none focus:border-primary" />
-          </div>
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="ملاحظات (اختياري)" className="w-full bg-background border rounded-xl p-3 text-sm focus:outline-none focus:border-primary min-h-[60px]" />
+      {/* فورم الطلب — تصميم متطور */}
+      <div className="bg-card border border-primary/20 rounded-2xl p-4 space-y-4 shadow-lg shadow-primary/5">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-lg flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+              <Car className="w-4 h-4 text-primary" />
+            </div>
+            احجز نقل
+          </h3>
+          <span className="text-[10px] bg-primary/15 text-primary px-2 py-0.5 rounded-full font-bold">
+            السعر منك
+          </span>
         </div>
-        <button onClick={handleSubmit} disabled={submitting} className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors">
-          {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Car className="w-4 h-4" />}
-          ارسال الطلب
+
+        {/* شرح */}
+        <div className="bg-primary/5 border border-primary/10 rounded-xl p-3 space-y-1">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            <span className="text-primary font-bold">أنت تحدد السعر</span> — اكتب المبلغ الذي تراه مناسباً، والسائق يوافق أو يتفاوض.
+          </p>
+        </div>
+
+        {/* المسار */}
+        <div className="space-y-3">
+          {/* من */}
+          <div className="relative">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10">
+              <div className="w-7 h-7 rounded-full bg-green-500/20 flex items-center justify-center">
+                <Navigation className="w-3.5 h-3.5 text-green-400" />
+              </div>
+            </div>
+            <input
+              value={fromAddress}
+              onChange={(e) => setFromAddress(e.target.value)}
+              placeholder="📍 من أين؟"
+              className="w-full bg-background border border-green-500/30 rounded-xl pr-12 pl-3 py-3 text-sm focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400/20 transition-all"
+            />
+          </div>
+
+          {/* خط وصل */}
+          <div className="flex items-center gap-2 pr-5">
+            <div className="w-0.5 h-6 bg-gradient-to-b from-green-400/50 to-red-400/50 rounded-full" />
+            <span className="text-[10px] text-muted-foreground">المسار</span>
+          </div>
+
+          {/* إلى */}
+          <div className="relative">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10">
+              <div className="w-7 h-7 rounded-full bg-red-500/20 flex items-center justify-center">
+                <MapPin className="w-3.5 h-3.5 text-red-400" />
+              </div>
+            </div>
+            <input
+              value={toAddress}
+              onChange={(e) => setToAddress(e.target.value)}
+              placeholder="🎯 إلى أين؟"
+              className="w-full bg-background border border-red-500/30 rounded-xl pr-12 pl-3 py-3 text-sm focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/20 transition-all"
+            />
+          </div>
+        </div>
+
+        {/* السعر و عدد الركاب */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* السعر */}
+          <div className="relative">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10">
+              <div className="w-7 h-7 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                <DollarSign className="w-3.5 h-3.5 text-yellow-400" />
+              </div>
+            </div>
+            <input
+              type="number"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="السعر"
+              className="w-full bg-background border border-yellow-500/30 rounded-xl pr-12 pl-3 py-3 text-sm font-bold text-yellow-400 placeholder:text-muted-foreground placeholder:font-normal focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/20 transition-all"
+            />
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">دج</span>
+          </div>
+
+          {/* عدد الركاب */}
+          <div className="relative">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10">
+              <div className="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center">
+                <User className="w-3.5 h-3.5 text-blue-400" />
+              </div>
+            </div>
+            <input
+              type="number"
+              min={1}
+              max={10}
+              value={passengerCount}
+              onChange={(e) => setPassengerCount(e.target.value)}
+              placeholder="الركاب"
+              className="w-full bg-background border border-blue-500/30 rounded-xl pr-12 pl-3 py-3 text-sm font-bold text-blue-400 placeholder:text-muted-foreground placeholder:font-normal focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/20 transition-all"
+            />
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">راكب</span>
+          </div>
+        </div>
+
+        {/* ملاحظات */}
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="💬 ملاحظات للسائق (اختياري)"
+          className="w-full bg-background border rounded-xl p-3 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all min-h-[60px]"
+        />
+
+        {/* زر الإرسال */}
+        <button
+          onClick={handleSubmit}
+          disabled={submitting}
+          className="w-full bg-gradient-to-r from-primary to-primary/80 text-primary-foreground py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-primary/25 active:scale-[0.98]"
+        >
+          {submitting ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <>
+              <Car className="w-5 h-5" />
+              <span>اطلب الآن — السائق يرد عليك!</span>
+            </>
+          )}
         </button>
       </div>
 
@@ -192,7 +347,10 @@ function PassengerRequest() {
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <span className={`text-xs font-bold ${s.color}`}>{s.label}</span>
-                        <span className="text-xs text-muted-foreground">{r.price} دج</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">{r.price} دج</span>
+                          <span className="text-[10px] bg-blue-500/15 text-blue-400 px-1.5 py-0.5 rounded-full">{r.passengerCount ?? 1} راكب</span>
+                        </div>
                       </div>
                       <p className="text-sm mt-1">
                         <span className="text-green-400">{r.fromAddress}</span> → <span className="text-red-400">{r.toAddress}</span>
@@ -210,9 +368,68 @@ function PassengerRequest() {
                     </div>
                   </div>
                   {r.status === "pending" && (
-                    <button onClick={() => handleCancel(r.id)} className="w-full text-xs text-red-400 py-1.5 border border-red-400/20 rounded-lg hover:bg-red-400/10 transition-colors">
-                      <XCircle className="w-3 h-3 inline mr-1" /> إلغاء
-                    </button>
+                    <div className="space-y-2">
+                      {/* العداد التنازلي */}
+                      {pendingCountdown !== null && r.id === pendingRide?.id && (
+                        <div className="bg-primary/10 border border-primary/20 rounded-lg p-2.5 text-center">
+                          <div className="flex items-center justify-center gap-2 text-primary">
+                            <Clock className="w-4 h-4 animate-pulse" />
+                            <span className="text-sm font-bold">جاري البحث عن سائق...</span>
+                          </div>
+                          <div className="text-2xl font-mono font-bold text-primary mt-1">
+                            {pendingCountdown}s
+                          </div>
+                          <div className="w-full bg-primary/10 rounded-full h-1.5 mt-2">
+                            <div className="bg-primary h-1.5 rounded-full transition-all" style={{ width: `${(pendingCountdown / 30) * 100}%` }} />
+                          </div>
+                        </div>
+                      )}
+                      {/* نصيحة ذكية: زِد السعر */}
+                      {showPriceTip && r.id === pendingRide?.id && (
+                        <div className="bg-yellow-500/10 border border-yellow-500/25 rounded-lg p-3 space-y-2">
+                          <div className="flex items-center gap-2 text-yellow-400">
+                            <TrendingUp className="w-4 h-4" />
+                            <span className="text-sm font-bold">لم يتم إيجاد سائق</span>
+                          </div>
+                          <p className="text-xs text-yellow-400/80">
+                            زِد السعر لتحسين فرصة إيجاد سائق بسرعة
+                          </p>
+                          {editingPrice === r.id ? (
+                            <div className="flex gap-2">
+                              <input
+                                type="number"
+                                value={newPrice}
+                                onChange={(e) => setNewPrice(e.target.value)}
+                                placeholder="السعر الجديد"
+                                className="flex-1 bg-background border rounded-lg px-3 py-2 text-sm text-foreground"
+                              />
+                              <button
+                                onClick={() => handleChangePrice(r.id)}
+                                className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-bold"
+                              >
+                                تحديث
+                              </button>
+                              <button
+                                onClick={() => { setEditingPrice(null); setNewPrice(""); }}
+                                className="border border-border px-3 py-2 rounded-lg text-sm text-muted-foreground"
+                              >
+                                إلغاء
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => { setEditingPrice(r.id); setNewPrice(r.price); }}
+                              className="w-full bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 text-yellow-400 py-2 rounded-lg text-sm font-bold transition-colors"
+                            >
+                              <TrendingUp className="w-4 h-4 inline mr-1" /> زِد السعر
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      <button onClick={() => handleCancel(r.id)} className="w-full text-xs text-red-400 py-1.5 border border-red-400/20 rounded-lg hover:bg-red-400/10 transition-colors">
+                        <XCircle className="w-3 h-3 inline mr-1" /> إلغاء
+                      </button>
+                    </div>
                   )}
                   {r.status === "completed" && !r.driverRating && (
                     <div className="flex items-center gap-1 mt-2">

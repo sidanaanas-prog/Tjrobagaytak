@@ -10,7 +10,7 @@ const router: IRouter = Router();
 // ── إنشاء طلب نقل (الراكب) ──────────────────────────────────────────────────
 router.post("/rides", authenticate, async (req, res): Promise<void> => {
   try {
-    const { fromAddress, toAddress, fromLat, fromLng, toLat, toLng, price, notes } = req.body;
+    const { fromAddress, toAddress, fromLat, fromLng, toLat, toLng, price, notes, passengerCount } = req.body;
     const passengerId = (req as any).user.id;
 
     const id = randomUUID();
@@ -28,6 +28,7 @@ router.post("/rides", authenticate, async (req, res): Promise<void> => {
       toLng: toLng ?? null,
       price: String(price),
       notes: notes ?? null,
+      passengerCount: passengerCount ? Number(passengerCount) : 1,
       createdAt: now,
       updatedAt: now,
     });
@@ -221,6 +222,45 @@ router.patch("/rides/:id/rate", authenticate, async (req, res): Promise<void> =>
 });
 
 // ── الراكب/السائق: إلغاء الرحلة ──────────────────────────────────────────────────
+// ── الراكب: تغيير السعر لإعادة المحاولة ────────────────────
+router.patch("/rides/:id/price", authenticate, async (req, res): Promise<void> => {
+  try {
+    const passengerId = (req as any).user.id;
+    const [ride] = (await db.select().from(ridesTable).where(eq(ridesTable.id, req.params.id as string))) ?? [];
+    if (!ride) { res.status(404).json({ error: "الرحلة غير موجودة" }); return; }
+    if (ride.passengerId !== passengerId) { res.status(403).json({ error: "ليس من صلاحياتك" }); return; }
+    if (ride.status !== "pending") { res.status(400).json({ error: "لا يمكن تغيير السعر بعد قبول سائق" }); return; }
+
+    const { price } = req.body;
+    const now = new Date();
+    await db.update(ridesTable).set({
+      price: String(price), updatedAt: now,
+    }).where(eq(ridesTable.id, req.params.id as string));
+
+    // إشعار السائقين بالسعر الجديد
+    const drivers = (await db
+      .select({ userId: driverProfilesTable.userId })
+      .from(driverProfilesTable)
+      .where(and(
+        eq(driverProfilesTable.isOnline, true),
+        eq(driverProfilesTable.isAvailable, true),
+      ))) ?? [];
+
+    if (drivers.length > 0) {
+      await notifyUsers({
+        userIds: drivers.map((d) => d.userId),
+        title: "طلب نقل بسعر جديد! 🚕",
+        body: `${ride.fromAddress} → ${ride.toAddress} | ${price} دج`,
+        data: { type: "price_update", rideId: ride.id },
+      });
+    }
+
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.patch("/rides/:id/cancel", authenticate, async (req, res): Promise<void> => {
   try {
     const userId = (req as any).user.id;
