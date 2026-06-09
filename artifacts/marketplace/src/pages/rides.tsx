@@ -135,7 +135,7 @@ function PassengerRequest() {
       });
       if (res.ok) {
         toast({ title: "✅ تم!", description: "تم إرسال الطلب" });
-        setFromAddress(""); setToAddress(""); setPrice(""); setNotes("");
+        setFromAddress(""); setToAddress(""); setPrice(""); setPassengerCount("1"); setNotes("");
         fetchMyRides();
       } else {
         const err = await res.json();
