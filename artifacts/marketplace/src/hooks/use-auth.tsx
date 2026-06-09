@@ -218,8 +218,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       toast({ title, description: body });
     });
 
+    // استماع للرسائل من Service Worker (push notification buttons)
+    const handleSwMessage = (event: MessageEvent) => {
+      if (event.data?.type === "ACCEPT_RIDE") {
+        const rideId = event.data.rideId;
+        // إطلاق إشعار موجه للأب لفتح نافذة التأكيد
+        window.dispatchEvent(new CustomEvent("ride_alert", { detail: { rideId } }));
+      }
+    };
+    navigator.serviceWorker?.addEventListener("message", handleSwMessage);
+
     return () => {
       window.removeEventListener("message", handleMessage);
+      navigator.serviceWorker?.removeEventListener("message", handleSwMessage);
       window.onNativeToken = undefined;
     };
   }, [user?.id]);

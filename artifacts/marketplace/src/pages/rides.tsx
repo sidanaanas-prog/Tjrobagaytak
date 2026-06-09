@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth, getMemToken } from "@/hooks/use-auth";
 import { AppLayout } from "@/components/AppLayout";
 import { useToast } from "@/hooks/use-toast";
@@ -13,6 +13,35 @@ import {
 } from "lucide-react";
 
 const BASE = getApiUrl("");
+
+// رنة إشعار رحلة جديدة (شبيه بالمكالمة)
+function playRideAlert() {
+  try {
+    const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const playTone = (freq: number, start: number, duration: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+      gain.gain.setValueAtTime(0.8, ctx.currentTime + start);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + start + duration);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + duration);
+    };
+    // رنة مكالمة: دددد... دددد... (تكرار 3 مرات)
+    for (let i = 0; i < 3; i++) {
+      const t = i * 1.5;
+      playTone(880, t, 0.3);      // A5
+      playTone(1100, t + 0.35, 0.3); // C#6
+      playTone(880, t + 0.7, 0.3);   // A5
+      playTone(1100, t + 1.05, 0.3); // C#6
+    }
+  } catch {}
+}
 
 type Ride = {
   id: string;
@@ -212,6 +241,10 @@ function DriverDashboard() {
   const [loading, setLoading] = useState(true);
   const [online, setOnline] = useState(false);
   const [profile, setProfile] = useState<any>(null);
+  // نافذة الإشعار الفوري (سباق)
+  const [alertRide, setAlertRide] = useState<Ride | null>(null);
+  const [alertCountdown, setAlertCountdown] = useState(30);
+  const [alertAccepting, setAlertAccepting] = useState(false);
 
   const fetchRequests = useCallback(async () => {
     const token = getMemToken();
@@ -237,6 +270,53 @@ function DriverDashboard() {
     } catch {}
   }, []);
 
+  // اكتشاف طلبات جديدة وإظهار نافذة السباق
+  const prevRequestsRef = useRef<Ride[]>([]);
+  useEffect(() => {
+    const newOnes = requests.filter(
+      (r) => r.status === "pending" && !prevRequestsRef.current.find((p) => p.id === r.id)
+    );
+    if (newOnes.length > 0 && online) {
+      // إظهار أحدث طلب
+      setAlertRide(newOnes[0]);
+      setAlertCountdown(30);
+      setAlertAccepting(false);
+      // ببلاغ + اهتزاز شبيه بالمكالمة
+      playRideAlert();
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200, 100, 500, 100, 500]);
+    }
+    prevRequestsRef.current = requests;
+  }, [requests, online]);
+
+  // عداد تنازلي للسباق
+  useEffect(() => {
+    if (!alertRide) return;
+    const iv = setInterval(() => {
+      setAlertCountdown((c) => {
+        if (c <= 1) { setAlertRide(null); return 0; }
+        return c - 1;
+      });
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [alertRide]);
+
+  // استماع للرسائل من Service Worker (زر قبول من الإشعار)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.rideId) {
+        const ride = requests.find((r) => r.id === detail.rideId);
+        if (ride) {
+          setAlertRide(ride);
+          setAlertCountdown(30);
+          setAlertAccepting(false);
+        }
+      }
+    };
+    window.addEventListener("ride_alert", handler);
+    return () => window.removeEventListener("ride_alert", handler);
+  }, [requests]);
+
   useEffect(() => {
     fetchRequests();
     fetchProfile();
@@ -256,10 +336,12 @@ function DriverDashboard() {
     toast({ title: newState ? "✅ متصل" : "⏸️ غير متصل", description: newState ? "أنت الآن متاح للطلبات" : "لن تتلقى طلبات جديدة" });
   };
 
-  const handleAccept = async (id: string) => {
+  const handleAccept = async (id: string): Promise<boolean> => {
     const token = getMemToken();
-    await fetch(`${BASE}/api/rides/${id}/accept`, { method: "PATCH", headers: { Authorization: `Bearer ${token}` } });
+    const res = await fetch(`${BASE}/api/rides/${id}/accept`, { method: "PATCH", headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json();
     fetchRequests();
+    return res.ok && data.success;
   };
 
   const handlePickup = async (id: string) => {
@@ -348,6 +430,77 @@ function DriverDashboard() {
           </>
         )}
       </div>
+
+      {/* نافذة السباق الفوري */}
+      {alertRide && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" dir="rtl">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-sm bg-[#0c0c14] border border-primary/30 rounded-3xl overflow-hidden shadow-[0_0_60px_rgba(168,85,247,0.25)]"
+          >
+            {/* رأس الإشعار */}
+            <div className="bg-primary/20 p-4 text-center border-b border-primary/20">
+              <div className="w-16 h-16 rounded-full bg-primary/20 border-2 border-primary/40 flex items-center justify-center mx-auto mb-2 animate-pulse">
+                <Car className="w-8 h-8 text-primary" />
+              </div>
+              <p className="text-lg font-black text-white">طلب نقل جديد!</p>
+              <p className="text-xs text-white/50">الأول يقبل يفوز</p>
+            </div>
+
+            {/* التفاصيل */}
+            <div className="p-4 space-y-3">
+              <div className="flex items-center gap-2 text-sm">
+                <MapPin className="w-4 h-4 text-green-400" />
+                <span className="text-white/80">{alertRide.fromAddress}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <MapPin className="w-4 h-4 text-red-400" />
+                <span className="text-white/80">{alertRide.toAddress}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <DollarSign className="w-4 h-4 text-primary" />
+                <span className="text-white font-bold">{alertRide.price} د.ج</span>
+              </div>
+
+              {/* العداد التنازلي */}
+              <div className="flex items-center justify-center gap-2 py-2">
+                <div className="w-12 h-12 rounded-full border-2 border-red-400 flex items-center justify-center">
+                  <span className="text-xl font-black text-red-400">{alertCountdown}</span>
+                </div>
+              </div>
+
+              {/* الأزرار */}
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    setAlertAccepting(true);
+                    const ok = await handleAccept(alertRide.id);
+                    if (ok) {
+                      toast({ title: "✅ تم القبول!", description: "الراكب ينتظرك" });
+                    } else {
+                      toast({ title: "❌ تم القبول من سائق آخر", description: "لم تفوت هنالك", variant: "destructive" });
+                    }
+                    setAlertRide(null);
+                    setAlertAccepting(false);
+                  }}
+                  disabled={alertAccepting}
+                  className="flex-1 py-4 rounded-2xl bg-primary text-white font-black text-lg shadow-[0_0_30px_rgba(168,85,247,0.4)] active:scale-[0.97] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {alertAccepting ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
+                  قبول الرحلة
+                </button>
+                <button
+                  onClick={() => setAlertRide(null)}
+                  className="px-4 py-4 rounded-2xl border border-white/15 text-white/60 font-bold text-sm active:scale-[0.97]"
+                >
+                  رفض
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* الطلبات */}
       <div>

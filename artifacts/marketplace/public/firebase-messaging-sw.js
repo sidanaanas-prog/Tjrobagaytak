@@ -15,12 +15,57 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage(function(payload) {
   const title = payload.notification?.title || "Gaytak";
   const body  = payload.notification?.body  || "";
+  const data  = payload.data || {};
+
+  const isRideAlert = data.type === "new_ride";
+
   self.registration.showNotification(title, {
     body,
     icon: "/favicon.png",
     badge: "/favicon.png",
-    data: payload.data || {},
+    data,
     dir: "rtl",
     lang: "ar",
+    // إشعار حرج
+    tag: isRideAlert ? "ride_alert" : "default",
+    requireInteraction: isRideAlert,
+    // رنة قوية واهتزاز
+    ...(isRideAlert && {
+      sound: "/notification.mp3",
+      vibrate: [200, 100, 200, 100, 200, 100, 500, 100, 500],
+      priority: "high",
+      renotify: true,
+    }),
+    // أزرار لاعب
+    actions: isRideAlert ? [
+      { action: "accept", title: "قبول" },
+      { action: "decline", title: "رفض" },
+    ] : [],
   });
+});
+
+// معالجة الضغط على الأزرار
+self.addEventListener("notificationclick", function(event) {
+  event.notification.close();
+  const data = event.notification.data;
+
+  if (event.action === "accept" && data?.type === "new_ride") {
+    // فتح التطبيق وإرسال رسالة للأب لقبول الرحلة
+    event.waitUntil(
+      self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+        const client = clientList[0];
+        if (client) {
+          client.postMessage({
+            type: "ACCEPT_RIDE",
+            rideId: data.rideId,
+          });
+          client.focus();
+        } else {
+          self.clients.openWindow("/rides");
+        }
+      })
+    );
+  } else {
+    event.waitUntil(self.clients.openWindow("/rides"));
+  }
 });
