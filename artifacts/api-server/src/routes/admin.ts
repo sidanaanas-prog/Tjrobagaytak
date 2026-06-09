@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { randomUUID } from "crypto";
-import { db, usersTable, productsTable, conversationsTable, messagesTable, activityTable, ordersTable, broadcastsTable } from "@workspace/db";
+import { db, usersTable, productsTable, conversationsTable, messagesTable, activityTable, ordersTable, broadcastsTable, ridesTable, driverProfilesTable } from "@workspace/db";
 import { count, eq, and, or, ne, gte, sql, desc, inArray, isNotNull } from "drizzle-orm";
 import { authenticate, requireAdmin } from "../lib/auth";
 import { notifyUsers, sendNotification } from "../lib/notifications";
@@ -66,6 +66,22 @@ router.get("/admin/stats", authenticate, requireAdmin, async (_req, res): Promis
   const [{ ordersDelivered }]  = await db.select({ ordersDelivered: count() }).from(ordersTable).where(eq(ordersTable.status, "delivered"));
   const [{ ordersCancelled }]  = await db.select({ ordersCancelled: count() }).from(ordersTable).where(eq(ordersTable.status, "cancelled"));
 
+  // ── Rides stats ──
+  const [{ totalRides }]          = await db.select({ totalRides: count() }).from(ridesTable);
+  const [{ ridesToday }]          = await db.select({ ridesToday: count() }).from(ridesTable).where(gte(ridesTable.createdAt, today));
+  const [{ ridesPending }]        = await db.select({ ridesPending: count() }).from(ridesTable).where(eq(ridesTable.status, "pending"));
+  const [{ ridesAccepted }]       = await db.select({ ridesAccepted: count() }).from(ridesTable).where(eq(ridesTable.status, "accepted"));
+  const [{ ridesCompleted }]      = await db.select({ ridesCompleted: count() }).from(ridesTable).where(eq(ridesTable.status, "completed"));
+  const [{ ridesCancelled }]      = await db.select({ ridesCancelled: count() }).from(ridesTable).where(eq(ridesTable.status, "cancelled"));
+  const [{ totalRideRevenueRaw }] = await db.select({ totalRideRevenueRaw: sql<number>`coalesce(sum(${ridesTable.price}), 0)::numeric(12,2)` }).from(ridesTable).where(eq(ridesTable.status, "completed"));
+  const [{ rideRevenueTodayRaw }] = await db.select({ rideRevenueTodayRaw: sql<number>`coalesce(sum(${ridesTable.price}), 0)::numeric(12,2)` }).from(ridesTable).where(and(eq(ridesTable.status, "completed"), gte(ridesTable.completedAt, today)));
+
+  // ── Driver stats ──
+  const [{ totalDrivers }]        = await db.select({ totalDrivers: count() }).from(driverProfilesTable);
+  const [{ activeDrivers }]       = await db.select({ activeDrivers: count() }).from(driverProfilesTable).where(eq(driverProfilesTable.isOnline, true));
+  const [{ subscribedDrivers }]   = await db.select({ subscribedDrivers: count() }).from(driverProfilesTable).where(eq(driverProfilesTable.isSubscribed, true));
+  const [{ availableDrivers }]    = await db.select({ availableDrivers: count() }).from(driverProfilesTable).where(eq(driverProfilesTable.isAvailable, true));
+
   res.json({
     totalUsers: Number(totalUsers),
     totalProducts: Number(totalProducts),
@@ -92,6 +108,20 @@ router.get("/admin/stats", authenticate, requireAdmin, async (_req, res): Promis
     ordersShipped: Number(ordersShipped),
     ordersDelivered: Number(ordersDelivered),
     ordersCancelled: Number(ordersCancelled),
+    // Rides
+    totalRides: Number(totalRides),
+    ridesToday: Number(ridesToday),
+    ridesPending: Number(ridesPending),
+    ridesAccepted: Number(ridesAccepted),
+    ridesCompleted: Number(ridesCompleted),
+    ridesCancelled: Number(ridesCancelled),
+    totalRideRevenue: Number(totalRideRevenueRaw ?? 0),
+    rideRevenueToday: Number(rideRevenueTodayRaw ?? 0),
+    // Drivers
+    totalDrivers: Number(totalDrivers),
+    activeDrivers: Number(activeDrivers),
+    subscribedDrivers: Number(subscribedDrivers),
+    availableDrivers: Number(availableDrivers),
   });
 });
 
@@ -422,6 +452,80 @@ router.patch("/admin/delivery-requests/:id", authenticate, requireAdmin, async (
   ]);
 
   res.json({ success: true, deliveryStatus });
+});
+
+// ── قائمة السائقين (للأدمن) ────────────────────────────────
+router.get("/admin/drivers", authenticate, requireAdmin, async (_req, res): Promise<void> => {
+  const drivers = await db.select().from(driverProfilesTable).orderBy(desc(driverProfilesTable.createdAt));
+  if (!drivers.length) { res.json([]); return; }
+
+  const userIds = drivers.map(d => d.userId);
+  const users = await db.select().from(usersTable).where(inArray(usersTable.id, userIds));
+  const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+
+  res.json(drivers.map(d => {
+    const u = userMap[d.userId];
+    return {
+      id: d.id,
+      userId: d.userId,
+      name: u?.name || "—",
+      phone: u?.phone || null,
+      email: u?.email || "—",
+      avatar: u?.avatar || null,
+      vehicleType: d.vehicleType,
+      vehicleModel: d.vehicleModel,
+      vehiclePlate: d.vehiclePlate,
+      isSubscribed: d.isSubscribed,
+      subscriptionExpiresAt: d.subscriptionExpiresAt?.toISOString() ?? null,
+      isOnline: d.isOnline,
+      isAvailable: d.isAvailable,
+      totalRides: d.totalRides,
+      totalEarnings: d.totalEarnings,
+      createdAt: d.createdAt.toISOString(),
+    };
+  }));
+});
+
+// ── إيقاف اشتراك سائق (للأدمن) ──────────────────────────────
+router.patch("/admin/drivers/:userId/deactivate", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  const userId = req.params.userId as string;
+  const now = new Date();
+  await db.update(driverProfilesTable)
+    .set({ isSubscribed: false, subscriptionExpiresAt: null, updatedAt: now })
+    .where(eq(driverProfilesTable.userId, userId));
+  res.json({ success: true });
+});
+
+// ── قائمة الرحلات (للأدمن) ────────────────────────────────
+router.get("/admin/rides", authenticate, requireAdmin, async (_req, res): Promise<void> => {
+  const rides = await db.select().from(ridesTable).orderBy(desc(ridesTable.createdAt));
+  if (!rides.length) { res.json([]); return; }
+
+  const userIds = [...new Set(rides.flatMap(r => [r.passengerId, r.driverId]).filter((id): id is string => id !== null))];
+  const users = await db.select().from(usersTable).where(inArray(usersTable.id, userIds));
+  const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+
+  res.json(rides.map(r => {
+    const passenger = userMap[r.passengerId];
+    const driver = r.driverId ? userMap[r.driverId] : null;
+    return {
+      id: r.id,
+      status: r.status,
+      fromAddress: r.fromAddress,
+      toAddress: r.toAddress,
+      price: r.price,
+      passengerName: passenger?.name || "—",
+      passengerPhone: passenger?.phone || null,
+      driverName: driver?.name || null,
+      driverPhone: driver?.phone || null,
+      rating: r.driverRating,
+      driverRating: r.passengerRating,
+      createdAt: r.createdAt.toISOString(),
+      acceptedAt: r.acceptedAt?.toISOString() ?? null,
+      completedAt: r.completedAt?.toISOString() ?? null,
+      cancelledAt: r.cancelledAt?.toISOString() ?? null,
+    };
+  }));
 });
 
 // ── تسجيل خروج جميع الحسابات ──────────────────────────────

@@ -17,6 +17,8 @@ import Reports from "@/pages/reports";
 import DeliveryRequests from "@/pages/delivery-requests";
 import FlashSales from "@/pages/flash-sales";
 import Subscriptions from "@/pages/subscriptions";
+import DriverSubscriptions from "@/pages/driver-subscriptions";
+import Rides from "@/pages/rides-admin";
 import Promotions from "@/pages/promotions";
 import { AdminAuthProvider } from "@/hooks/use-admin-auth";
 import { Layout } from "@/components/layout";
@@ -56,6 +58,8 @@ function Router() {
       <Route path="/delivery-requests" component={() => <ProtectedRoute component={DeliveryRequests} />} />
       <Route path="/flash-sales" component={() => <ProtectedRoute component={FlashSales} />} />
       <Route path="/subscriptions" component={() => <ProtectedRoute component={Subscriptions} />} />
+      <Route path="/driver-subscriptions" component={() => <ProtectedRoute component={DriverSubscriptions} />} />
+      <Route path="/rides" component={() => <ProtectedRoute component={Rides} />} />
       <Route path="/promotions" component={() => <ProtectedRoute component={Promotions} />} />
       <Route component={NotFound} />
     </Switch>

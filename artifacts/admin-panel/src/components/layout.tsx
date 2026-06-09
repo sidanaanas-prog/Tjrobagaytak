@@ -15,6 +15,8 @@ import {
   Truck,
   Zap,
   CreditCard,
+  Navigation,
+  Car,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -100,6 +102,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/reports", label: "التبليغات", icon: Flag, badge: pendingReports },
     { href: "/delivery-requests", label: "التوصيل", icon: Truck, badge: pendingDeliveries },
     { href: "/subscriptions", label: "الاشتراكات", icon: CreditCard, badge: pendingSubscriptions },
+    { href: "/driver-subscriptions", label: "اشتراكات السائقين", icon: Navigation },
+    { href: "/rides", label: "الرحلات", icon: Car },
     { href: "/promotions", label: "العروض الترويجية", icon: Zap },
     { href: "/flash-sales", label: "Flash Sales", icon: Zap },
     { href: "/activity", label: "Activity", icon: Activity },

@@ -1,6 +1,6 @@
 import { useGetAdminStats, useGetAdminActivity, useListProducts, useApproveProduct, getGetAdminStatsQueryKey, getListProductsQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Box, MessageSquare, AlertCircle, CheckCircle2, XCircle, ShoppingBag, TrendingUp, DollarSign, Clock, Truck, Package } from "lucide-react";
+import { Users, Box, MessageSquare, AlertCircle, CheckCircle2, XCircle, ShoppingBag, TrendingUp, DollarSign, Clock, Truck, Package, Car, MapPin, Navigation, CreditCard } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -383,6 +383,90 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* ── إحصائيات النقل والسائقين ── */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Car className="w-5 h-5 text-primary" />
+          <h2 className="text-lg font-mono font-bold text-white tracking-wider">إحصائيات النقل والسائقين</h2>
+        </div>
+
+        {isInitialLoading ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => <StatSkeleton key={i} />)}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {/* الرحلات */}
+            <Card className="bg-card border-primary/30 shadow-[0_0_15px_rgba(0,255,255,0.05)]">
+              <CardHeader className="flex flex-row items-center justify-between pb-1">
+                <CardTitle className="text-xs font-mono font-medium text-primary">إجمالي الرحلات</CardTitle>
+                <Car className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-mono font-bold text-white">{stats?.totalRides || 0}</div>
+                <p className="text-xs text-primary/70 font-mono mt-1">+{stats?.ridesToday || 0} اليوم</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-yellow-500/30 shadow-[0_0_15px_rgba(255,200,0,0.05)]">
+              <CardHeader className="flex flex-row items-center justify-between pb-1">
+                <CardTitle className="text-xs font-mono font-medium text-yellow-400">رحلات قيد الانتظار</CardTitle>
+                <Clock className="h-4 w-4 text-yellow-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-mono font-bold text-yellow-400">{stats?.ridesPending || 0}</div>
+                <p className="text-xs text-yellow-400/70 font-mono mt-1">بانتظار سائق</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-green-500/30 shadow-[0_0_15px_rgba(0,255,0,0.05)]">
+              <CardHeader className="flex flex-row items-center justify-between pb-1">
+                <CardTitle className="text-xs font-mono font-medium text-green-400">رحلات مكتملة</CardTitle>
+                <CheckCircle2 className="h-4 w-4 text-green-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-mono font-bold text-green-400">{stats?.ridesCompleted || 0}</div>
+                <p className="text-xs text-green-400/70 font-mono mt-1">تمت بنجاح</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.05)]">
+              <CardHeader className="flex flex-row items-center justify-between pb-1">
+                <CardTitle className="text-xs font-mono font-medium text-emerald-400">إيرادات النقل</CardTitle>
+                <DollarSign className="h-4 w-4 text-emerald-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-mono font-bold text-emerald-400">{(stats?.totalRideRevenue || 0).toFixed(0)} دج</div>
+                <p className="text-xs text-emerald-400/70 font-mono mt-1">+{(stats?.rideRevenueToday || 0).toFixed(0)} اليوم</p>
+              </CardContent>
+            </Card>
+
+            {/* السائقين */}
+            <Card className="bg-card border-blue-500/30 shadow-[0_0_15px_rgba(0,150,255,0.05)]">
+              <CardHeader className="flex flex-row items-center justify-between pb-1">
+                <CardTitle className="text-xs font-mono font-medium text-blue-400">عدد السائقين</CardTitle>
+                <Navigation className="h-4 w-4 text-blue-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-mono font-bold text-white">{stats?.totalDrivers || 0}</div>
+                <p className="text-xs text-blue-400/70 font-mono mt-1">{stats?.activeDrivers || 0} متصل</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-purple-500/30 shadow-[0_0_15px_rgba(150,0,255,0.05)]">
+              <CardHeader className="flex flex-row items-center justify-between pb-1">
+                <CardTitle className="text-xs font-mono font-medium text-purple-400">مشتركين السائقين</CardTitle>
+                <CreditCard className="h-4 w-4 text-purple-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-mono font-bold text-purple-400">{stats?.subscribedDrivers || 0}</div>
+                <p className="text-xs text-purple-400/70 font-mono mt-1">من {stats?.totalDrivers || 0} سائق</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
 
       {/* Recent Activity */}
