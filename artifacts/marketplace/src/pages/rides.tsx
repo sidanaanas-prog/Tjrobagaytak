@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/lib/api-url";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
+import { DriverSubscriptionGate } from "@/components/DriverSubscriptionGate";
 import {
   Car, MapPin, Clock, Star, CheckCircle, XCircle, Phone, MessageSquare,
   ChevronLeft, Loader2, Navigation, User, Circle, Flag,
@@ -413,7 +414,13 @@ export default function RidesPage() {
         </div>
 
         {/* Content */}
-        {role === "driver" ? <DriverDashboard /> : <PassengerRequest />}
+        {role === "driver" ? (
+          <DriverSubscriptionGate>
+            <DriverDashboard />
+          </DriverSubscriptionGate>
+        ) : (
+          <PassengerRequest />
+        )}
       </div>
     </AppLayout>
   );

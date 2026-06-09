@@ -1,0 +1,378 @@
+import { useState, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useDriverSubscription } from "@/hooks/use-driver-subscription";
+import { useAuth, getMemToken } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
+import { getApiUrl } from "@/lib/api-url";
+import { Crown, Check, Upload, ChevronRight, Loader2, X, Clock, AlertTriangle, RefreshCw, ShieldCheck, Banknote, Copy } from "lucide-react";
+
+const BASE = getApiUrl("");
+
+const PLAN = {
+  label: "1 شهر",
+  price: "2,000",
+  priceNum: 2000,
+  doro: "20,000",
+};
+
+type Step = "method" | "bankily" | "cash";
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+type Props = { children: React.ReactNode; onOpen?: () => void };
+
+export function DriverSubscriptionGate({ children, onOpen }: Props) {
+  const { status, loading, refetch } = useDriverSubscription();
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const [showModal, setShowModal] = useState(false);
+  const [step, setStep] = useState<Step>("method");
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofPreview, setProofPreview] = useState<string | null>(null);
+  const [idFile, setIdFile] = useState<File | null>(null);
+  const [idPreview, setIdPreview] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const proofRef = useRef<HTMLInputElement>(null);
+  const idRef = useRef<HTMLInputElement>(null);
+
+  function openModal() {
+    setStep("method");
+    setProofFile(null); setProofPreview(null);
+    setIdFile(null); setIdPreview(null);
+    setSubmitting(false);
+    setShowModal(true);
+    onOpen?.();
+  }
+  function closeModal() {
+    setShowModal(false);
+    setProofFile(null); setProofPreview(null);
+    setIdFile(null); setIdPreview(null);
+    setSubmitting(false);
+  }
+
+  function copyAccount() {
+    navigator.clipboard.writeText("22978051").then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
+  }
+
+  function pickFile(file: File, t: "proof" | "id") {
+    const url = URL.createObjectURL(file);
+    if (t === "proof") { setProofFile(file); setProofPreview(url); }
+    else { setIdFile(file); setIdPreview(url); }
+  }
+
+  async function submitBankily() {
+    if (!proofFile) { toast({ variant: "destructive", title: "أرفق صورة وصل الدفع" }); return; }
+    if (!idFile) { toast({ variant: "destructive", title: "أرفق صورة بطاقة الهوية" }); return; }
+    setSubmitting(true);
+    try {
+      const proofBase64 = await fileToBase64(proofFile);
+      const idBase64 = await fileToBase64(idFile);
+      const res = await fetch(`${BASE}/api/subscriptions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getMemToken()}` },
+        body: JSON.stringify({ plan: "1month", paymentMethod: "ccp", paymentProofUrl: proofBase64, idDocumentUrl: idBase64 }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "خطأ");
+      toast({ title: "✅ تم إرسال طلبك!", description: "سيتم مراجعته خلال 24 ساعة" });
+      closeModal(); refetch();
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "خطأ", description: e.message });
+    } finally { setSubmitting(false); }
+  }
+
+  async function submitCash() {
+    if (!idFile) { toast({ variant: "destructive", title: "أرفق صورة وثيقتك" }); return; }
+    setSubmitting(true);
+    try {
+      const idBase64 = await fileToBase64(idFile);
+      const res = await fetch(`${BASE}/api/subscriptions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getMemToken()}` },
+        body: JSON.stringify({ plan: "1month", paymentMethod: "cash", idDocumentUrl: idBase64 }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "خطأ");
+      toast({ title: "✅ تم إرسال الطلب!", description: "سيتواصل معك فريق الدعم" });
+      closeModal(); refetch();
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "خطأ", description: e.message });
+    } finally { setSubmitting(false); }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-32">
+        <Loader2 className="w-6 h-6 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  if (status?.isSubscribed) return <>{children}</>;
+
+  return (
+    <>
+      <div className="flex flex-col items-center justify-center min-h-[78vh] px-6 text-center gap-5" dir="rtl">
+        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+          <div className="w-24 h-24 rounded-3xl bg-primary/10 border border-primary/25 flex items-center justify-center mx-auto shadow-[0_0_50px_rgba(168,85,247,0.15)]">
+            <Crown className="w-12 h-12 text-primary" />
+          </div>
+        </motion.div>
+        <motion.div initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="space-y-2">
+          <h2 className="text-2xl font-black text-white">اشتراك السائق الشهري</h2>
+          <p className="text-sm text-white/45 max-w-xs mx-auto leading-relaxed">
+            لإتاحة وضع السائق واستقبال طلبات النقل، يجب الاشتراك الشهري.
+          </p>
+        </motion.div>
+
+        <div className="bg-primary/8 border border-primary/20 rounded-2xl px-6 py-4 w-full max-w-xs">
+          <p className="text-[11px] text-white/40 mb-1">الباقة الشهرية</p>
+          <div className="flex items-center justify-between">
+            <span className="text-2xl font-black text-white">{PLAN.price}</span>
+            <span className="text-sm text-white/50">دج / شهر</span>
+          </div>
+          <p className="text-[11px] text-primary mt-1">{PLAN.doro} دورو</p>
+        </div>
+
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          onClick={openModal}
+          className="w-full max-w-xs h-14 rounded-2xl bg-primary font-black text-white text-base shadow-[0_0_35px_rgba(168,85,247,0.45)] flex items-center justify-center gap-2"
+        >
+          <Crown className="w-5 h-5" />
+          اشترك الآن — 2000 دج/شهر
+          <ChevronRight className="w-4 h-4" />
+        </motion.button>
+
+        <p className="text-[11px] text-white/25">
+          الاشتراك يُجدّد شهرياً — يمكن إلغاؤه في أي وقت
+        </p>
+      </div>
+
+      {renderModal()}
+    </>
+  );
+
+  function renderModal() {
+    return (
+      <AnimatePresence>
+        {showModal && (
+          <motion.div
+            key="overlay"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/85 backdrop-blur-sm"
+            onClick={closeModal}
+          >
+            <motion.div
+              key="sheet"
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="w-full max-w-lg bg-[#0c0c14] border-t border-white/8 rounded-t-3xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+              dir="rtl"
+            >
+              <div className="w-10 h-1 bg-white/15 rounded-full mx-auto mt-3 mb-0.5" />
+
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/5">
+                {step !== "method" ? (
+                  <button onClick={() => setStep("method")} className="text-xs text-white/40 hover:text-white/70">← رجوع</button>
+                ) : <div className="w-10" />}
+                <h3 className="text-sm font-black text-white">
+                  {step === "method" && "طريقة الدفع"}
+                  {step === "bankily" && "دفع عبر بنكيلي"}
+                  {step === "cash" && "دفع نقدي"}
+                </h3>
+                <button onClick={closeModal} className="w-8 h-8 rounded-full bg-white/6 hover:bg-white/12 flex items-center justify-center">
+                  <X className="w-4 h-4 text-white/60" />
+                </button>
+              </div>
+
+              <div className="px-5 py-5 pb-12 max-h-[84vh] overflow-y-auto space-y-4">
+
+                {/* الخطوة 1: اختيار طريقة الدفع */}
+                {step === "method" && (
+                  <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+                    <div className="bg-primary/8 rounded-2xl p-4 text-center border border-primary/20">
+                      <p className="text-[11px] text-white/40 mb-1">الباقة الشهرية</p>
+                      <p className="text-3xl font-black text-white">{PLAN.price} <span className="text-base text-white/50">دج</span></p>
+                      <p className="text-[11px] text-primary mt-1">{PLAN.doro} دورو</p>
+                    </div>
+
+                    <p className="text-xs text-white/45 mb-2 font-bold">اختر طريقة الدفع:</p>
+
+                    <button onClick={() => setStep("bankily")}
+                      className="w-full p-4 rounded-2xl border border-blue-500/25 bg-blue-500/8 text-right flex items-center gap-3 hover:bg-blue-500/12 transition-all active:scale-[0.98]">
+                      <div className="w-11 h-11 rounded-xl bg-blue-500/15 border border-blue-500/20 flex items-center justify-center shrink-0">
+                        <ShieldCheck className="w-5 h-5 text-blue-400" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-white">بنكيلي / CCP</p>
+                        <p className="text-[11px] text-white/40">تحويل بنكي — وصل الدفع مطلوب</p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-white/30" />
+                    </button>
+
+                    <button onClick={() => setStep("cash")}
+                      className="w-full p-4 rounded-2xl border border-green-500/25 bg-green-500/8 text-right flex items-center gap-3 hover:bg-green-500/12 transition-all active:scale-[0.98]">
+                      <div className="w-11 h-11 rounded-xl bg-green-500/15 border border-green-500/20 flex items-center justify-center shrink-0">
+                        <Banknote className="w-5 h-5 text-green-400" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-white">دفع نقدي</p>
+                        <p className="text-[11px] text-white/40">سيتواصل معك فريق الدعم</p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-white/30" />
+                    </button>
+                  </motion.div>
+                )}
+
+                {/* الخطوة 2: بنكيلي */}
+                {step === "bankily" && (
+                  <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+                    <div className="bg-blue-500/6 border border-blue-500/18 rounded-2xl p-4 space-y-3">
+                      <div className="flex items-center gap-3 mb-1">
+                        <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/20 flex items-center justify-center shrink-0">
+                          <ShieldCheck className="w-5 h-5 text-blue-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-black text-white">بنكيلي / CCP</p>
+                          <p className="text-xs text-white/35">أرسل المبلغ إلى الحساب التالي</p>
+                        </div>
+                      </div>
+                      <button onClick={copyAccount}
+                        className="w-full py-3 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center gap-2 active:scale-[0.98]">
+                        <div className="flex items-center gap-2">
+                          {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4 text-white/50" />}
+                          <span className="text-xs text-white/50">{copied ? "تم النسخ!" : "اضغط للنسخ"}</span>
+                        </div>
+                        <span dir="ltr" className="text-2xl font-black text-white tracking-widest">22978051</span>
+                      </button>
+                      <div className="text-center border-t border-white/5 pt-3">
+                        <p className="text-xs text-white/35 mb-1">المبلغ المطلوب</p>
+                        <p className="text-3xl font-black text-primary leading-none">{PLAN.price}</p>
+                        <p className="text-sm text-white/40 mt-0.5">دج</p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-white/45 mb-2 font-medium">أرفق صورة وصل الدفع <span className="text-red-400">*</span></p>
+                      <input ref={proofRef} type="file" accept="image/*" className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f, "proof"); }} />
+                      {proofPreview ? (
+                        <div className="relative rounded-2xl overflow-hidden border border-blue-500/30">
+                          <img src={proofPreview} alt="وصل" className="w-full max-h-44 object-cover" />
+                          <button onClick={() => { setProofFile(null); setProofPreview(null); }}
+                            className="absolute top-2 left-2 w-7 h-7 rounded-full bg-black/70 flex items-center justify-center">
+                            <X className="w-3.5 h-3.5 text-white" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => proofRef.current?.click()}
+                          className="w-full h-24 rounded-2xl border-2 border-dashed border-blue-500/25 flex flex-col items-center justify-center gap-2 hover:border-blue-500/50 hover:bg-blue-500/4 transition-all active:scale-[0.98]">
+                          <Upload className="w-6 h-6 text-blue-400/50" />
+                          <span className="text-xs text-white/30">اضغط لرفع صورة الوصل</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-white/45 mb-2 font-medium">أرفق صورة بطاقة الهوية <span className="text-red-400">*</span></p>
+                      <input ref={idRef} type="file" accept="image/*" className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f, "id"); }} />
+                      {idPreview ? (
+                        <div className="relative rounded-2xl overflow-hidden border border-blue-500/30">
+                          <img src={idPreview} alt="بطاقة" className="w-full max-h-44 object-cover" />
+                          <button onClick={() => { setIdFile(null); setIdPreview(null); }}
+                            className="absolute top-2 left-2 w-7 h-7 rounded-full bg-black/70 flex items-center justify-center">
+                            <X className="w-3.5 h-3.5 text-white" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => idRef.current?.click()}
+                          className="w-full h-24 rounded-2xl border-2 border-dashed border-blue-500/25 flex flex-col items-center justify-center gap-2 hover:border-blue-500/50 hover:bg-blue-500/4 transition-all active:scale-[0.98]">
+                          <Upload className="w-6 h-6 text-blue-400/50" />
+                          <span className="text-xs text-white/30">اضغط لرفع صورة بطاقة الهوية</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <button onClick={submitBankily} disabled={submitting || !proofFile || !idFile}
+                      className="w-full py-3.5 rounded-2xl bg-primary text-white font-black text-sm shadow-[0_0_22px_rgba(168,85,247,0.3)] active:scale-[0.97] transition-all flex items-center justify-center gap-2 disabled:opacity-45">
+                      {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                      إرسال الطلب للمراجعة
+                    </button>
+                  </motion.div>
+                )}
+
+                {/* الخطوة 3: كاش */}
+                {step === "cash" && (
+                  <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+                    <div className="bg-green-500/6 border border-green-500/18 rounded-2xl p-4 space-y-2">
+                      <div className="flex items-center gap-3 mb-1">
+                        <div className="w-10 h-10 rounded-xl bg-green-500/15 border border-green-500/20 flex items-center justify-center shrink-0">
+                          <Banknote className="w-5 h-5 text-green-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-black text-white">دفع نقدي</p>
+                          <p className="text-xs text-white/35">سيتواصل معك فريق الدعم</p>
+                        </div>
+                      </div>
+                      <div className="border-t border-white/5 pt-3 text-center">
+                        <p className="text-xs text-white/35 mb-0.5">المبلغ المطلوب</p>
+                        <p className="text-2xl font-black text-green-400">{PLAN.price} دج</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white/4 border border-white/8 rounded-2xl px-4 py-3 flex items-center justify-between">
+                      <span className="text-xs text-white/35">رقمك المسجّل</span>
+                      <span dir="ltr" className="text-sm font-bold text-white">{(user as any)?.phone || "—"}</span>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-white/45 mb-1.5 font-medium">أرفق صورة وثيقتك الرسمية <span className="text-red-400">*</span></p>
+                      <input ref={idRef} type="file" accept="image/*" className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f, "id"); }} />
+                      {idPreview ? (
+                        <div className="relative rounded-2xl overflow-hidden border border-green-500/30">
+                          <img src={idPreview} alt="وثيقة" className="w-full max-h-44 object-cover" />
+                          <button onClick={() => { setIdFile(null); setIdPreview(null); }}
+                            className="absolute top-2 left-2 w-7 h-7 rounded-full bg-black/70 flex items-center justify-center">
+                            <X className="w-3.5 h-3.5 text-white" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => idRef.current?.click()}
+                          className="w-full h-24 rounded-2xl border-2 border-dashed border-green-500/25 flex flex-col items-center justify-center gap-2 hover:border-green-500/50 hover:bg-green-500/4 transition-all active:scale-[0.98]">
+                          <Upload className="w-6 h-6 text-green-400/50" />
+                          <span className="text-xs text-white/30">اضغط لرفع صورة الوثيقة</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <button onClick={submitCash} disabled={submitting || !idFile}
+                      className="w-full py-3.5 rounded-2xl bg-green-600 text-white font-black text-sm shadow-[0_0_22px_rgba(22,163,74,0.3)] active:scale-[0.97] transition-all flex items-center justify-center gap-2 disabled:opacity-45">
+                      {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                      إرسال الطلب للإدارة
+                    </button>
+                  </motion.div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    );
+  }
+}

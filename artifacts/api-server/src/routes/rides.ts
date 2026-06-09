@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db, ridesTable, driverProfilesTable, userRolesTable, usersTable } from "@workspace/db";
 import { eq, desc, and, or, isNull, sql, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
-import { authenticate } from "../lib/auth";
+import { authenticate, requireAdmin } from "../lib/auth";
 import { notifyUsers } from "../lib/notifications";
 
 const router: IRouter = Router();
@@ -256,15 +256,23 @@ router.patch("/driver/location", authenticate, async (req, res): Promise<void> =
     const { lat, lng, isAvailable } = req.body;
     const now = new Date();
 
+    // ✅ تحقق من الاشتراك الشهري
+    const [profile] = (await db.select().from(driverProfilesTable).where(eq(driverProfilesTable.userId, driverId))) ?? [];
+    const isSubscribed = profile?.isSubscribed && profile?.subscriptionExpiresAt && new Date(profile.subscriptionExpiresAt) > now;
+    if (isAvailable && !isSubscribed) {
+      res.status(403).json({ error: "اشتراك_مطلوب", message: "يجب الاشتراك الشهري (2000 دج) لتفعيل وضع السائق" });
+      return;
+    }
+
     await db.update(driverProfilesTable).set({
       currentLat: lat ?? null,
       currentLng: lng ?? null,
       isAvailable: isAvailable ?? true,
-      isOnline: true,
+      isOnline: isAvailable ?? true,
       updatedAt: now,
     }).where(eq(driverProfilesTable.userId, driverId));
 
-    res.json({ success: true });
+    res.json({ success: true, isSubscribed: isSubscribed ?? false });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -316,6 +324,42 @@ router.post("/driver/profile", authenticate, async (req, res): Promise<void> => 
     }
 
     res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── السائق: الاشتراك الشهري ──────────────────────────────────────────────────
+router.get("/driver/subscription", authenticate, async (req, res): Promise<void> => {
+  try {
+    const driverId = (req as any).user.id;
+    const [profile] = (await db.select().from(driverProfilesTable).where(eq(driverProfilesTable.userId, driverId))) ?? [];
+    const now = new Date();
+    const isActive = profile?.isSubscribed && profile?.subscriptionExpiresAt && new Date(profile.subscriptionExpiresAt) > now;
+    res.json({
+      isSubscribed: isActive ?? false,
+      expiresAt: profile?.subscriptionExpiresAt ?? null,
+      isPending: false,
+      plan: isActive ? "driver_monthly" : null,
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── الأدمن: تفعيل اشتراك السائق ──────────────────────────────────────────────────
+router.patch("/admin/driver-subscriptions/:userId/approve", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const userId = req.params.userId as string;
+    const now = new Date();
+    const expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + 1);
+
+    await db.update(driverProfilesTable)
+      .set({ isSubscribed: true, subscriptionExpiresAt: expiresAt, updatedAt: now })
+      .where(eq(driverProfilesTable.userId, userId));
+
+    res.json({ success: true, expiresAt });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
