@@ -104,7 +104,14 @@ export default function RoleSelectPage() {
 
     setSaving(false);
     toast({ title: "✅ تم!", description: "تم حفظ أدوارك" });
-    navigate("/");
+
+    // إذا تم إضافة دور السائق لأول مرة → انتقال لصفحة التسجيل
+    const isNewDriver = selected.includes("driver") && !myRoles.includes("driver");
+    if (isNewDriver) {
+      navigate("/driver-register");
+    } else {
+      navigate("/");
+    }
   };
 
   if (loading) {

@@ -9,7 +9,7 @@ import { DriverSubscriptionGate } from "@/components/DriverSubscriptionGate";
 import {
   Car, MapPin, Clock, Star, CheckCircle, XCircle, Phone, MessageSquare,
   ChevronLeft, Loader2, Navigation, User, Circle, Flag,
-  Plus, Trash2, DollarSign, TrendingUp,
+  Plus, Trash2, DollarSign, TrendingUp, Shield,
 } from "lucide-react";
 
 const BASE = getApiUrl("");
@@ -634,6 +634,30 @@ function DriverDashboard() {
                   <span className="text-[10px] px-2 py-1 rounded-full bg-green-500/15 text-green-400 font-bold">نشط</span>
                 ) : (
                   <span className="text-[10px] px-2 py-1 rounded-full bg-red-500/15 text-red-400 font-bold">منتهي</span>
+                )}
+              </div>
+            </div>
+
+            {/* حالة الوثائق */}
+            <div className={`mb-4 rounded-xl p-3 border ${profile.documentsStatus === "verified" ? "bg-green-500/8 border-green-500/20" : profile.documentsStatus === "pending" ? "bg-yellow-500/8 border-yellow-500/20" : "bg-red-500/8 border-red-500/20"}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${profile.documentsStatus === "verified" ? "bg-green-500/15 text-green-400" : profile.documentsStatus === "pending" ? "bg-yellow-500/15 text-yellow-400" : "bg-red-500/15 text-red-400"}`}>
+                    <Shield className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white">الوثائق</p>
+                    <p className="text-[10px] text-white/50">
+                      {profile.documentsStatus === "verified" ? "متأكد" : profile.documentsStatus === "pending" ? "قيد المراجعة" : "لم تُرفع"}
+                    </p>
+                  </div>
+                </div>
+                {profile.documentsStatus === "verified" ? (
+                  <span className="text-[10px] px-2 py-1 rounded-full bg-green-500/15 text-green-400 font-bold">متأكد</span>
+                ) : profile.documentsStatus === "pending" ? (
+                  <span className="text-[10px] px-2 py-1 rounded-full bg-yellow-500/15 text-yellow-400 font-bold">قيد المراجعة</span>
+                ) : (
+                  <span className="text-[10px] px-2 py-1 rounded-full bg-red-500/15 text-red-400 font-bold">لم تُرفع</span>
                 )}
               </div>
             </div>

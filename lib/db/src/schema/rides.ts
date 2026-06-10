@@ -51,6 +51,13 @@ export const driverProfilesTable = pgTable("driver_profiles", {
   // اشتراك السائق الشهري
   isSubscribed: boolean("is_subscribed").notNull().default(false),
   subscriptionExpiresAt: timestamp("subscription_expires_at", { withTimezone: true }),
+  // وثائق السائق
+  licenseImage: text("license_image"), // صورة رخصة القيادة
+  idCardImage: text("id_card_image"), // صورة بطاقة الهوية
+  vehicleDocImage: text("vehicle_doc_image"), // صورة رخصة السير
+  licenseVerified: boolean("license_verified").notNull().default(false),
+  documentsStatus: text("documents_status").default("pending"), // "pending" | "verified" | "rejected"
+  documentsSubmittedAt: timestamp("documents_submitted_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

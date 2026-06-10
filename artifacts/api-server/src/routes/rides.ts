@@ -375,10 +375,12 @@ router.get("/driver/profile", authenticate, async (req, res): Promise<void> => {
 router.post("/driver/profile", authenticate, async (req, res): Promise<void> => {
   try {
     const driverId = (req as any).user.id;
-    const { vehicleType, vehicleModel, vehiclePlate, vehicleColor } = req.body;
+    const { vehicleType, vehicleModel, vehiclePlate, vehicleColor, licenseImage, idCardImage, vehicleDocImage } = req.body;
     const now = new Date();
 
     const [existing] = (await db.select().from(driverProfilesTable).where(eq(driverProfilesTable.userId, driverId))) ?? [];
+
+    const isFirstSubmit = !existing?.documentsSubmittedAt;
 
     if (existing) {
       await db.update(driverProfilesTable).set({
@@ -386,6 +388,11 @@ router.post("/driver/profile", authenticate, async (req, res): Promise<void> => 
         vehicleModel: vehicleModel ?? existing.vehicleModel,
         vehiclePlate: vehiclePlate ?? existing.vehiclePlate,
         vehicleColor: vehicleColor ?? existing.vehicleColor,
+        licenseImage: licenseImage ?? existing.licenseImage,
+        idCardImage: idCardImage ?? existing.idCardImage,
+        vehicleDocImage: vehicleDocImage ?? existing.vehicleDocImage,
+        documentsSubmittedAt: (licenseImage || idCardImage || vehicleDocImage) ? now : existing.documentsSubmittedAt,
+        documentsStatus: isFirstSubmit ? "pending" : existing.documentsStatus,
         updatedAt: now,
       }).where(eq(driverProfilesTable.userId, driverId));
     } else {
@@ -396,12 +403,41 @@ router.post("/driver/profile", authenticate, async (req, res): Promise<void> => 
         vehicleModel: vehicleModel ?? null,
         vehiclePlate: vehiclePlate ?? null,
         vehicleColor: vehicleColor ?? null,
+        licenseImage: licenseImage ?? null,
+        idCardImage: idCardImage ?? null,
+        vehicleDocImage: vehicleDocImage ?? null,
+        documentsSubmittedAt: (licenseImage || idCardImage || vehicleDocImage) ? now : null,
+        documentsStatus: (licenseImage || idCardImage || vehicleDocImage) ? "pending" : null,
         createdAt: now,
         updatedAt: now,
       });
     }
 
     res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── السائق: حالة الوثائق ──────────────────────────────────────────────────
+router.get("/driver/documents-status", authenticate, async (req, res): Promise<void> => {
+  try {
+    const driverId = (req as any).user.id;
+    const [profile] = (await db.select().from(driverProfilesTable).where(eq(driverProfilesTable.userId, driverId))) ?? [];
+    if (!profile) {
+      res.json({ status: "not_submitted", documents: null });
+      return;
+    }
+    res.json({
+      status: profile.documentsStatus ?? "not_submitted",
+      licenseVerified: profile.licenseVerified,
+      documentsSubmittedAt: profile.documentsSubmittedAt,
+      documents: {
+        licenseImage: !!profile.licenseImage,
+        idCardImage: !!profile.idCardImage,
+        vehicleDocImage: !!profile.vehicleDocImage,
+      },
+    });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
