@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, subscriptionsTable, usersTable, activityTable } from "@workspace/db";
+import { db, subscriptionsTable, usersTable, activityTable, driverProfilesTable } from "@workspace/db";
 import { eq, desc, and, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { authenticate, requireAdmin } from "../lib/auth";
@@ -185,6 +185,11 @@ router.patch("/admin/subscriptions/:id/approve", authenticate, requireAdmin, asy
     await db.update(usersTable)
       .set({ isVerified: true, subscriptionExpiresAt: expiresAt })
       .where(eq(usersTable.id, sub.userId));
+
+    // Also update driver profile if the user is a driver
+    await db.update(driverProfilesTable)
+      .set({ isSubscribed: true, subscriptionExpiresAt: expiresAt, updatedAt: new Date() })
+      .where(eq(driverProfilesTable.userId, sub.userId));
 
     await db.insert(activityTable).values({
       id: randomUUID(),

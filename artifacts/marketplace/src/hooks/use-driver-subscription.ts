@@ -9,6 +9,14 @@ export type DriverSubscriptionStatus = {
   expiresAt: string | null;
   isPending: boolean;
   plan: string | null;
+  latestRequest: {
+    id: string;
+    status: string;
+    plan: string;
+    paymentMethod: string;
+    price: string;
+    createdAt: string;
+  } | null;
 };
 
 export function useDriverSubscription() {

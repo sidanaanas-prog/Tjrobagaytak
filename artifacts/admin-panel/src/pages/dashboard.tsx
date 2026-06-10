@@ -405,8 +405,8 @@ export default function Dashboard() {
                 <Car className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-mono font-bold text-white">{stats?.totalRides || 0}</div>
-                <p className="text-xs text-primary/70 font-mono mt-1">+{stats?.ridesToday || 0} اليوم</p>
+                <div className="text-2xl font-mono font-bold text-white">{(stats as any)?.totalRides || 0}</div>
+                <p className="text-xs text-primary/70 font-mono mt-1">+{(stats as any)?.ridesToday || 0} اليوم</p>
               </CardContent>
             </Card>
 
@@ -416,7 +416,7 @@ export default function Dashboard() {
                 <Clock className="h-4 w-4 text-yellow-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-mono font-bold text-yellow-400">{stats?.ridesPending || 0}</div>
+                <div className="text-2xl font-mono font-bold text-yellow-400">{(stats as any)?.ridesPending || 0}</div>
                 <p className="text-xs text-yellow-400/70 font-mono mt-1">بانتظار سائق</p>
               </CardContent>
             </Card>
@@ -427,7 +427,7 @@ export default function Dashboard() {
                 <CheckCircle2 className="h-4 w-4 text-green-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-mono font-bold text-green-400">{stats?.ridesCompleted || 0}</div>
+                <div className="text-2xl font-mono font-bold text-green-400">{(stats as any)?.ridesCompleted || 0}</div>
                 <p className="text-xs text-green-400/70 font-mono mt-1">تمت بنجاح</p>
               </CardContent>
             </Card>
@@ -438,8 +438,8 @@ export default function Dashboard() {
                 <DollarSign className="h-4 w-4 text-emerald-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-mono font-bold text-emerald-400">{(stats?.totalRideRevenue || 0).toFixed(0)} دج</div>
-                <p className="text-xs text-emerald-400/70 font-mono mt-1">+{(stats?.rideRevenueToday || 0).toFixed(0)} اليوم</p>
+                <div className="text-2xl font-mono font-bold text-emerald-400">{((stats as any)?.totalRideRevenue || 0).toFixed(0)} دج</div>
+                <p className="text-xs text-emerald-400/70 font-mono mt-1">+{((stats as any)?.rideRevenueToday || 0).toFixed(0)} اليوم</p>
               </CardContent>
             </Card>
 
@@ -450,8 +450,8 @@ export default function Dashboard() {
                 <Navigation className="h-4 w-4 text-blue-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-mono font-bold text-white">{stats?.totalDrivers || 0}</div>
-                <p className="text-xs text-blue-400/70 font-mono mt-1">{stats?.activeDrivers || 0} متصل</p>
+                <div className="text-2xl font-mono font-bold text-white">{(stats as any)?.totalDrivers || 0}</div>
+                <p className="text-xs text-blue-400/70 font-mono mt-1">{(stats as any)?.activeDrivers || 0} متصل</p>
               </CardContent>
             </Card>
 
@@ -461,8 +461,8 @@ export default function Dashboard() {
                 <CreditCard className="h-4 w-4 text-purple-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-mono font-bold text-purple-400">{stats?.subscribedDrivers || 0}</div>
-                <p className="text-xs text-purple-400/70 font-mono mt-1">من {stats?.totalDrivers || 0} سائق</p>
+                <div className="text-2xl font-mono font-bold text-purple-400">{(stats as any)?.subscribedDrivers || 0}</div>
+                <p className="text-xs text-purple-400/70 font-mono mt-1">من {(stats as any)?.totalDrivers || 0} سائق</p>
               </CardContent>
             </Card>
           </div>

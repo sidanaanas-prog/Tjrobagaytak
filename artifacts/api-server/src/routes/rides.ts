@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, ridesTable, driverProfilesTable, userRolesTable, usersTable } from "@workspace/db";
+import { db, ridesTable, driverProfilesTable, userRolesTable, usersTable, subscriptionsTable } from "@workspace/db";
 import { eq, desc, and, or, isNull, sql, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { authenticate, requireAdmin } from "../lib/auth";
@@ -376,11 +376,22 @@ router.get("/driver/subscription", authenticate, async (req, res): Promise<void>
     const [profile] = (await db.select().from(driverProfilesTable).where(eq(driverProfilesTable.userId, driverId))) ?? [];
     const now = new Date();
     const isActive = profile?.isSubscribed && profile?.subscriptionExpiresAt && new Date(profile.subscriptionExpiresAt) > now;
+
+    // Check for pending subscription requests
+    const [pendingSub] = (await db
+      .select()
+      .from(subscriptionsTable)
+      .where(eq(subscriptionsTable.userId, driverId))
+      .orderBy(desc(subscriptionsTable.createdAt))
+      .limit(1)) ?? [];
+    const isPending = pendingSub?.status === "pending";
+
     res.json({
       isSubscribed: isActive ?? false,
       expiresAt: profile?.subscriptionExpiresAt ?? null,
-      isPending: false,
+      isPending,
       plan: isActive ? "driver_monthly" : null,
+      latestRequest: pendingSub ?? null,
     });
   } catch (e: any) {
     res.status(500).json({ error: e.message });

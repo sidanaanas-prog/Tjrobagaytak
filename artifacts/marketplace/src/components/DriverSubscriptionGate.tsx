@@ -122,6 +122,56 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
 
   if (status?.isSubscribed) return <>{children}</>;
 
+  // ── حالة الاشتراك القيد المراجعة ──
+  if (status?.isPending) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[78vh] px-6 text-center gap-5" dir="rtl">
+        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+          <div className="w-24 h-24 rounded-3xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center mx-auto shadow-[0_0_50px_rgba(245,158,11,0.15)]">
+            <Clock className="w-12 h-12 text-amber-500" />
+          </div>
+        </motion.div>
+        <motion.div initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="space-y-2">
+          <h2 className="text-2xl font-black text-white">إشتراكك قيد المراجعة</h2>
+          <p className="text-sm text-white/45 max-w-xs mx-auto leading-relaxed">
+            طلبا ما قدمته قيد المراجعة من قبل الفريق التقني.
+            <br />ستتمكن من استقبال الطلبات بمجرد الموافقة.
+          </p>
+        </motion.div>
+
+        <div className="bg-amber-500/8 border border-amber-500/20 rounded-2xl px-6 py-4 w-full max-w-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-white/50 text-sm">الباقة</span>
+            <span className="text-white font-bold text-sm">الشهرية — 2,000 دج</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-white/50 text-sm">الحالة</span>
+            <span className="text-amber-400 font-bold text-sm flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5" />
+              قيد المراجعة
+            </span>
+          </div>
+          {status.latestRequest?.createdAt && (
+            <div className="flex items-center justify-between">
+              <span className="text-white/50 text-sm">التاريخ</span>
+              <span className="text-white/70 text-sm">
+                {new Date(status.latestRequest.createdAt).toLocaleDateString("ar-DZ")}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={() => refetch()}
+          className="inline-flex items-center gap-2 text-sm text-white/50 hover:text-white/80 transition-colors"
+        >
+          <RefreshCw className="w-4 h-4" />
+          تحديث الحالة
+        </button>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="flex flex-col items-center justify-center min-h-[78vh] px-6 text-center gap-5" dir="rtl">

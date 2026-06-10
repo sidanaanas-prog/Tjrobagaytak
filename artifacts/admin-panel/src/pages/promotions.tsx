@@ -70,20 +70,20 @@ export default function PromotionsPage() {
   const emptyForm = {
     name: "",
     description: "",
-    type: "discount" as const,
-    plan: "both" as const,
+    type: "discount" as "challenge" | "discount" | "flash",
+    plan: "both" as "6months" | "12months" | "both",
     originalPrice: "5000",
     discountedPrice: "2500",
-    discountPercent: 50,
+    discountPercent: 50 as number | string,
     isActive: true,
     startAt: "",
     endAt: "",
-    trialDays: "",
+    trialDays: "" as string | number,
     goalDescription: "",
     reward: "",
     showCountdown: false,
     countdownMessage: "",
-    maxUsers: "",
+    maxUsers: "" as string | number,
   };
   const [form, setForm] = useState({ ...emptyForm });
 
