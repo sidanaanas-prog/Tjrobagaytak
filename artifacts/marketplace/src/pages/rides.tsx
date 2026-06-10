@@ -3,7 +3,7 @@ import { useAuth, getMemToken } from "@/hooks/use-auth";
 import { AppLayout } from "@/components/AppLayout";
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/lib/api-url";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { DriverSubscriptionGate } from "@/components/DriverSubscriptionGate";
 import {
@@ -462,9 +462,16 @@ function DriverDashboard() {
     const token = getMemToken();
     if (!token) return;
     try {
-      const res = await fetch(`${BASE}/api/rides/driver?status=pending`, { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
-      setRequests(Array.isArray(data) ? data : []);
+      const [pendingRes, acceptedRes] = await Promise.all([
+        fetch(`${BASE}/api/rides/driver?status=pending`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${BASE}/api/rides/driver?status=accepted`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      const pending = await pendingRes.json();
+      const accepted = await acceptedRes.json();
+      setRequests([
+        ...(Array.isArray(pending) ? pending : []),
+        ...(Array.isArray(accepted) ? accepted : []),
+      ]);
     } catch {}
     setLoading(false);
   }, []);
@@ -548,11 +555,17 @@ function DriverDashboard() {
     toast({ title: newState ? "✅ متصل" : "⏸️ غير متصل", description: newState ? "أنت الآن متاح للطلبات" : "لن تتلقى طلبات جديدة" });
   };
 
+  const [_, setLocation] = useLocation();
+
   const handleAccept = async (id: string): Promise<boolean> => {
     const token = getMemToken();
     const res = await fetch(`${BASE}/api/rides/${id}/accept`, { method: "PATCH", headers: { Authorization: `Bearer ${token}` } });
     const data = await res.json();
     fetchRequests();
+    // فتح المحادثة تلقائياً
+    if (res.ok && data.success && data.conversationId) {
+      setLocation(`/chat/${data.conversationId}`);
+    }
     return res.ok && data.success;
   };
 
@@ -739,15 +752,42 @@ function DriverDashboard() {
                       <span className="text-green-400">{r.fromAddress}</span> → <span className="text-red-400">{r.toAddress}</span>
                     </p>
                     <p className="text-xs text-primary font-bold mt-1">{r.price} دج</p>
+                    {/* بيانات الراكب وزر المحادثة للرحلات المقبولة */}
+                    {r.status === "accepted" && r.passenger && (
+                      <div className="flex items-center gap-2 mt-2 text-xs">
+                        {r.passenger.phone && (
+                          <a href={`tel:${r.passenger.phone}`} className="text-green-400 flex items-center gap-1 hover:underline">
+                            <Phone className="w-3 h-3" /> {r.passenger.phone}
+                          </a>
+                        )}
+                        <Link href={`/chat/${r.passenger.id}`}>
+                          <span className="text-primary flex items-center gap-1 hover:underline">
+                            <MessageSquare className="w-3 h-3" /> محادثة
+                          </span>
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => handleAccept(r.id)} className="flex-1 bg-primary text-primary-foreground py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1">
-                    <CheckCircle className="w-3 h-3" /> قبول
-                  </button>
-                  <button onClick={() => handleCancel(r.id)} className="px-3 py-2 border rounded-lg text-xs text-red-400 hover:bg-red-400/10">
-                    <XCircle className="w-3 h-3" />
-                  </button>
+                  {r.status === "pending" ? (
+                    <>
+                      <button onClick={() => handleAccept(r.id)} className="flex-1 bg-primary text-primary-foreground py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1">
+                        <CheckCircle className="w-3 h-3" /> قبول
+                      </button>
+                      <button onClick={() => handleCancel(r.id)} className="px-3 py-2 border rounded-lg text-xs text-red-400 hover:bg-red-400/10">
+                        <XCircle className="w-3 h-3" />
+                      </button>
+                    </>
+                  ) : r.status === "accepted" ? (
+                    <button onClick={() => handlePickup(r.id)} className="flex-1 bg-blue-500 text-white py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1">
+                      <Navigation className="w-3 h-3" /> استلام الراكب
+                    </button>
+                  ) : r.status === "picked_up" ? (
+                    <button onClick={() => handleComplete(r.id)} className="flex-1 bg-green-500 text-white py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1">
+                      <CheckCircle className="w-3 h-3" /> انهاء الرحلة
+                    </button>
+                  ) : null}
                 </div>
               </motion.div>
             ))}

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, ridesTable, driverProfilesTable, userRolesTable, usersTable, subscriptionsTable } from "@workspace/db";
+import { db, ridesTable, driverProfilesTable, userRolesTable, usersTable, subscriptionsTable, conversationsTable, messagesTable } from "@workspace/db";
 import { eq, desc, and, or, isNull, sql, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { authenticate, requireAdmin } from "../lib/auth";
@@ -126,15 +126,53 @@ router.patch("/rides/:id/accept", authenticate, async (req, res): Promise<void> 
       driverId, status: "accepted", acceptedAt: now, updatedAt: now,
     }).where(eq(ridesTable.id, req.params.id as string));
 
+    // إنشاء/إيجاد محادثة بين السائق والراكب
+    let conversationId: string;
+    const [existingConv] = await db
+      .select()
+      .from(conversationsTable)
+      .where(
+        or(
+          and(eq(conversationsTable.participant1Id, driverId), eq(conversationsTable.participant2Id, ride.passengerId)),
+          and(eq(conversationsTable.participant1Id, ride.passengerId), eq(conversationsTable.participant2Id, driverId))
+        )
+      );
+
+    if (existingConv) {
+      conversationId = existingConv.id;
+      await db.update(conversationsTable).set({ updatedAt: now }).where(eq(conversationsTable.id, conversationId));
+    } else {
+      const convId = randomUUID();
+      await db.insert(conversationsTable).values({
+        id: convId,
+        participant1Id: driverId,
+        participant2Id: ride.passengerId,
+        updatedAt: now,
+      });
+      conversationId = convId;
+    }
+
+    // أول رسالة تلقائية
+    const firstMsg = `🚕 *تم قبول رحلتك!*\n📍 من: ${ride.fromAddress}\n📍 إلى: ${ride.toAddress}\n💰 السعر: ${ride.price} دج\n\nالسائق في الطريق إليك 🏎️`;
+    await db.insert(messagesTable).values({
+      id: randomUUID(),
+      conversationId,
+      senderId: driverId,
+      content: firstMsg,
+    });
+
     // إشعار الراكب
     await notifyUsers({
       userIds: [ride.passengerId],
       title: "★ سائق مؤهل!",
       body: "سائق في الطريق إليك",
-      data: { type: "ride_accepted", rideId: ride.id },
+      data: { type: "ride_accepted", rideId: ride.id, conversationId },
     });
 
-    res.json({ success: true });
+    // بيانات الراكب للسائق
+    const [passenger] = (await db.select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone, avatar: usersTable.avatar }).from(usersTable).where(eq(usersTable.id, ride.passengerId))) ?? [];
+
+    res.json({ success: true, conversationId, passenger: passenger ?? null });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
