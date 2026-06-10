@@ -87,7 +87,7 @@ function PassengerRequest() {
     try {
       const res = await fetch(`${BASE}/api/rides/my`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      setMyRides(data ?? []);
+      setMyRides(Array.isArray(data) ? data : []);
     } catch {}
     setLoading(false);
   }, []);
@@ -464,7 +464,7 @@ function DriverDashboard() {
     try {
       const res = await fetch(`${BASE}/api/rides/driver?status=pending`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      setRequests(data ?? []);
+      setRequests(Array.isArray(data) ? data : []);
     } catch {}
     setLoading(false);
   }, []);
