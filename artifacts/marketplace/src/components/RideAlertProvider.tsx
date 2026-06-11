@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { useAuth, getMemToken } from "@/hooks/use-auth";
+import { useDriverSubscription } from "@/hooks/use-driver-subscription";
 import { getApiUrl } from "@/lib/api-url";
 import { motion } from "framer-motion";
 import { useLocation } from "wouter";
@@ -98,6 +99,7 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const { status: subStatus } = useDriverSubscription();
 
   const [alertState, setAlertState] = useState<RideAlertState>({
     ride: null,
@@ -108,6 +110,7 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
 
   const role = getRole();
   const isDriver = role === "driver";
+  const isSubscribed = subStatus?.isSubscribed ?? false;
 
   const stopSoundRef = useRef<(() => void) | null>(null);
   const prevRequestsRef = useRef<Ride[]>([]);
@@ -139,7 +142,7 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
   // جلب الطلبات
   const fetchRequests = useCallback(async () => {
     const token = getMemToken();
-    if (!token || !isDriver) return;
+    if (!token || !isDriver || !isSubscribed) return;
     try {
       const [pendingRes, acceptedRes] = await Promise.all([
         fetch(`${BASE}/api/rides/driver?status=pending`, { headers: { Authorization: `Bearer ${token}` } }),
@@ -157,12 +160,11 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
         (r: Ride) => r.status === "pending" && !prevRequestsRef.current.find((p) => p.id === r.id)
       );
 
-      // اكتشاف تحديث سعر (طلب موجود لكن سعر تغير - نتحقق من updatedAt)
+      // اكتشاف تحديث سعر (طلب موجود لكن سعر تغير)
       const priceUpdated = requests.filter(
         (r: Ride) => {
           const prev = prevRequestsRef.current.find((p) => p.id === r.id);
           if (!prev || prev.price === r.price) return false;
-          // لم يتم قبول الطلب
           return r.status === "pending";
         }
       );
@@ -188,7 +190,7 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
 
       prevRequestsRef.current = requests;
     } catch {}
-  }, [isDriver, alertState.ride]);
+  }, [isDriver, isSubscribed, alertState.ride]);
 
   // استماع للرسائل من Service Worker
   useEffect(() => {
@@ -215,13 +217,13 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("ride_notification", handler);
   }, [fetchRequests]);
 
-  // استطلاع كل 5 ثواني
+  // استطلاع كل 5 ثواني (فقط للسائقين المشتركين)
   useEffect(() => {
-    if (!isDriver || !user?.id) return;
+    if (!isDriver || !isSubscribed || !user?.id) return;
     fetchRequests();
     const iv = setInterval(fetchRequests, 5000);
     return () => clearInterval(iv);
-  }, [isDriver, user?.id, fetchRequests]);
+  }, [isDriver, isSubscribed, user?.id, fetchRequests]);
 
   // العداد التنازلي
   useEffect(() => {
