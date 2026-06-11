@@ -58,43 +58,6 @@ async function uploadViaServer(file: File, path: string): Promise<string> {
   return (await res.json()).url as string;
 }
 
-// ─── فيديوهات: رفع مباشر لـ Cloudinary (بدون مرور بالسيرفر) ────────────────
-
-async function uploadVideoDirectly(file: File, path: string): Promise<string> {
-  const token = localStorage.getItem("glow_token") || "";
-
-  // 1. نجيب التوقيع من السيرفر
-  const sigRes = await fetch(
-    `${BASE}/api/upload/signature?path=${encodeURIComponent(path)}&resourceType=video`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-  if (!sigRes.ok) throw new Error("فشل الحصول على توقيع الرفع");
-
-  const { signature, timestamp, apiKey, cloudName, folder, publicId, resourceType } =
-    await sigRes.json() as {
-      signature: string; timestamp: string; apiKey: string;
-      cloudName: string; folder?: string; publicId?: string; resourceType: string;
-    };
-
-  // 2. نرفع مباشرةً لـ Cloudinary
-  const form = new FormData();
-  form.append("file",      file);
-  form.append("api_key",   apiKey);
-  form.append("timestamp", timestamp);
-  form.append("signature", signature);
-  if (folder)   form.append("folder",    folder);
-  if (publicId) form.append("public_id", publicId);
-
-  const uploadRes = await fetch(
-    `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`,
-    { method: "POST", body: form }
-  );
-  if (!uploadRes.ok) {
-    const err = await uploadRes.text();
-    throw new Error(`Cloudinary: ${err}`);
-  }
-  return ((await uploadRes.json()) as { secure_url: string }).secure_url;
-}
 
 // ─── exports ─────────────────────────────────────────────────────────────────
 
@@ -117,12 +80,6 @@ export async function uploadAvatar(file: File, userId: string): Promise<string> 
 
 export async function uploadStoryImage(file: File, userId: string): Promise<string> {
   return uploadImageToFirebase(file, `stories/${userId}/${Date.now()}.jpg`);
-}
-
-export async function uploadStoryVideo(file: File, userId: string): Promise<string> {
-  const ext  = file.name.split(".").pop() || "mp4";
-  const path = `stories/${userId}/${Date.now()}.${ext}`;
-  return uploadVideoDirectly(file, path);
 }
 
 export async function uploadChatImage(file: File, conversationId: string): Promise<string> {

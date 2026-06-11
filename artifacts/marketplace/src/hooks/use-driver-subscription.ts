@@ -9,6 +9,7 @@ export type DriverSubscriptionStatus = {
   expiresAt: string | null;
   isPending: boolean;
   plan: string | null;
+  hasProfile: boolean;
   latestRequest: {
     id: string;
     status: string;

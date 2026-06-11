@@ -194,12 +194,18 @@ router.patch("/admin/subscriptions/:id/approve", authenticate, requireAdmin, asy
         .where(eq(usersTable.id, sub.userId));
     }
 
-    // إذا كان اشتراك سائق حدّث أو أنشئ ملف السائق
+    // إذا كان اشتراك سائق حدّث أو أنشئ ملف السائق + وثّق الوثائق
     if (sub.type === "driver") {
       const [driverProfile] = (await db.select().from(driverProfilesTable).where(eq(driverProfilesTable.userId, sub.userId))) ?? [];
       if (driverProfile) {
         await db.update(driverProfilesTable)
-          .set({ isSubscribed: true, subscriptionExpiresAt: expiresAt, updatedAt: new Date() })
+          .set({
+            isSubscribed: true,
+            subscriptionExpiresAt: expiresAt,
+            documentsStatus: "verified",
+            licenseVerified: true,
+            updatedAt: new Date(),
+          })
           .where(eq(driverProfilesTable.userId, sub.userId));
       } else {
         await db.insert(driverProfilesTable).values({
@@ -207,6 +213,8 @@ router.patch("/admin/subscriptions/:id/approve", authenticate, requireAdmin, asy
           userId: sub.userId,
           isSubscribed: true,
           subscriptionExpiresAt: expiresAt,
+          documentsStatus: "verified",
+          licenseVerified: true,
           createdAt: new Date(),
           updatedAt: new Date(),
         });

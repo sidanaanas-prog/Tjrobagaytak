@@ -4,7 +4,8 @@ import { useDriverSubscription } from "@/hooks/use-driver-subscription";
 import { useAuth, getMemToken } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/lib/api-url";
-import { Crown, Check, Upload, ChevronRight, Loader2, X, Clock, AlertTriangle, RefreshCw, ShieldCheck, Banknote, Copy } from "lucide-react";
+import { compressImage } from "@/lib/compress-image";
+import { Crown, Upload, ChevronRight, Loader2, X, Clock, AlertTriangle, RefreshCw, ShieldCheck, Banknote, Copy, Check, Car, Shield, CreditCard, FileText, ChevronLeft } from "lucide-react";
 
 const BASE = getApiUrl("");
 
@@ -15,7 +16,11 @@ const PLAN = {
   doro: "20,000",
 };
 
-type Step = "method" | "bankily" | "cash";
+const VEHICLE_TYPES = [
+  { id: "car", label: "سيارة" },
+  { id: "van", label: "فان" },
+  { id: "bike", label: "دراجة" },
+];
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -26,6 +31,12 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+function pickFile(file: File, setter: (v: string) => void) {
+  compressImage(file, 1200, 0.85)
+    .then((b64) => setter(b64))
+    .catch(() => setter(""));
+}
+
 type Props = { children: React.ReactNode; onOpen?: () => void };
 
 export function DriverSubscriptionGate({ children, onOpen }: Props) {
@@ -34,7 +45,18 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
   const { toast } = useToast();
 
   const [showModal, setShowModal] = useState(false);
-  const [step, setStep] = useState<Step>("method");
+
+  // Profile form state
+  const [vehicleType, setVehicleType] = useState("");
+  const [vehicleModel, setVehicleModel] = useState("");
+  const [vehiclePlate, setVehiclePlate] = useState("");
+  const [vehicleColor, setVehicleColor] = useState("");
+  const [licenseImage, setLicenseImage] = useState<string | null>(null);
+  const [idCardImage, setIdCardImage] = useState<string | null>(null);
+  const [vehicleDocImage, setVehicleDocImage] = useState<string | null>(null);
+
+  // Payment state
+  const [step, setStep] = useState<"vehicle" | "documents" | "payment" | "bankily" | "cash">("vehicle");
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [proofPreview, setProofPreview] = useState<string | null>(null);
   const [idFile, setIdFile] = useState<File | null>(null);
@@ -43,9 +65,14 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
   const [copied, setCopied] = useState(false);
   const proofRef = useRef<HTMLInputElement>(null);
   const idRef = useRef<HTMLInputElement>(null);
+  const licenseRef = useRef<HTMLInputElement>(null);
+  const docIdRef = useRef<HTMLInputElement>(null);
+  const docVehicleRef = useRef<HTMLInputElement>(null);
 
   function openModal() {
-    setStep("method");
+    setStep("vehicle");
+    setVehicleType(""); setVehicleModel(""); setVehiclePlate(""); setVehicleColor("");
+    setLicenseImage(null); setIdCardImage(null); setVehicleDocImage(null);
     setProofFile(null); setProofPreview(null);
     setIdFile(null); setIdPreview(null);
     setSubmitting(false);
@@ -54,6 +81,8 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
   }
   function closeModal() {
     setShowModal(false);
+    setVehicleType(""); setVehicleModel(""); setVehiclePlate(""); setVehicleColor("");
+    setLicenseImage(null); setIdCardImage(null); setVehicleDocImage(null);
     setProofFile(null); setProofPreview(null);
     setIdFile(null); setIdPreview(null);
     setSubmitting(false);
@@ -66,10 +95,22 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
     });
   }
 
-  function pickFile(file: File, t: "proof" | "id") {
-    const url = URL.createObjectURL(file);
-    if (t === "proof") { setProofFile(file); setProofPreview(url); }
-    else { setIdFile(file); setIdPreview(url); }
+  // Step 1 → 2
+  function goToDocuments() {
+    if (!vehicleType || !vehicleModel || !vehiclePlate || !vehicleColor) {
+      toast({ variant: "destructive", title: "معلومات ناقصة", description: "أكمل معلومات المركبة" });
+      return;
+    }
+    setStep("documents");
+  }
+
+  // Step 2 → 3
+  function goToPayment() {
+    if (!licenseImage || !idCardImage) {
+      toast({ variant: "destructive", title: "وثائق ناقصة", description: "ارفع رخصة القيادة وبطاقة الهوية" });
+      return;
+    }
+    setStep("payment");
   }
 
   async function submitBankily() {
@@ -77,16 +118,35 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
     if (!idFile) { toast({ variant: "destructive", title: "أرفق صورة بطاقة الهوية" }); return; }
     setSubmitting(true);
     try {
+      const token = getMemToken();
+      // 1) Save profile
+      const profileRes = await fetch(`${BASE}/api/driver/profile`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          vehicleType,
+          vehicleModel,
+          vehiclePlate,
+          vehicleColor,
+          licenseImage,
+          idCardImage,
+          vehicleDocImage,
+        }),
+      });
+      const profileData = await profileRes.json();
+      if (!profileData.success) throw new Error(profileData.error || "فشل حفظ الملف الشخصي");
+
+      // 2) Submit subscription
       const proofBase64 = await fileToBase64(proofFile);
       const idBase64 = await fileToBase64(idFile);
       const res = await fetch(`${BASE}/api/subscriptions`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getMemToken()}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ plan: "1month", paymentMethod: "ccp", paymentProofUrl: proofBase64, idDocumentUrl: idBase64, type: "driver" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "خطأ");
-      toast({ title: "✅ تم إرسال طلبك!", description: "سيتم مراجعته خلال 24 ساعة" });
+      toast({ title: "✅ تم إرسال طلبك!", description: "تم حفظ وثائقك وطلب الاشتراك قيد المراجعة" });
       closeModal(); refetch();
     } catch (e: any) {
       toast({ variant: "destructive", title: "خطأ", description: e.message });
@@ -97,10 +157,29 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
     if (!idFile) { toast({ variant: "destructive", title: "أرفق صورة وثيقتك" }); return; }
     setSubmitting(true);
     try {
+      const token = getMemToken();
+      // 1) Save profile
+      const profileRes = await fetch(`${BASE}/api/driver/profile`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          vehicleType,
+          vehicleModel,
+          vehiclePlate,
+          vehicleColor,
+          licenseImage,
+          idCardImage,
+          vehicleDocImage,
+        }),
+      });
+      const profileData = await profileRes.json();
+      if (!profileData.success) throw new Error(profileData.error || "فشل حفظ الملف الشخصي");
+
+      // 2) Submit subscription
       const idBase64 = await fileToBase64(idFile);
       const res = await fetch(`${BASE}/api/subscriptions`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getMemToken()}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ plan: "1month", paymentMethod: "cash", idDocumentUrl: idBase64, type: "driver" }),
       });
       const data = await res.json();
@@ -134,7 +213,7 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
         <motion.div initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="space-y-2">
           <h2 className="text-2xl font-black text-white">إشتراكك قيد المراجعة</h2>
           <p className="text-sm text-white/45 max-w-xs mx-auto leading-relaxed">
-            طلبا ما قدمته قيد المراجعة من قبل الفريق التقني.
+            طلبك ما قدمته قيد المراجعة من قبل الفريق التقني.
             <br />ستتمكن من استقبال الطلبات بمجرد الموافقة.
           </p>
         </motion.div>
@@ -236,11 +315,22 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
               <div className="w-10 h-1 bg-white/15 rounded-full mx-auto mt-3 mb-0.5" />
 
               <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/5">
-                {step !== "method" ? (
-                  <button onClick={() => setStep("method")} className="text-xs text-white/40 hover:text-white/70">← رجوع</button>
+                {step !== "vehicle" ? (
+                  <button
+                    onClick={() => {
+                      if (step === "payment") setStep("documents");
+                      else if (step === "bankily" || step === "cash") setStep("payment");
+                      else setStep("vehicle");
+                    }}
+                    className="text-xs text-white/40 hover:text-white/70"
+                  >
+                    ← رجوع
+                  </button>
                 ) : <div className="w-10" />}
                 <h3 className="text-sm font-black text-white">
-                  {step === "method" && "طريقة الدفع"}
+                  {step === "vehicle" && "معلومات المركبة"}
+                  {step === "documents" && "الوثائق المطلوبة"}
+                  {step === "payment" && "طريقة الدفع"}
                   {step === "bankily" && "دفع عبر بنكيلي"}
                   {step === "cash" && "دفع نقدي"}
                 </h3>
@@ -251,8 +341,221 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
 
               <div className="px-5 py-5 pb-12 max-h-[84vh] overflow-y-auto space-y-4">
 
-                {/* الخطوة 1: اختيار طريقة الدفع */}
-                {step === "method" && (
+                {/* ── الخطوة 1: معلومات المركبة ── */}
+                {step === "vehicle" && (
+                  <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+                        <Car className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm">معلومات المركبة</p>
+                        <p className="text-xs text-muted-foreground">أكمل معلومات سيارتك</p>
+                      </div>
+                    </div>
+
+                    {/* نوع المركبة */}
+                    <div className="space-y-2">
+                      <p className="text-sm font-bold">نوع المركبة</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {VEHICLE_TYPES.map((v) => (
+                          <button
+                            key={v.id}
+                            onClick={() => setVehicleType(v.id)}
+                            className={`p-3 rounded-xl border text-sm font-bold transition-all ${
+                              vehicleType === v.id
+                                ? "bg-primary/20 border-primary text-primary"
+                                : "border-white/10 bg-card"
+                            }`}
+                          >
+                            {v.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* الموديل */}
+                    <div className="space-y-2">
+                      <p className="text-sm font-bold">الموديل</p>
+                      <input
+                        value={vehicleModel}
+                        onChange={(e) => setVehicleModel(e.target.value)}
+                        placeholder="مثال: Peugeot 301"
+                        className="w-full bg-card border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary"
+                      />
+                    </div>
+
+                    {/* اللون */}
+                    <div className="space-y-2">
+                      <p className="text-sm font-bold">اللون</p>
+                      <input
+                        value={vehicleColor}
+                        onChange={(e) => setVehicleColor(e.target.value)}
+                        placeholder="مثال: أبيض"
+                        className="w-full bg-card border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary"
+                      />
+                    </div>
+
+                    {/* رقم اللوحة */}
+                    <div className="space-y-2">
+                      <p className="text-sm font-bold">رقم اللوحة</p>
+                      <input
+                        value={vehiclePlate}
+                        onChange={(e) => setVehiclePlate(e.target.value)}
+                        placeholder="مثال: 12345-06-16"
+                        className="w-full bg-card border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary"
+                      />
+                    </div>
+
+                    <button
+                      onClick={goToDocuments}
+                      disabled={!vehicleType || !vehicleModel || !vehiclePlate || !vehicleColor}
+                      className="w-full bg-primary text-primary-foreground py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      التالي <ChevronLeft className="w-4 h-4" />
+                    </button>
+                  </motion.div>
+                )}
+
+                {/* ── الخطوة 2: الوثائق ── */}
+                {step === "documents" && (
+                  <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+                        <Shield className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm">الوثائق المطلوبة</p>
+                        <p className="text-xs text-muted-foreground">ارفع صوراً واضحة للوثائق</p>
+                      </div>
+                    </div>
+
+                    {/* رخصة القيادة */}
+                    <div className="bg-card border border-white/10 rounded-xl p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="w-4 h-4 text-primary" />
+                        <p className="text-sm font-bold">رخصة القيادة</p>
+                        <span className="text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full">مطلوبة</span>
+                      </div>
+                      <input
+                        ref={licenseRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) pickFile(file, setLicenseImage);
+                        }}
+                      />
+                      {licenseImage ? (
+                        <div className="relative">
+                          <img src={licenseImage} alt="رخصة" className="w-full h-32 object-cover rounded-lg" />
+                          <button
+                            onClick={() => setLicenseImage(null)}
+                            className="absolute top-2 left-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center"
+                          >
+                            <X className="w-3.5 h-3.5 text-white" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => licenseRef.current?.click()}
+                          className="w-full h-24 rounded-xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-2 hover:border-primary/50 hover:bg-primary/4 transition-all"
+                        >
+                          <Upload className="w-6 h-6 text-white/30" />
+                          <span className="text-xs text-white/30">اضغط لرفع صورة الرخصة</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* بطاقة الهوية */}
+                    <div className="bg-card border border-white/10 rounded-xl p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-primary" />
+                        <p className="text-sm font-bold">بطاقة الهوية</p>
+                        <span className="text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full">مطلوبة</span>
+                      </div>
+                      <input
+                        ref={docIdRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) pickFile(file, setIdCardImage);
+                        }}
+                      />
+                      {idCardImage ? (
+                        <div className="relative">
+                          <img src={idCardImage} alt="هوية" className="w-full h-32 object-cover rounded-lg" />
+                          <button
+                            onClick={() => setIdCardImage(null)}
+                            className="absolute top-2 left-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center"
+                          >
+                            <X className="w-3.5 h-3.5 text-white" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => docIdRef.current?.click()}
+                          className="w-full h-24 rounded-xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-2 hover:border-primary/50 hover:bg-primary/4 transition-all"
+                        >
+                          <Upload className="w-6 h-6 text-white/30" />
+                          <span className="text-xs text-white/30">اضغط لرفع صورة الهوية</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* رخصة السير (اختياري) */}
+                    <div className="bg-card border border-white/10 rounded-xl p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-white/50" />
+                        <p className="text-sm font-bold">رخصة السير</p>
+                        <span className="text-[10px] bg-white/10 text-white/40 px-1.5 py-0.5 rounded-full">اختياري</span>
+                      </div>
+                      <input
+                        ref={docVehicleRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) pickFile(file, setVehicleDocImage);
+                        }}
+                      />
+                      {vehicleDocImage ? (
+                        <div className="relative">
+                          <img src={vehicleDocImage} alt="رخصة سير" className="w-full h-32 object-cover rounded-lg" />
+                          <button
+                            onClick={() => setVehicleDocImage(null)}
+                            className="absolute top-2 left-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center"
+                          >
+                            <X className="w-3.5 h-3.5 text-white" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => docVehicleRef.current?.click()}
+                          className="w-full h-24 rounded-xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-2 hover:border-primary/50 hover:bg-primary/4 transition-all"
+                        >
+                          <Upload className="w-6 h-6 text-white/30" />
+                          <span className="text-xs text-white/30">اضغط لرفع صورة رخصة السير</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={goToPayment}
+                      disabled={!licenseImage || !idCardImage}
+                      className="w-full bg-primary text-primary-foreground py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      التالي <ChevronLeft className="w-4 h-4" />
+                    </button>
+                  </motion.div>
+                )}
+
+                {/* ── الخطوة 3: اختيار طريقة الدفع ── */}
+                {step === "payment" && (
                   <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
                     <div className="bg-primary/8 rounded-2xl p-4 text-center border border-primary/20">
                       <p className="text-[11px] text-white/40 mb-1">الباقة الشهرية</p>
@@ -288,7 +591,7 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
                   </motion.div>
                 )}
 
-                {/* الخطوة 2: بنكيلي */}
+                {/* ── الخطوة 4: بنكيلي ── */}
                 {step === "bankily" && (
                   <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
                     <div className="bg-blue-500/6 border border-blue-500/18 rounded-2xl p-4 space-y-3">
@@ -319,7 +622,7 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
                     <div>
                       <p className="text-xs text-white/45 mb-2 font-medium">أرفق صورة وصل الدفع <span className="text-red-400">*</span></p>
                       <input ref={proofRef} type="file" accept="image/*" className="hidden"
-                        onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f, "proof"); }} />
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) { setProofFile(f); pickFile(f, setProofPreview); } }} />
                       {proofPreview ? (
                         <div className="relative rounded-2xl overflow-hidden border border-blue-500/30">
                           <img src={proofPreview} alt="وصل" className="w-full max-h-44 object-cover" />
@@ -340,7 +643,7 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
                     <div>
                       <p className="text-xs text-white/45 mb-2 font-medium">أرفق صورة بطاقة الهوية <span className="text-red-400">*</span></p>
                       <input ref={idRef} type="file" accept="image/*" className="hidden"
-                        onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f, "id"); }} />
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) { setIdFile(f); pickFile(f, setIdPreview); } }} />
                       {idPreview ? (
                         <div className="relative rounded-2xl overflow-hidden border border-blue-500/30">
                           <img src={idPreview} alt="بطاقة" className="w-full max-h-44 object-cover" />
@@ -366,7 +669,7 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
                   </motion.div>
                 )}
 
-                {/* الخطوة 3: كاش */}
+                {/* ── الخطوة 5: كاش ── */}
                 {step === "cash" && (
                   <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
                     <div className="bg-green-500/6 border border-green-500/18 rounded-2xl p-4 space-y-2">
@@ -393,7 +696,7 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
                     <div>
                       <p className="text-xs text-white/45 mb-1.5 font-medium">أرفق صورة وثيقتك الرسمية <span className="text-red-400">*</span></p>
                       <input ref={idRef} type="file" accept="image/*" className="hidden"
-                        onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f, "id"); }} />
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) { setIdFile(f); pickFile(f, setIdPreview); } }} />
                       {idPreview ? (
                         <div className="relative rounded-2xl overflow-hidden border border-green-500/30">
                           <img src={idPreview} alt="وثيقة" className="w-full max-h-44 object-cover" />

@@ -568,7 +568,7 @@ function DriverDashboard() {
                   <div>
                     <p className="text-xs font-bold text-white">الوثائق</p>
                     <p className="text-[10px] text-white/50">
-                      {profile.documentsStatus === "verified" ? "متأكد" : profile.documentsStatus === "pending" ? "قيد المراجعة" : "لم تُرفع"}
+                      {profile.documentsStatus === "verified" ? "✅ تم التأكيد" : profile.documentsStatus === "pending" ? "قيد المراجعة" : "لم تُرفع"}
                     </p>
                   </div>
                 </div>

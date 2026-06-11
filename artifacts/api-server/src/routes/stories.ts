@@ -121,9 +121,11 @@ router.get("/stories", optionalAuthenticate, async (req, res): Promise<void> => 
 });
 
 router.post("/stories", authenticate, async (req, res): Promise<void> => {
-  const { mediaUrl, mediaType = "image", caption, bgColor, fontFamily } = req.body;
+  const { mediaUrl, caption, bgColor, fontFamily } = req.body;
+  const mediaType = "image"; // الحالات: صورة أو نص فقط (لا فيديو)
 
-  if (mediaType === "text") {
+  if (bgColor && fontFamily) {
+    // text story
     if (!caption?.trim()) {
       res.status(400).json({ error: "نص الحالة مطلوب" });
       return;

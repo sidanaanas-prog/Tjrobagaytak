@@ -105,10 +105,10 @@ export default function RoleSelectPage() {
     setSaving(false);
     toast({ title: "✅ تم!", description: "تم حفظ أدوارك" });
 
-    // إذا تم إضافة دور السائق لأول مرة → انتقال لصفحة التسجيل
+    // إذا تم إضافة دور السائق → انتقال لصفحة كورسا (وفيها نموذج الاشتراك المدمج)
     const isNewDriver = selected.includes("driver") && !myRoles.includes("driver");
     if (isNewDriver) {
-      navigate("/driver-register");
+      navigate("/rides");
     } else {
       navigate("/");
     }

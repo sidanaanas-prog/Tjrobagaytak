@@ -98,38 +98,4 @@ router.post("/upload", authenticate, async (req: Request, res: Response): Promis
   }
 });
 
-// ─── GET /upload/signature  (فيديوهات كبيرة — رفع مباشر من Client) ────────
-// الـ client يأخذ التوقيع ويرفع مباشرةً لـ Cloudinary بدون المرور بالسيرفر
-
-router.get("/upload/signature", authenticate, (req: Request, res: Response): void => {
-  if (!isCloudinaryConfigured()) {
-    res.status(503).json({ error: "Cloudinary not configured" });
-    return;
-  }
-
-  const { path: filePath = "", resourceType = "video" } = req.query as Record<string, string>;
-  const apiSecret = process.env.CLOUDINARY_API_SECRET!;
-
-  const parts    = filePath.replace(/\.[^.]+$/, "").split("/");
-  const publicId = parts.pop()!;
-  const folder   = parts.join("/");
-
-  const timestamp = Math.floor(Date.now() / 1000).toString();
-  const sigParams: Record<string, string> = { timestamp };
-  if (folder)   sigParams.folder    = folder;
-  if (publicId) sigParams.public_id = publicId;
-
-  const signature = signCloudinary(sigParams, apiSecret);
-
-  res.json({
-    signature,
-    timestamp,
-    apiKey:      process.env.CLOUDINARY_API_KEY!,
-    cloudName:   process.env.CLOUDINARY_CLOUD_NAME!,
-    folder:      folder || undefined,
-    publicId:    publicId || undefined,
-    resourceType,
-  });
-});
-
 export default router;

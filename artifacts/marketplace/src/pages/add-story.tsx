@@ -5,7 +5,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { ImageIcon, Type, ArrowRight, Loader2, CheckCircle, Link as LinkIcon, X } from "lucide-react";
-import { uploadStoryImage, uploadStoryVideo } from "@/lib/upload-image";
+import { uploadStoryImage } from "@/lib/upload-image";
 import { getApiUrl } from "@/lib/api-url";
 
 const BASE = getApiUrl("");
@@ -64,15 +64,12 @@ export default function AddStoryPage() {
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) { setError("اختر صورة أو فيديو فقط"); return; }
+    if (!file.type.startsWith("image/")) { setError("اختر صورة فقط"); return; }
     setError("");
     try {
-      const isVideo = file.type.startsWith("video/");
-      const url = isVideo
-        ? await uploadStoryVideo(file, user!.id)
-        : await uploadStoryImage(file, user!.id);
+      const url = await uploadStoryImage(file, user!.id);
       setMediaUrl(url);
-    } catch { setError("تعذر رفع الملف على Firebase"); }
+    } catch { setError("تعذر رفع الصورة"); }
   }
 
   function clearImage() {
@@ -176,7 +173,7 @@ export default function AddStoryPage() {
                         <p className="text-white/30 text-xs">JPG, PNG — بحد أقصى 5MB</p>
                       </button>
                     )}
-                    <input ref={fileInputRef} type="file" accept="image/*,video/*" className="hidden" onChange={handleFileSelect} />
+                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-white/40 uppercase tracking-widest">نص الحالة (اختياري)</label>
                       <textarea value={caption} onChange={e=>setCaption(e.target.value)} placeholder="اكتب شيئاً..." rows={2} maxLength={150}

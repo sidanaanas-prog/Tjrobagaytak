@@ -473,6 +473,7 @@ router.get("/driver/subscription", authenticate, async (req, res): Promise<void>
       expiresAt: profile?.subscriptionExpiresAt ?? null,
       isPending,
       plan: isActive ? "driver_monthly" : null,
+      hasProfile: !!profile?.documentsSubmittedAt,
       latestRequest: pendingSub ?? null,
     });
   } catch (e: any) {

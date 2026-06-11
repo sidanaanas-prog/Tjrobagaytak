@@ -288,14 +288,9 @@ function StoryViewer({ groups, startGroupIndex, onClose, currentUserId, onLikeTo
               </div>
               <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/50" />
             </>
-          ) : story.mediaType === "image" ? (
-            <>
-              <img src={story.mediaUrl ?? ""} alt="" className="w-full h-full object-cover" draggable={false} loading="lazy" decoding="async" />
-              <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/70" />
-            </>
           ) : (
             <>
-              <video src={story.mediaUrl ?? ""} className="w-full h-full object-cover" autoPlay muted playsInline />
+              <img src={story.mediaUrl ?? ""} alt="" className="w-full h-full object-cover" draggable={false} loading="lazy" decoding="async" />
               <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/70" />
             </>
           )}
