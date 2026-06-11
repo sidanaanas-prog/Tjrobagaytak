@@ -187,9 +187,21 @@ router.patch("/admin/subscriptions/:id/approve", authenticate, requireAdmin, asy
       .where(eq(usersTable.id, sub.userId));
 
     // Also update driver profile if the user is a driver
-    await db.update(driverProfilesTable)
-      .set({ isSubscribed: true, subscriptionExpiresAt: expiresAt, updatedAt: new Date() })
-      .where(eq(driverProfilesTable.userId, sub.userId));
+    const [driverProfile] = (await db.select().from(driverProfilesTable).where(eq(driverProfilesTable.userId, sub.userId))) ?? [];
+    if (driverProfile) {
+      await db.update(driverProfilesTable)
+        .set({ isSubscribed: true, subscriptionExpiresAt: expiresAt, updatedAt: new Date() })
+        .where(eq(driverProfilesTable.userId, sub.userId));
+    } else {
+      await db.insert(driverProfilesTable).values({
+        id: randomUUID(),
+        userId: sub.userId,
+        isSubscribed: true,
+        subscriptionExpiresAt: expiresAt,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
 
     await db.insert(activityTable).values({
       id: randomUUID(),

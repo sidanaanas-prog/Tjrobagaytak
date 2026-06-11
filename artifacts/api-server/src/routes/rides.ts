@@ -485,9 +485,21 @@ router.patch("/admin/driver-subscriptions/:userId/approve", authenticate, requir
     const expiresAt = new Date();
     expiresAt.setMonth(expiresAt.getMonth() + 1);
 
-    await db.update(driverProfilesTable)
-      .set({ isSubscribed: true, subscriptionExpiresAt: expiresAt, updatedAt: now })
-      .where(eq(driverProfilesTable.userId, userId));
+    const [existing] = (await db.select().from(driverProfilesTable).where(eq(driverProfilesTable.userId, userId))) ?? [];
+    if (!existing) {
+      await db.insert(driverProfilesTable).values({
+        id: randomUUID(),
+        userId,
+        isSubscribed: true,
+        subscriptionExpiresAt: expiresAt,
+        createdAt: now,
+        updatedAt: now,
+      });
+    } else {
+      await db.update(driverProfilesTable)
+        .set({ isSubscribed: true, subscriptionExpiresAt: expiresAt, updatedAt: now })
+        .where(eq(driverProfilesTable.userId, userId));
+    }
 
     res.json({ success: true, expiresAt });
   } catch (e: any) {
