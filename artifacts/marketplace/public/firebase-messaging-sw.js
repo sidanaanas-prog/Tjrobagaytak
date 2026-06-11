@@ -42,13 +42,12 @@ function playSwAlertTone() {
   } catch {}
 }
 
-// إشعارات الخلفية (عندما يكون التطبيق مغلقاً)
+// إشعارات الخلفية (payload يرسل فقط data لأن notification يعالجه FCM تلقائياً)
 messaging.onBackgroundMessage(function(payload) {
-  const title = payload.notification?.title || "Gaytak";
-  const body  = payload.notification?.body  || "";
   const data  = payload.data || {};
-
-  const isRideAlert = data.type === "new_ride" || data.type === "price_update";
+  const title = data._title || "Gaytak";
+  const body  = data._body  || "";
+  const isRideAlert = data.type === "new_ride" || data.type === "price_update" || data._isRideAlert === "1";
 
   // تشغيل الرنة البرمجية في الخلفية
   if (isRideAlert) {
@@ -62,7 +61,6 @@ messaging.onBackgroundMessage(function(payload) {
     data,
     dir: "rtl",
     lang: "ar",
-    // إشعار حرج
     tag: isRideAlert ? "ride_alert" : "default",
     requireInteraction: isRideAlert,
     // رنة واهتزاز قوي

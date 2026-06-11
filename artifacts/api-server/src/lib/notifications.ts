@@ -34,12 +34,27 @@ export async function sendNotification({
   if (!fcmToken?.trim()) return;
   try {
     getApp();
+    const isRideAlert = data?.type === "new_ride" || data?.type === "price_update";
     await admin.messaging().send({
       token: fcmToken,
-      notification: { title, body },
-      data: data ?? {},
-      android: { priority: "high" },
-      apns: { payload: { aps: { sound: "default", badge: 1 } } },
+      data: {
+        ...data,
+        _title: title,
+        _body: body,
+        _isRideAlert: isRideAlert ? "1" : "0",
+      },
+      android: {
+        priority: "high",
+        notification: {
+          channelId: isRideAlert ? "ride_alerts" : "default",
+          priority: "high",
+        },
+      },
+      apns: { payload: { aps: { sound: isRideAlert ? "alert.mp3" : "default", badge: 1 } } },
+      webpush: {
+        headers: { Urgency: "high" },
+        fcmOptions: { link: isRideAlert ? "/rides" : "/" },
+      },
     });
   } catch (err: any) {
     const code: string = err?.code ?? "";
@@ -71,13 +86,38 @@ export async function sendPushNotification({
 
   getApp();
 
+  const isRideAlert = data?.type === "new_ride" || data?.type === "price_update";
+
   const results = await admin.messaging().sendEach(
     clean.map((token) => ({
       token,
-      notification: { title, body },
-      data: data ?? {},
-      android: { priority: "high" as const },
-      apns: { payload: { aps: { sound: "default", badge: 1 } } },
+      // لا نرسل notification payload لأن FCM يعالجه تلقائياً ولا يدعو لـ onBackgroundMessage يُرسل فقط data
+      data: {
+        ...data,
+        _title: title,
+        _body: body,
+        _isRideAlert: isRideAlert ? "1" : "0",
+      },
+      android: {
+        priority: "high" as const,
+        notification: {
+          channelId: isRideAlert ? "ride_alerts" : "default",
+          priority: "high" as const,
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: isRideAlert ? "alert.mp3" : "default",
+            badge: 1,
+            "content-available": 1,
+          },
+        },
+      },
+      webpush: {
+        headers: { Urgency: "high" },
+        fcmOptions: { link: isRideAlert ? "/rides" : "/" },
+      },
     }))
   );
 
