@@ -169,6 +169,14 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
         }
       );
 
+      // إذا كانت الرحلة المعروضة تم قبولها من سائق آخر → إيقاف الرنة فوراً
+      if (alertState.ride && alertState.type === "new_ride") {
+        const stillPending = requests.find((r: Ride) => r.id === alertState.ride!.id && r.status === "pending");
+        if (!stillPending) {
+          handleDismiss();
+        }
+      }
+
       if (newOnes.length > 0) {
         setAlertState({
           ride: newOnes[0],
@@ -217,13 +225,14 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("ride_notification", handler);
   }, [fetchRequests]);
 
-  // استطلاع كل 5 ثواني (فقط للسائقين المشتركين)
+  // استطلاع كل 1 ثانية عندما يكون هنالك تنبيه منبثق، وكل 5 ثواني في الحالة العادية
   useEffect(() => {
     if (!isDriver || !isSubscribed || !user?.id) return;
     fetchRequests();
-    const iv = setInterval(fetchRequests, 5000);
+    const intervalMs = alertState.ride ? 1000 : 5000;
+    const iv = setInterval(fetchRequests, intervalMs);
     return () => clearInterval(iv);
-  }, [isDriver, isSubscribed, user?.id, fetchRequests]);
+  }, [isDriver, isSubscribed, user?.id, fetchRequests, alertState.ride]);
 
   // العداد التنازلي
   useEffect(() => {
