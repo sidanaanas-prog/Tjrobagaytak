@@ -8,6 +8,7 @@ const BASE = getApiUrl("");
 
 type Sub = {
   id: string;
+  type: string;
   plan: string;
   paymentMethod: "ccp" | "cash";
   status: "pending" | "approved" | "rejected";

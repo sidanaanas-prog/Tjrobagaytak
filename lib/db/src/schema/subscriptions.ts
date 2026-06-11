@@ -4,6 +4,7 @@ import { usersTable } from "./users";
 export const subscriptionsTable = pgTable("subscriptions", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  type: text("type").notNull().default("seller"), // 'seller' | 'driver'
   plan: text("plan").notNull(),             // '6months' | '12months'
   paymentMethod: text("payment_method").notNull(), // 'ccp' | 'cash'
   status: text("status").notNull().default("pending"), // 'pending' | 'approved' | 'rejected'

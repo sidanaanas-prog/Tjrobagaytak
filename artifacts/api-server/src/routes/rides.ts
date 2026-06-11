@@ -456,11 +456,14 @@ router.get("/driver/subscription", authenticate, async (req, res): Promise<void>
     const now = new Date();
     const isActive = profile?.isSubscribed && profile?.subscriptionExpiresAt && new Date(profile.subscriptionExpiresAt) > now;
 
-    // Check for pending subscription requests
+    // Check for pending driver subscription requests
     const [pendingSub] = (await db
       .select()
       .from(subscriptionsTable)
-      .where(eq(subscriptionsTable.userId, driverId))
+      .where(and(
+        eq(subscriptionsTable.userId, driverId),
+        eq(subscriptionsTable.type, "driver")
+      ))
       .orderBy(desc(subscriptionsTable.createdAt))
       .limit(1)) ?? [];
     const isPending = pendingSub?.status === "pending";

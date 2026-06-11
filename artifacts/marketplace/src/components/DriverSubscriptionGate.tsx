@@ -82,7 +82,7 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
       const res = await fetch(`${BASE}/api/subscriptions`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${getMemToken()}` },
-        body: JSON.stringify({ plan: "1month", paymentMethod: "ccp", paymentProofUrl: proofBase64, idDocumentUrl: idBase64 }),
+        body: JSON.stringify({ plan: "1month", paymentMethod: "ccp", paymentProofUrl: proofBase64, idDocumentUrl: idBase64, type: "driver" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "خطأ");
@@ -101,7 +101,7 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
       const res = await fetch(`${BASE}/api/subscriptions`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${getMemToken()}` },
-        body: JSON.stringify({ plan: "1month", paymentMethod: "cash", idDocumentUrl: idBase64 }),
+        body: JSON.stringify({ plan: "1month", paymentMethod: "cash", idDocumentUrl: idBase64, type: "driver" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "خطأ");

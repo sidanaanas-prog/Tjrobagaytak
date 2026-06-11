@@ -28,7 +28,10 @@ router.get("/subscriptions/my", authenticate, async (req, res): Promise<void> =>
     const [latest] = (await db
       .select()
       .from(subscriptionsTable)
-      .where(eq(subscriptionsTable.userId, userId))
+      .where(and(
+        eq(subscriptionsTable.userId, userId),
+        eq(subscriptionsTable.type, "seller")
+      ))
       .orderBy(desc(subscriptionsTable.createdAt))
       .limit(1)) ?? [];
 
@@ -47,7 +50,8 @@ router.get("/subscriptions/my", authenticate, async (req, res): Promise<void> =>
 router.post("/subscriptions", authenticate, async (req, res): Promise<void> => {
   try {
     const userId = req.user!.id;
-    const { plan, paymentMethod, paymentProofUrl, idDocumentUrl, notes } = req.body;
+    const { plan, paymentMethod, paymentProofUrl, idDocumentUrl, notes, type } = req.body;
+    const subType = type === "driver" ? "driver" : "seller";
 
     if (!plan || !PLANS[plan as keyof typeof PLANS]) {
       res.status(400).json({ error: "الخطة غير صالحة" });
@@ -71,7 +75,7 @@ router.post("/subscriptions", authenticate, async (req, res): Promise<void> => {
     }
 
     const [pending] = (await db.select().from(subscriptionsTable).where(
-      and(eq(subscriptionsTable.userId, userId), eq(subscriptionsTable.status, "pending"))
+      and(eq(subscriptionsTable.userId, userId), eq(subscriptionsTable.status, "pending"), eq(subscriptionsTable.type, subType))
     )) ?? [];
     if (pending) {
       res.status(409).json({ error: "لديك طلب اشتراك قيد المراجعة بالفعل" });
@@ -84,6 +88,7 @@ router.post("/subscriptions", authenticate, async (req, res): Promise<void> => {
     await db.insert(subscriptionsTable).values({
       id,
       userId,
+      type: subType,
       plan,
       paymentMethod,
       status: "pending",
@@ -182,25 +187,30 @@ router.patch("/admin/subscriptions/:id/approve", authenticate, requireAdmin, asy
       .set({ status: "approved", reviewedAt: new Date(), reviewedBy: adminId, expiresAt })
       .where(eq(subscriptionsTable.id, subId));
 
-    await db.update(usersTable)
-      .set({ isVerified: true, subscriptionExpiresAt: expiresAt })
-      .where(eq(usersTable.id, sub.userId));
+    // إذا كان اشتراك بائع (شحص) فقط حدّث usersTable
+    if (sub.type !== "driver") {
+      await db.update(usersTable)
+        .set({ isVerified: true, subscriptionExpiresAt: expiresAt })
+        .where(eq(usersTable.id, sub.userId));
+    }
 
-    // Also update driver profile if the user is a driver
-    const [driverProfile] = (await db.select().from(driverProfilesTable).where(eq(driverProfilesTable.userId, sub.userId))) ?? [];
-    if (driverProfile) {
-      await db.update(driverProfilesTable)
-        .set({ isSubscribed: true, subscriptionExpiresAt: expiresAt, updatedAt: new Date() })
-        .where(eq(driverProfilesTable.userId, sub.userId));
-    } else {
-      await db.insert(driverProfilesTable).values({
-        id: randomUUID(),
-        userId: sub.userId,
-        isSubscribed: true,
-        subscriptionExpiresAt: expiresAt,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
+    // إذا كان اشتراك سائق حدّث أو أنشئ ملف السائق
+    if (sub.type === "driver") {
+      const [driverProfile] = (await db.select().from(driverProfilesTable).where(eq(driverProfilesTable.userId, sub.userId))) ?? [];
+      if (driverProfile) {
+        await db.update(driverProfilesTable)
+          .set({ isSubscribed: true, subscriptionExpiresAt: expiresAt, updatedAt: new Date() })
+          .where(eq(driverProfilesTable.userId, sub.userId));
+      } else {
+        await db.insert(driverProfilesTable).values({
+          id: randomUUID(),
+          userId: sub.userId,
+          isSubscribed: true,
+          subscriptionExpiresAt: expiresAt,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      }
     }
 
     await db.insert(activityTable).values({
