@@ -67,9 +67,9 @@ export default function RidesAdmin() {
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Car className="w-6 h-6 text-primary" />
-            الرحلات
+            طلبات الكورسا
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">إدارة ومتابعة طلبات النقل</p>
+          <p className="text-sm text-muted-foreground mt-1">إدارة ومتابعة طلبات الكورسا</p>
         </div>
         <div className="flex gap-2">
           <span className="bg-primary/15 border border-primary/30 text-primary text-sm font-bold px-3 py-1.5 rounded-full">
