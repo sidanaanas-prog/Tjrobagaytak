@@ -214,8 +214,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener("message", handleMessage);
 
     // إشعارات الواجهة الأمامية (التطبيق مفتوح)
-    listenForegroundMessages((title, body) => {
+    listenForegroundMessages((title, body, data) => {
       toast({ title, description: body });
+      // إذا كان إشعار رحلة جديدة أو تحديث سعر → إطلاق حدث لإظهار نافذة السباق
+      if (data?.type === "new_ride" || data?.type === "price_update") {
+        window.dispatchEvent(new CustomEvent("ride_notification", { detail: data }));
+      }
     });
 
     // استماع للرسائل من Service Worker (push notification buttons)

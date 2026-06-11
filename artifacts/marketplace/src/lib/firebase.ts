@@ -55,13 +55,14 @@ export async function getFCMToken(): Promise<string | null> {
   }
 }
 
-export function listenForegroundMessages(callback: (title: string, body: string) => void) {
+export function listenForegroundMessages(callback: (title: string, body: string, data?: Record<string, string>) => void) {
   if (isAndroidApp) return;
   const messaging = getFirebaseMessaging();
   if (!messaging) return;
   onMessage(messaging, (payload) => {
     const title = payload.notification?.title || "Gaytak";
     const body  = payload.notification?.body  || "";
-    callback(title, body);
+    const data  = payload.data as Record<string, string> | undefined;
+    callback(title, body, data);
   });
 }
