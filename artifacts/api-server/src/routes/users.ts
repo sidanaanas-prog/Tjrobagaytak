@@ -1,11 +1,75 @@
 import { Router, type IRouter } from "express";
-import { db, usersTable, productsTable, activityTable, conversationsTable, messagesTable } from "@workspace/db";
+import { db, usersTable, productsTable, activityTable, conversationsTable, messagesTable, ordersTable, wishlistsTable, followsTable, postsTable, postLikesTable, postCommentsTable, postViewsTable, storiesTable, storyViewsTable, storyLikesTable, pushTokensTable, userRolesTable, subscriptionsTable, reportsTable, blocksTable, driverProfilesTable, ridesTable, promotionsTable, flashSalesTable, broadcastsTable, typingIndicatorsTable } from "@workspace/db";
 import { eq, ilike, or, sql, count, and, inArray } from "drizzle-orm";
 import { authenticate, requireAdmin } from "../lib/auth";
 import { randomUUID } from "crypto";
 import { sendNotification } from "../lib/notifications";
 
 const router: IRouter = Router();
+
+// ── حذف مستخدم مع جميع مرتبطاته (تجنب خطأ Foreign Key) ───────────────
+async function deleteUserWithRelations(userId: string): Promise<boolean> {
+  try {
+    await db.transaction(async (tx) => {
+      // 1. حذف المنتجات (orders مرتبطة بها → نحذف orders أولاً)
+      const userProducts = await tx.select({ id: productsTable.id }).from(productsTable).where(eq(productsTable.sellerId, userId));
+      const productIds = userProducts.map((p) => p.id);
+      if (productIds.length > 0) {
+        await tx.delete(ordersTable).where(inArray(ordersTable.productId, productIds));
+        await tx.delete(wishlistsTable).where(inArray(wishlistsTable.productId, productIds));
+      }
+      // 2. حذف الطلبات (buyer أو seller)
+      await tx.delete(ordersTable).where(or(eq(ordersTable.buyerId, userId), eq(ordersTable.sellerId, userId)));
+      // 3. حذف الرسائل والمحادثات
+      await tx.delete(messagesTable).where(eq(messagesTable.senderId, userId));
+      const convs = await tx.select({ id: conversationsTable.id }).from(conversationsTable).where(or(eq(conversationsTable.participant1Id, userId), eq(conversationsTable.participant2Id, userId)));
+      const convIds = convs.map((c) => c.id);
+      if (convIds.length > 0) {
+        await tx.delete(messagesTable).where(inArray(messagesTable.conversationId, convIds));
+        await tx.delete(conversationsTable).where(inArray(conversationsTable.id, convIds));
+      }
+      // 4. حذف الرحلات
+      await tx.delete(ridesTable).where(or(eq(ridesTable.passengerId, userId), eq(ridesTable.driverId, userId)));
+      // 5. حذف المتابعات
+      await tx.delete(followsTable).where(or(eq(followsTable.followerId, userId), eq(followsTable.sellerId, userId)));
+      // 6. حذف المنشورات والتفاعلات
+      await tx.delete(postLikesTable).where(eq(postLikesTable.userId, userId));
+      await tx.delete(postCommentsTable).where(eq(postCommentsTable.userId, userId));
+      await tx.delete(postViewsTable).where(eq(postViewsTable.userId, userId));
+      await tx.delete(postsTable).where(eq(postsTable.userId, userId));
+      // 7. حذف الحالات والتفاعلات
+      await tx.delete(storyViewsTable).where(eq(storyViewsTable.viewerId, userId));
+      await tx.delete(storyLikesTable).where(eq(storyLikesTable.userId, userId));
+      await tx.delete(storiesTable).where(eq(storiesTable.userId, userId));
+      // 8. حذف المنتجات
+      await tx.delete(productsTable).where(eq(productsTable.sellerId, userId));
+      // 9. حذف الوش ليست
+      await tx.delete(wishlistsTable).where(eq(wishlistsTable.userId, userId));
+      // 10. حذف التقييمات
+      await tx.delete(reportsTable).where(or(eq(reportsTable.reporterId, userId), eq(reportsTable.reportedId, userId)));
+      // 11. حذف الحظر
+      await tx.delete(blocksTable).where(or(eq(blocksTable.blockerId, userId), eq(blocksTable.blockedId, userId)));
+      // 12. حذف الاشتراكات
+      await tx.delete(subscriptionsTable).where(eq(subscriptionsTable.userId, userId));
+      // 13. حذف أدوار المستخدم
+      await tx.delete(userRolesTable).where(eq(userRolesTable.userId, userId));
+      // 14. حذف توكنات الإشعارات
+      await tx.delete(pushTokensTable).where(eq(pushTokensTable.userId, userId));
+      // 15. حذف الكتابة
+      await tx.delete(typingIndicatorsTable).where(eq(typingIndicatorsTable.userId, userId));
+      // 16. حذف البثوث
+      await tx.delete(broadcastsTable).where(eq(broadcastsTable.adminId, userId));
+      // 17. حذف بروفايل السائق
+      await tx.delete(driverProfilesTable).where(eq(driverProfilesTable.userId, userId));
+      // 18. أخيراً حذف المستخدم
+      await tx.delete(usersTable).where(eq(usersTable.id, userId));
+    });
+    return true;
+  } catch (err: any) {
+    console.error("[deleteUser] error:", err?.message ?? err);
+    return false;
+  }
+}
 
 function formatUser(user: typeof usersTable.$inferSelect, productCount = 0) {
   return {
@@ -155,9 +219,9 @@ router.patch("/users/:id", authenticate, async (req, res): Promise<void> => {
 router.delete("/users/me", authenticate, async (req, res): Promise<void> => {
   try {
     const userId = req.user!.id;
-    const [user] = await db.delete(usersTable).where(eq(usersTable.id, userId)).returning();
-    if (!user) {
-      res.status(404).json({ error: "User not found" });
+    const ok = await deleteUserWithRelations(userId);
+    if (!ok) {
+      res.status(500).json({ error: "تعذر حذف الحساب — المستخدم لديه مرتبطات لا يمكن حذفها" });
       return;
     }
     res.json({ message: "Account deleted successfully" });
@@ -169,9 +233,9 @@ router.delete("/users/me", authenticate, async (req, res): Promise<void> => {
 router.delete("/users/:id", authenticate, requireAdmin, async (req, res): Promise<void> => {
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const [user] = await db.delete(usersTable).where(eq(usersTable.id, id as string)).returning();
-    if (!user) {
-      res.status(404).json({ error: "User not found" });
+    const ok = await deleteUserWithRelations(id as string);
+    if (!ok) {
+      res.status(500).json({ error: "تعذر حذف المستخدم — لديه مرتبطات لا يمكن حذفها" });
       return;
     }
     res.json({ message: "User deleted" });

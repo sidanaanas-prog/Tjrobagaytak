@@ -22,3 +22,7 @@ export * from "./phone_otps";
 export * from "./promotions";
 export * from "./user_roles";
 export * from "./rides";
+export * from "./posts";
+export * from "./post_likes";
+export * from "./post_comments";
+export * from "./post_views";
