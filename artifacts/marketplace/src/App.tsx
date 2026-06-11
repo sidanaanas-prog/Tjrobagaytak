@@ -21,8 +21,6 @@ import FollowingPage from "@/pages/following";
 import AddStoryPage from "@/pages/add-story";
 import PrivacyPolicyPage from "@/pages/privacy-policy";
 import SupportPage from "@/pages/support";
-import ContentPage from "@/pages/content";
-import AddContentPage from "@/pages/add-content";
 import SellersPage from "@/pages/sellers";
 import WishlistPage from "@/pages/wishlist";
 import RidesPage from "@/pages/rides";
@@ -131,10 +129,6 @@ function Router() {
       <Route path="/support" component={() => <RequireAuth><SupportPage /></RequireAuth>} />
       <Route path="/add-story">
         <RequireAuth><AddStoryPage /></RequireAuth>
-      </Route>
-      <Route path="/content" component={ContentPage} />
-      <Route path="/add-content">
-        <RequireAuth><AddContentPage /></RequireAuth>
       </Route>
       <Route path="/rides" component={RidesPage} />
       <Route path="/role-select">

@@ -88,12 +88,6 @@ export default function PrivacyPolicyPage() {
             </div>
           ))}
 
-          {/* Footer */}
-          <div className="flex items-center justify-center gap-2 pt-4 pb-8 border-t border-white/5 text-white/30 text-xs">
-            <Lock className="w-3 h-3" />
-            Gaytak — جميع الحقوق محفوظة © 2026
-          </div>
-
         </div>
       </div>
     </AppLayout>

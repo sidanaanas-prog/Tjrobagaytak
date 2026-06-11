@@ -5,7 +5,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, LogOut, Shield, User as UserIcon, Camera, ChevronLeft, Bell, Trash2, AlertTriangle, Package, Users, Play, Image, Car, Store, UserCheck, Check } from "lucide-react";
+import { Loader2, LogOut, Shield, User as UserIcon, Camera, ChevronLeft, Bell, Trash2, AlertTriangle, Package, Users, Image, Car, Store, UserCheck, Check } from "lucide-react";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { useToast } from "@/hooks/use-toast";
 import { getMemToken } from "@/hooks/use-auth";
@@ -34,10 +34,6 @@ export default function ProfilePage() {
   const [myStories, setMyStories] = useState<any[]>([]);
   const [deletingStoryId, setDeletingStoryId] = useState<string | null>(null);
 
-  // فيديوهاتي (Content Videos)
-  const [myVideos, setMyVideos] = useState<any[]>([]);
-  const [deletingVideoId, setDeletingVideoId] = useState<string | null>(null);
-
   // حذف الحساب
   const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
@@ -55,11 +51,6 @@ export default function ProfilePage() {
       })
       .catch(() => {});
 
-    // fetch my content videos
-    fetch(`${BASE}/api/content?userId=${user.id}`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json())
-      .then((data: any) => setMyVideos(Array.isArray(data) ? data : []))
-      .catch(() => {});
   }, [user]);
 
   async function handleDeleteStory(storyId: string) {
@@ -77,24 +68,6 @@ export default function ProfilePage() {
       toast({ variant: "destructive", title: "تعذر حذف الحالة" });
     } finally {
       setDeletingStoryId(null);
-    }
-  }
-
-  async function handleDeleteVideo(videoId: string) {
-    setDeletingVideoId(videoId);
-    try {
-      const token = getMemToken();
-      const res = await fetch(`${BASE}/api/content/${videoId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error();
-      setMyVideos((prev) => prev.filter((v) => v.id !== videoId));
-      toast({ title: "تم حذف الفيديو ✓" });
-    } catch {
-      toast({ variant: "destructive", title: "تعذر حذف الفيديو" });
-    } finally {
-      setDeletingVideoId(null);
     }
   }
 
@@ -418,39 +391,6 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* ── فيديوهاتي ── */}
-        {myVideos.length > 0 && (
-          <div className="px-5 pb-4">
-            <h2 className="text-xs font-bold text-white/50 uppercase tracking-wider mb-3">فيديوهاتي</h2>
-            <div className="space-y-2">
-              {myVideos.map((video) => (
-                <div key={video.id} className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 overflow-hidden">
-                    {video.thumbnailUrl
-                      ? <img src={video.thumbnailUrl} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
-                      : <Play className="w-5 h-5 text-primary" />}
-                  </div>
-                  <div className="flex-1 text-right min-w-0">
-                    <p className="text-white/70 text-xs truncate">{video.caption || "فيديو بدون وصف"}</p>
-                    <p className="text-white/30 text-[10px] mt-0.5 flex items-center justify-end gap-2">
-                      <span>❤️ {video.likesCount ?? 0}</span>
-                      <span>{new Date(video.createdAt).toLocaleDateString("ar")}</span>
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handleDeleteVideo(video.id)}
-                    disabled={deletingVideoId === video.id}
-                    className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0"
-                  >
-                    {deletingVideoId === video.id
-                      ? <Loader2 className="w-4 h-4 text-red-400 animate-spin" />
-                      : <Trash2 className="w-4 h-4 text-red-400" />}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* ── Logout ── */}
         <div className="px-5 pb-3">
