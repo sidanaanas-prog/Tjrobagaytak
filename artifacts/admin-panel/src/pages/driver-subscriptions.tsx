@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/lib/api-url";
-import { Loader2, CheckCircle, XCircle, Clock, Navigation, User, Phone, Calendar, CreditCard, Car, ToggleLeft, ToggleRight } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Clock, Navigation, User, Phone, Calendar, CreditCard, Car, Shield, FileCheck, AlertTriangle, Eye } from "lucide-react";
 
 const BASE = getApiUrl("");
 
@@ -23,6 +23,13 @@ type DriverSub = {
   totalRides: number;
   totalEarnings: string;
   createdAt: string;
+  // الوثائق
+  licenseImage: string | null;
+  idCardImage: string | null;
+  vehicleDocImage: string | null;
+  licenseVerified: boolean;
+  documentsStatus: string | null;
+  documentsSubmittedAt: string | null;
 };
 
 export default function DriverSubscriptions() {
@@ -31,8 +38,10 @@ export default function DriverSubscriptions() {
   const { toast } = useToast();
   const [drivers, setDrivers] = useState<DriverSub[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "subscribed" | "not-subscribed" | "online">("all");
+  const [filter, setFilter] = useState<"all" | "subscribed" | "not-subscribed" | "online" | "pending-docs">("all");
   const [actionId, setActionId] = useState<string | null>(null);
+  const [selectedDriver, setSelectedDriver] = useState<DriverSub | null>(null);
+  const [showDocsModal, setShowDocsModal] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -78,10 +87,35 @@ export default function DriverSubscriptions() {
     } finally { setActionId(null); }
   }
 
+  async function verifyDocuments(userId: string, status: "verified" | "rejected") {
+    setActionId(userId);
+    try {
+      const res = await fetch(`${BASE}/api/admin/drivers/${userId}/verify-documents`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast({ title: status === "verified" ? "✅ تم التأكيد" : "❌ تم الرفض", description: status === "verified" ? "تم تأكيد وثائق السائق" : "تم رفض وثائق السائق" });
+      load();
+      setShowDocsModal(false);
+      setSelectedDriver(null);
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "خطأ", description: e.message });
+    } finally { setActionId(null); }
+  }
+
+  function openDocsModal(driver: DriverSub) {
+    setSelectedDriver(driver);
+    setShowDocsModal(true);
+  }
+
   const filtered = drivers.filter((d) => {
     if (filter === "subscribed") return d.isSubscribed;
     if (filter === "not-subscribed") return !d.isSubscribed;
     if (filter === "online") return d.isOnline;
+    if (filter === "pending-docs") return d.documentsStatus === "pending";
     return true;
   });
 
@@ -109,10 +143,10 @@ export default function DriverSubscriptions() {
       </div>
 
       <div className="flex gap-2 flex-wrap">
-        {(["all", "subscribed", "not-subscribed", "online"] as const).map((f) => (
+        {(["all", "subscribed", "not-subscribed", "online", "pending-docs"] as const).map((f) => (
           <button
             key={f}
-            onClick={() => setFilter(f)}
+            onClick={() => setFilter(f as any)}
             className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all border ${
               filter === f
                 ? "bg-primary text-white border-primary"
@@ -124,6 +158,7 @@ export default function DriverSubscriptions() {
               subscribed: `مشترك (${drivers.filter((d) => d.isSubscribed).length})`,
               "not-subscribed": `غير مشترك (${drivers.filter((d) => !d.isSubscribed).length})`,
               online: `متصل (${drivers.filter((d) => d.isOnline).length})`,
+              "pending-docs": `وثائق قيد المراجعة (${drivers.filter((d) => d.documentsStatus === "pending").length})`,
             }[f]}
           </button>
         ))}
@@ -202,6 +237,31 @@ export default function DriverSubscriptions() {
                 </div>
               </div>
 
+              {/* حالة الوثائق */}
+              <div className="flex items-center gap-2">
+                {driver.documentsStatus === "verified" ? (
+                  <span className="bg-green-500/15 border border-green-500/30 text-green-400 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                    <Shield className="w-3 h-3" /> وثائق مؤكدة
+                  </span>
+                ) : driver.documentsStatus === "pending" ? (
+                  <span className="bg-yellow-500/15 border border-yellow-500/30 text-yellow-400 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> وثائق قيد المراجعة
+                  </span>
+                ) : (
+                  <span className="bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                    <XCircle className="w-3 h-3" /> لا توجد وثائق
+                  </span>
+                )}
+                {(driver.licenseImage || driver.idCardImage || driver.vehicleDocImage) && (
+                  <button
+                    onClick={() => openDocsModal(driver)}
+                    className="text-xs text-primary hover:text-primary/80 font-bold flex items-center gap-1"
+                  >
+                    <Eye className="w-3 h-3" /> عرض الوثائق
+                  </button>
+                )}
+              </div>
+
               {driver.isSubscribed && driver.subscriptionExpiresAt && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Calendar className="w-3.5 h-3.5" />
@@ -232,6 +292,61 @@ export default function DriverSubscriptions() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* نافذة عرض الوثائق */}
+      {showDocsModal && selectedDriver && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-card border border-border rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">وثائق {selectedDriver.name}</h2>
+              <button onClick={() => setShowDocsModal(false)} className="text-muted-foreground hover:text-foreground">
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {selectedDriver.licenseImage && (
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-muted-foreground">رخصة القيادة</p>
+                  <img src={selectedDriver.licenseImage} alt="License" className="w-full rounded-xl border border-border" />
+                </div>
+              )}
+              {selectedDriver.idCardImage && (
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-muted-foreground">بطاقة الهوية</p>
+                  <img src={selectedDriver.idCardImage} alt="ID Card" className="w-full rounded-xl border border-border" />
+                </div>
+              )}
+              {selectedDriver.vehicleDocImage && (
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-muted-foreground">رخصة السير</p>
+                  <img src={selectedDriver.vehicleDocImage} alt="Vehicle Doc" className="w-full rounded-xl border border-border" />
+                </div>
+              )}
+            </div>
+
+            {/* أزرار المراجعة */}
+            <div className="flex gap-3 pt-4 border-t border-border">
+              <button
+                onClick={() => verifyDocuments(selectedDriver.userId, "verified")}
+                disabled={actionId === selectedDriver.userId}
+                className="flex-1 py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {actionId === selectedDriver.userId ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileCheck className="w-4 h-4" />}
+                تأكيد الوثائق
+              </button>
+              <button
+                onClick={() => verifyDocuments(selectedDriver.userId, "rejected")}
+                disabled={actionId === selectedDriver.userId}
+                className="flex-1 py-3 rounded-xl bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-400 font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <XCircle className="w-4 h-4" />
+                رفض الوثائق
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

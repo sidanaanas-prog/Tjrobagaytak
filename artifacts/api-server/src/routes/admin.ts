@@ -482,6 +482,13 @@ router.get("/admin/drivers", authenticate, requireAdmin, async (_req, res): Prom
       totalRides: d.totalRides,
       totalEarnings: d.totalEarnings,
       createdAt: d.createdAt.toISOString(),
+      // الوثائق
+      licenseImage: d.licenseImage,
+      idCardImage: d.idCardImage,
+      vehicleDocImage: d.vehicleDocImage,
+      licenseVerified: d.licenseVerified,
+      documentsStatus: d.documentsStatus,
+      documentsSubmittedAt: d.documentsSubmittedAt?.toISOString() ?? null,
     };
   }));
 });
@@ -492,6 +499,21 @@ router.patch("/admin/drivers/:userId/deactivate", authenticate, requireAdmin, as
   const now = new Date();
   await db.update(driverProfilesTable)
     .set({ isSubscribed: false, subscriptionExpiresAt: null, updatedAt: now })
+    .where(eq(driverProfilesTable.userId, userId));
+  res.json({ success: true });
+});
+
+// ── تأكيد وثائق السائق (للأدمن) ────────────────────────
+router.patch("/admin/drivers/:userId/verify-documents", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  const userId = req.params.userId as string;
+  const { status } = req.body; // "verified" | "rejected"
+  const now = new Date();
+  await db.update(driverProfilesTable)
+    .set({
+      documentsStatus: status,
+      licenseVerified: status === "verified",
+      updatedAt: now,
+    })
     .where(eq(driverProfilesTable.userId, userId));
   res.json({ success: true });
 });
