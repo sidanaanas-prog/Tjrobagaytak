@@ -11,13 +11,49 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+// توليد رنة مكالمة برمجياٍ في Service Worker
+function playSwAlertTone() {
+  try {
+    const AudioCtx = self.AudioContext || self.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const playTone = (freq, start, duration) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+      gain.gain.setValueAtTime(0.9, ctx.currentTime + start);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + start + duration);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + duration);
+    };
+    // رنة مكالمة: دددد... دددد... دددد... (تكرار 3 مرات)
+    for (let i = 0; i < 3; i++) {
+      const t = i * 1.5;
+      playTone(880, t, 0.3);
+      playTone(1100, t + 0.35, 0.3);
+      playTone(880, t + 0.7, 0.3);
+      playTone(1100, t + 1.05, 0.3);
+    }
+    // إغلاق السياق بعد الرنة
+    setTimeout(() => ctx.close(), 5000);
+  } catch {}
+}
+
 // إشعارات الخلفية (عندما يكون التطبيق مغلقاً)
 messaging.onBackgroundMessage(function(payload) {
   const title = payload.notification?.title || "Gaytak";
   const body  = payload.notification?.body  || "";
   const data  = payload.data || {};
 
-  const isRideAlert = data.type === "new_ride";
+  const isRideAlert = data.type === "new_ride" || data.type === "price_update";
+
+  // تشغيل الرنة البرمجية في الخلفية
+  if (isRideAlert) {
+    playSwAlertTone();
+  }
 
   self.registration.showNotification(title, {
     body,
@@ -29,14 +65,14 @@ messaging.onBackgroundMessage(function(payload) {
     // إشعار حرج
     tag: isRideAlert ? "ride_alert" : "default",
     requireInteraction: isRideAlert,
-    // رنة قوية واهتزاز
+    // رنة واهتزاز قوي
     ...(isRideAlert && {
       sound: "/notification.mp3",
-      vibrate: [200, 100, 200, 100, 200, 100, 500, 100, 500],
+      vibrate: [200, 100, 200, 100, 200, 100, 500, 100, 500, 200, 100, 200, 100, 500],
       priority: "high",
       renotify: true,
     }),
-    // أزرار لاعب
+    // أزرار للرحلة
     actions: isRideAlert ? [
       { action: "accept", title: "قبول" },
       { action: "decline", title: "رفض" },
@@ -44,12 +80,13 @@ messaging.onBackgroundMessage(function(payload) {
   });
 });
 
-// معالجة الضغط على الأزرار
+// معالجة الضغط على الأزرار أو على الإشعار نفسه
 self.addEventListener("notificationclick", function(event) {
   event.notification.close();
   const data = event.notification.data;
+  const isRide = data?.type === "new_ride" || data?.type === "price_update";
 
-  if (event.action === "accept" && data?.type === "new_ride") {
+  if (event.action === "accept" && isRide) {
     // فتح التطبيق وإرسال رسالة للأب لقبول الرحلة
     event.waitUntil(
       self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
@@ -66,6 +103,7 @@ self.addEventListener("notificationclick", function(event) {
       })
     );
   } else {
+    // الضغط على الإشعار نفسه → فتح التطبيق
     event.waitUntil(self.clients.openWindow("/rides"));
   }
 });

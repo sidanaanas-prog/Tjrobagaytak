@@ -33,13 +33,16 @@ router.post("/rides", authenticate, async (req, res): Promise<void> => {
       updatedAt: now,
     });
 
-    // إشعار السائقين المتاحين القريبين
+    // إشعار السائقين المشتركين المتاحين
     const drivers = (await db
       .select({ userId: driverProfilesTable.userId })
       .from(driverProfilesTable)
       .where(and(
         eq(driverProfilesTable.isOnline, true),
         eq(driverProfilesTable.isAvailable, true),
+        eq(driverProfilesTable.isSubscribed, true),
+        // الاشتراك صالح
+        sql`${driverProfilesTable.subscriptionExpiresAt} > ${now}`,
       ))) ?? [];
 
     if (drivers.length > 0) {
@@ -275,13 +278,15 @@ router.patch("/rides/:id/price", authenticate, async (req, res): Promise<void> =
       price: String(price), updatedAt: now,
     }).where(eq(ridesTable.id, req.params.id as string));
 
-    // إشعار السائقين بالسعر الجديد
+    // إشعار السائقين المشتركين بالسعر الجديد
     const drivers = (await db
       .select({ userId: driverProfilesTable.userId })
       .from(driverProfilesTable)
       .where(and(
         eq(driverProfilesTable.isOnline, true),
         eq(driverProfilesTable.isAvailable, true),
+        eq(driverProfilesTable.isSubscribed, true),
+        sql`${driverProfilesTable.subscriptionExpiresAt} > ${now}`,
       ))) ?? [];
 
     if (drivers.length > 0) {
