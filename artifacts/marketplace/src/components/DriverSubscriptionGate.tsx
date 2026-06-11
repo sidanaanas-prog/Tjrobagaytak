@@ -183,7 +183,7 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
         <motion.div initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="space-y-2">
           <h2 className="text-2xl font-black text-white">اشتراك السائق الشهري</h2>
           <p className="text-sm text-white/45 max-w-xs mx-auto leading-relaxed">
-            لإتاحة وضع السائق واستقبال طلبات النقل، يجب الاشتراك الشهري.
+            لإتاحة وضع السائق واستقبال طلبات كورسا، يجب الاشتراك الشهري.
           </p>
         </motion.div>
 

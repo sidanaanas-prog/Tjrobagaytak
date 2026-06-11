@@ -26,7 +26,7 @@ const ALL_TABS: NavTab[] = [
   { href: "/", icon: Home, label: "الرئيسية", auth: false },
   { href: "/products", icon: Search, label: "استكشف", auth: false, roles: ["seller", "shopper", null] },
   { href: "/sell", icon: Plus, label: "بيع", auth: true, isSell: true, roles: ["seller"] },
-  { href: "/rides", icon: Car, label: "نقل", auth: false, roles: ["driver", "passenger", null] },
+  { href: "/rides", icon: Car, label: "كورسا", auth: false, roles: ["driver", "passenger", null] },
   { href: "/chat", icon: MessageCircle, label: "محادثات", auth: true, isChat: true },
   { href: "/dashboard", icon: Store, label: "أعمالي", auth: true, isOrders: true, roles: ["seller"] },
   { href: "/profile", icon: User, label: "حسابي", auth: true },

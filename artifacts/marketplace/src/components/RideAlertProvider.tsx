@@ -285,7 +285,7 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
                 <Car className={`w-8 h-8 ${alertState.type === "price_update" ? "text-yellow-400" : "text-primary"}`} />
               </div>
               <p className="text-lg font-black text-white">
-                {alertState.type === "price_update" ? "سعر جديد!" : "طلب نقل جديد!"}
+                {alertState.type === "price_update" ? "سعر جديد!" : "طلب كورسا جديد!"}
               </p>
               <p className="text-xs text-white/50">
                 {alertState.type === "price_update" ? "الراكب عدل السعر" : "الأول يقبل يفوز"}

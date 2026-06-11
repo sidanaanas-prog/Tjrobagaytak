@@ -34,7 +34,7 @@ function getRole(): string | null {
   return localStorage.getItem("gaytak_active_role");
 }
 
-// ── الراكب: طلب نقل ──────────────────────────────────────────────────
+// ── الراكب: طلب كورسا ──────────────────────────────────────────────────
 function PassengerRequest() {
   const { toast } = useToast();
   const [fromAddress, setFromAddress] = useState("");
@@ -178,7 +178,7 @@ function PassengerRequest() {
             <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
               <Car className="w-4 h-4 text-primary" />
             </div>
-            احجز نقل
+            احجز كورسا
           </h3>
           <span className="text-[10px] bg-primary/15 text-primary px-2 py-0.5 rounded-full font-bold">
             السعر منك
@@ -417,7 +417,7 @@ function PassengerRequest() {
   );
 }
 
-// ── السائق: طلبات النقل ──────────────────────────────────────────────────
+// ── السائق: طلبات كورسا ──────────────────────────────────────────────────
 function DriverDashboard() {
   const { toast } = useToast();
   const [requests, setRequests] = useState<Ride[]>([]);
@@ -694,7 +694,7 @@ export default function RidesPage() {
       <AppLayout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
           <Car className="w-16 h-16 text-muted" />
-          <p className="text-lg font-bold">سجل الدخول لاستخدام النقل</p>
+          <p className="text-lg font-bold">سجل الدخول لاستخدام كورسا</p>
           <Link href="/login">
             <button className="bg-primary text-primary-foreground px-6 py-2 rounded-lg font-bold">تسجيل الدخول</button>
           </Link>
@@ -708,7 +708,7 @@ export default function RidesPage() {
       <div className="p-4 space-y-4" dir="rtl">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-black">🚕 النقل</h1>
+          <h1 className="text-xl font-black">🚕 كورسا</h1>
           {hasDriverRole && hasPassengerRole && (
             <div className="flex bg-card border rounded-lg overflow-hidden">
               <button onClick={() => { setRole("passenger"); localStorage.setItem("gaytak_active_role", "passenger"); }} className={`px-3 py-1.5 text-xs font-bold ${role === "passenger" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>

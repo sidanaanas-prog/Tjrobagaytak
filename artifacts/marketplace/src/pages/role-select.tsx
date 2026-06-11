@@ -21,7 +21,7 @@ const ROLES = [
   {
     id: "driver",
     label: "سائق",
-    desc: "أوصل ركاب وأربح من النقل",
+    desc: "أوصل ركاب وأربح من كورسا",
     icon: Car,
     color: "from-orange-500/20 to-orange-500/5",
     border: "border-orange-500/30",
@@ -30,7 +30,7 @@ const ROLES = [
   {
     id: "passenger",
     label: "راكب",
-    desc: "أحجز نقل بسرعة وأمان",
+    desc: "أحجز كورسا بسرعة وأمان",
     icon: ShoppingBag,
     color: "from-blue-500/20 to-blue-500/5",
     border: "border-blue-500/30",
