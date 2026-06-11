@@ -37,6 +37,7 @@ export async function sendNotification({
     const isRideAlert = data?.type === "new_ride" || data?.type === "price_update";
     await admin.messaging().send({
       token: fcmToken,
+      notification: { title, body },
       data: {
         ...data,
         _title: title,
@@ -46,8 +47,11 @@ export async function sendNotification({
       android: {
         priority: "high",
         notification: {
+          title,
+          body,
           channelId: isRideAlert ? "ride_alerts" : "default",
           priority: "high",
+          sound: isRideAlert ? "alert.mp3" : "default",
         },
       },
       apns: { payload: { aps: { sound: isRideAlert ? "alert.mp3" : "default", badge: 1 } } },
@@ -91,7 +95,7 @@ export async function sendPushNotification({
   const results = await admin.messaging().sendEach(
     clean.map((token) => ({
       token,
-      // لا نرسل notification payload لأن FCM يعالجه تلقائياً ولا يدعو لـ onBackgroundMessage يُرسل فقط data
+      notification: { title, body },
       data: {
         ...data,
         _title: title,
@@ -101,8 +105,11 @@ export async function sendPushNotification({
       android: {
         priority: "high" as const,
         notification: {
+          title,
+          body,
           channelId: isRideAlert ? "ride_alerts" : "default",
           priority: "high" as const,
+          sound: isRideAlert ? "alert.mp3" : "default",
         },
       },
       apns: {
