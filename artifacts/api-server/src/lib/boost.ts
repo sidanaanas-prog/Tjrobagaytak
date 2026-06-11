@@ -1,698 +1,94 @@
-/**
- * Smart Engagement Boost
- * Adds deterministic fake engagement numbers + user lists on top of real data.
- * Same post ID + same creation time = same results every time (no flickering).
- *
- * Comments are context-aware: detected from video caption into one of three
- * categories (store / comedy / entertainment) and written in Hassaniya +
- * Algerian dialect.
- */
+import { createHash } from "crypto";
 
-// ── أسماء جزائرية + موريتانية أصيلة — رجال ونساء ─────────────────────────────
-const ARABIC_NAMES = [
-  // ══ رجال موريتانيون (حسانية) ══
-  "محمد ولد أحمد", "محمدن ولد إبراهيم", "سيدي ولد محمد", "الطيب ولد سيدينا",
-  "حمدي ولد سالم", "بوبكر ولد الشيخ", "لمرابط ولد ببكر", "اعل ولد عبد الله",
-  "المختار ولد يحيى", "محمود ولد أحمد ييره", "السالك ولد عمر", "صالح ولد اميجن",
-  "يحيى ولد داهي", "شيخنا ولد محمد الأمين", "عبد الرحمن ولد حمود", "حبيب الله ولد الشيخ",
-  "باب ولد المختار", "اعمر ولد الطالب", "الولي ولد ابراهيم", "حمدو ولد اعمر",
-  "إسماعيل ولد محمد", "بكار ولد سيدي", "ميلود ولد امبارك", "لمين ولد المختار",
-  "موسى ولد حامد", "عثمان ولد يحيى", "تفاضل ولد سيد أحمد", "قيدي ولد أحمد",
-  // ══ نساء موريتانيات (حسانية) ══
-  "فاطمة بنت محمد", "آمنة بنت الشيخ", "مريم بنت سيدي", "زينب بنت أحمد",
-  "خديجة بنت المختار", "مبروكة بنت اعمر", "الشيخة بنت سيدينا", "ميمونة بنت الطالب",
-  "سلمى بنت إبراهيم", "تكبر بنت محمد", "جميلة بنت ببكر", "حبيبة بنت حمود",
-  "المباركة بنت محمدن", "نجاة بنت الولي", "رقية بنت الشيخنا", "كلثوم بنت سالم",
-  "أسماء بنت موسى", "فاطمة الزهراء بنت باب", "مولاتي بنت لمرابط", "عيشة بنت اعل",
-  "زهرة بنت عبد الرحمن", "سعيدة بنت المختار", "مباركة بنت ابراهيم", "بتول بنت يحيى",
-  // ══ رجال جزائريون ══
-  "أمين", "ياسين", "نور الدين", "سامي", "فارس", "إلياس", "رشيد", "مؤمن",
-  "توفيق", "أيوب", "جلال", "لخضر", "عبد القادر", "سعيد", "هشام", "مراد",
-  "عبد الرحيم", "السعيد", "بلال", "أنيس", "سمير", "عادل", "كمال", "نبيل",
-  "زكريا", "محند", "ويس", "طارق", "أشرف", "فتحي", "إسماعيل", "يوسف",
-  // ══ نساء جزائريات ══
-  "ليلى", "مريم", "نور", "سارة", "آمنة", "رania", "زينب", "فاطمة",
-  "سعاد", "خديجة", "فريدة", "يسرى", "حفصة", "دنيا", "مونة", "جميلة",
-  "نور الهدى", "إيمان", "عائشة", "حياة", "سلمى", "نهى", "شمس", "بشرى",
-  "نادية", "مريم", "ليلى", "رانيا", "أميرة", "ميساء", "أروى", "أسماء",
-];
-
-const AVATAR_COLORS = [
-  "#7c3aed","#2563eb","#db2777","#059669","#d97706",
-  "#dc2626","#0891b2","#65a30d","#9333ea","#ea580c",
-];
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// ══ Comment Pools — 10 أنواع متنوعة + إيموجي كثيف + لهجة حسانية/جزائرية ══
-// ═══════════════════════════════════════════════════════════════════════════════
-
-// الأنواع: 1)سؤال 2)إعجاب_إيموجي 3)إطراء+سؤال 4)رد_فعل_عاطفي 5)تجربة_شخصية
-//          6)مقارنة 7)Mention 8)زمني 9)شك/نقد 10)رد_على_تعليق
-
-/** ══ 1) تعليقات فيديوهات المتجر — 150 تعليق ══ */
-const COMMENTS_STORE = [
-  // 🔥 إعجاب إيموجي فقط (نوع 2)
-  "🔥🔥🔥", "👏👏", "💯💯", "✨✨", "🔥", "👌", "💪", "✨", "💎", "🙌",
-  "ذاك زين 🔥", "وخيرات ✨", "توصيل خالق 🚚", "نصر 💪", "ايو هذا بصح تطبيق صحروي زين 🔥", "بكم 💰", "ايو حق 💯", "نصر والله 💪", "ما شين شي 👌", "ماخلق توصيل لي العيون 🚚", "أنا جيتكم من الوتساب 📱", "مضامنين مع تطبيق غايتك 🤝",
-  // ❓ أسئلة (نوع 1)
-  "وش السعر؟ عندك منه في المقاس L؟ 🔥",
-  "بكاش هذا؟ والله عجبني 😍",
-  "كيف نطلب من عندك؟ التوصيل وين واصل؟ 🚚",
-  "عندك لون أبيض؟ ولا كولور الوحيد؟",
-  "السعر يشمل التوصيل ولا لحال؟ 💰",
-  "من وين تجيب هذاك؟ السلعة شين والله",
-  "وشنو كيفية الدفع؟ بكاش ولا تحويل؟",
-  "عندك جملة؟ حاب ناخذ 3 قطع 🔥",
-  "المقاسات متوفرة؟ عندك منه XL؟",
-  "التوصيل كيف؟ والله مهتم بيظ 🙏",
-  "واش هذا أصلي ولا تقليد؟ 🤔",
-  "سعره شوية غالي بصح الجودة تستاهل؟",
-  "عندك في لون أزرق؟ كيف نختار اللون؟",
-  "المنتج جديد ولا مستعمل؟ يهمنا نعرف 🙏",
-  "وش الضمان؟ كيف الرجوع إذا ما عجبني؟",
-  // ✨ إطراء + سؤال (نوع 3)
-  "شين والله، كيف نتواصل معاك؟ 🔥",
-  "واه سعر الزين، واش في خصم؟ 🙏",
-  "الجودة واضحة، من وين تجيب هذا؟ 💯",
-  "ربي يبارك، هذاك المنتج اللي ندور عليه! وش السعر؟",
-  "يخي يهبل! السعر والجودة معاً، كيف نطلب؟ 🔥",
-  "شين بيظ، عندك منه في المخزن؟",
-  "والله ما شفت شي أحسن، كيفية الشراء؟",
-  "اگاع كبير المشروع، وش عندك جديد؟",
-  "هذا اللي كنا ندورو عليه بالضبط! بكاش؟",
-  "الجودة والسعر يناسب، كيف نجيب من عندك؟ 🙏",
-  // 💬 تجربة شخصية (نوع 5)
-  "أنا شريت منه قبل شهر، ممتاز والله 💪",
-  "جربت هذا المنتج، والله يستاهل كل ريال 🔥",
-  "أخوي جاب من عندك، راح نطلب نفسه 🙏",
-  "شريت منه قبل، الجودة والله ما شي عادية",
-  "صديقي نصحني بيه، والله صادق 💯",
-  "أول مرة نطلب من هنا، إن شاء الله يكون زين",
-  "الطلب وصلني البارح، والله أحسن من الصورة 🔥",
-  "جربت منه قطعتين، راح نزيد نطلب 🙌",
-  // ⚖️ مقارنة (نوع 6)
-  "أحسن من اللي شفتوه في المتجر الثاني 💯",
-  "سعره مناسب مقارنة بـ التطبيقات الثانية 🔥",
-  "الجودة أحسن من النوع اللي عندي 🙏",
-  "أحسن صفقة شفتها هذا الشهر والله",
-  "فيه جودة أكثر من السعر، نادر نلقى هكذا 💎",
-  // 📢 Mention (نوع 7)
-  "@أحمد شوف هذا المنتج! 🔥",
-  "@مريم لازم تشوفي هذا! 😍",
-  "@خالد هذا اللي قلتلك عليه 💪",
-  "@سارة جيبي من هنا، سعر زين والله 🙏",
-  "@أيوب هذا نفسه اللي ندور عليه!",
-  // ⏰ زمني (نوع 8)
-  "جبت هذا الفيديو الصبح والله، مهتم 🔥",
-  "حضرته 3 مرات من امس، راح نطلب اليوم 🙏",
-  "شفت الفيديو من زمان، اليوم قررت نطلب 💪",
-  "جديد نزل؟ لازم نكون أول طلب! 🔥",
-  "البارح شفت المنتج، اليوم راح نجيبه",
-  // 🤔 شك/نقد (نوع 9)
-  "صح شين بصح السعر شوية غالي 🤔",
-  "الجودة واضحة بصح السعر يخوف شوية",
-  "شين والله، لكن وش الضمان؟ 😕",
-  "المنتج عجبني بصح التوصيل كيف؟",
-  "سعر مناسب، بصح نحتاج نعرف الجودة أولاً",
-  // 💡 رد على تعليق (نوع 10)
-  "تسلم على الرد! والله صادق 💪",
-  "صح كلامك، أنا نحب نجرب قبل ما نطلب 🔥",
-  "واش نفسه اللي جبتيه؟ والله شين بصح 🙏",
-  "تجربتك تشجعني، راح نطلب منه اليوم 💯",
-  "شكراً على الرد! وش اللون اللي نصحت بيه؟",
-];
-
-// 💬 ردود متداخلة (في الثريدز)
-const PICK_REPLY_REPLIES = [
-  "تسلم! والله أنا سأشتري من عنده 💪",
-  "صح كلامك! أنا جربت البارح وسأزيد 🔥",
-  "والله سأشتري وسأخبرك رائي 👍",
-  "شكراً! كيف الفعل مع البائع؟ 🚚",
-  "تسلم على النصيحة! والله ما نقدر نستنى 💪",
-  "كيف التوصيل؟ وش المدة؟ 🚚",
-  "أعجبتني! شكراً على الرد يا صاحبي 👍",
-  "صدقت! راح نسأله على السعر اليوم 💯",
-  "يهبل! أول مرة نلقى حاجة كهذا 🔥",
-  "والله شيء يخبل! ما توقعت هذا السعر 😍",
-  "يخي ما هو عادي هذا! شين بصح 🙌",
-  "واه شيء كبير، الله يبارك فيك 💪",
-  "يخي نادر تلقاه هكذا، هذا نصيب 🔥",
-  "والله شيء يموت! السعر والجودة معاً 💯",
-  "يخي شيء عجيب، وش هذاك؟! 😂",
-  "الله يوفقك، هذا المنتج راح ينتشر 🔥",
-  "واه والله سلعة الزين، يخي نحب نجربه 🙏",
-  "ربي يبارك، كيفية نطلب من عندك؟ 💪",
-];
-
-/** ══ 2) تعليقات فيديوهات الضحك والكوميدي — 120 تعليق ══ */
-const COMMENTS_COMEDY = [
-  // 🔥 إعجاب إيموجي
-  "😂😂😂", "🤣🤣", "😂😂", "🔥😂", "💀💀", "😭😂", "🤣🔥", "😂👏", "💯😂", "😂✨",
-  // ❓ أسئلة
-  "وين تلقى هؤلاء الناس؟ 😂",
-  "وشنو هذا الضحك؟ يخي ما هو عادي 🤣",
-  "كيف فكرت في هذا؟ يخي عبقري 😂",
-  "وين تعلمت هذاك التمثيل؟ والله فنان 🔥",
-  "هذا كوميدي ولا جدي؟ ما عرفت نفهم 😂",
-  "وش البرنامج اللي تستخدمه؟ عجبني بصح 🤣",
-  // 💬 تجربة شخصية
-  "ضحكت لما ما كنت ناوي 😂",
-  "قلبي وجعني من الضحك والله 🤣",
-  "بكّاني من الضحك والله 😂",
-  "شفت الفيديو 5 مرات وكل مرة نضحك 🔥",
-  "أنا وخويا ضحكنا سوا، والله كوميدي 🤣",
-  "هذا أحسن فيديو ضحك هذا الأسبوع 😂",
-  "نزلتها في الحالة، خويا ضحك بصح 🤣",
-  // ⚖️ مقارنة
-  "أحسن من الكوميدي اللي في التلفزة 😂",
-  "هذا فنان من الطراز الأول، نادر نلقى هكذا 🔥",
-  "أحسن sketch شفتو هذا العام والله 🤣",
-  "هذا يستاهل يكون في نتفلكس 😂",
-  // 📢 Mention
-  "@أحمد شوف هذا الفيديو! راح تموت ضحك 😂",
-  "@مريم لازم تشوفي! يخي ما هو عادي 🤣",
-  "@سعيد هذا نفسك اللي قلتلك عليه 🔥",
-  "@ليلى شوفي هذا الضحك! والله يهبل 😂",
-  "@خالد كملي يا راجل، والله فنان 🤣",
-  // ⏰ زمني
-  "شفت الفيديو الصبح وضحكت من جديد 😂",
-  "حضرته البارح واليوم رجعت نضحك 🔥",
-  "3 أيام ونضحك عليه، ما نمل 🤣",
-  "كل مرة نجي نضحك من جديد 😂",
-  // 🤔 شك/نقد
-  "صح مضحك بصح شوية طويل 🤔",
-  "الضحك في الأول بصح الآخر شوية يعيي",
-  "مضحك بصح فيه ناس ما يفهموه 😂",
-  "الفكرة شين بصح التنفيذ يحتاج شوية 🔥",
-  // 💡 رد
-  "تسلم! والله ضحكتنا بصح 😂",
-  "صح كلامك، هذا أحسن جزء 🤣",
-  "هههه واش نفسك اللي جبتيه؟ 😂",
-  "صادق! هذا الجزء الثاني أحسن 🔥",
-  "شكراً على الرد، راح نجرب نعمل مثله 🤣",
-  // 😂 رد فعل عاطفي
-  "والله ضحّكتني بيظ 😂😂",
-  "هههههه اگاع مضحك يا صاحبي 🤣",
-  "والله ما توقعت هذا آخر 😂",
-  "يخي ما هو عادي هذا الضحك 😂",
-  "واه اگاع كملي يا راجل 😂",
-  "يخي شي يقتل من الضحك هههه 🔥",
-  "والله راجل كوميدي من الدرجة الأولى ✅",
-  "الله يسعدك ضحّكتنا بيظ 😂",
-  "هههه وين تلقى هؤلاء الناس؟ 😂",
-  "والله ما قدرت نتوقف من الضحك 🔥",
-  "يخي شي مضحك، الله يسعدك 😂",
-  "اگاع مضحك، طلع روحه 😂",
-  "هههههه الله يجازيك بالخير 😂",
-  "والله كوميدي من الطراز الأول 🤣",
-  "يخي بنادم يموت من الضحك 😂",
-  "واه فنان اگاع، الله يبارك فيك 🔥",
-  "والله صح مضحك 😂😂😂",
-  "هههه ما شفت مثل هذا من زمان 🤣",
-  "الله يسعدك، ضحكتنا الله الله 😂",
-  "واه كوميدي، شكراً على الضحكة 😂",
-  "هههه يا ويل من يحاول يتوقف 😂",
-  "والله صادق ما توقعت هذا آخر 🔥",
-];
-
-/** ══ 3) تعليقات ترفيه عام — 120 تعليق ══ */
-const COMMENTS_ENTERTAINMENT = [
-  // 🔥 إعجاب إيموجي
-  "🔥🔥🔥", "✨✨", "👏👏", "💯💯", "💪💪", "🔥", "✨", "👌", "💎", "🙌",
-  // ❓ أسئلة
-  "وش هذاك المكان؟ يخي شين 🔥",
-  "كيف نتواصل معاك؟ عندك محتوى زيد؟",
-  "وش البرنامج اللي تستخدمه؟ عجبني بصح 🙏",
-  "هذا في نواكشوط ولا وين بالضبط؟",
-  "كيف تعلمت هذاك؟ عندك نصايح؟ 💪",
-  "وش الموسيقى اللي في الخلفية؟ شين 🔥",
-  "عندك قناة في اليوتيوب؟ حاب نتابعك",
-  "وش الوقت اللي خذيته في هذاك؟",
-  // 💬 تجربة شخصية
-  "أنا حاولت نعمل مثله، والله صعب 🔥",
-  "شفت محتوى مشابه، بصح هذا أحسن 💯",
-  "أخوي نصحني بقناتك، والله شين 🙏",
-  "أول مرة نشوف محتوى زي هذاك 🌟",
-  "تعلمت منك حاجة جديدة اليوم، شكراً 💪",
-  "نزلت الفيديو في المفضلة، راح نرجع له 🔥",
-  "شفتك في التطبيق الثاني، هذا أحسن 💯",
-  // ⚖️ مقارنة
-  "أحسن محتوى شفتوه هذا الأسبوع 🔥",
-  "هذا يستاهل يكون viral، والله 💪",
-  "أحسن من 90% من المحتوى هنا 🙌",
-  "نادر نلقى محتوى هكذا، تبارك الله ✨",
-  "هذا المحتوى اللي نحتاجه، كمل يا بطل 💯",
-  // 📢 Mention
-  "@أحمد شوف هذا المحتوى! 🔥",
-  "@مريم هذا نفسه اللي قلتلك عليه 💪",
-  "@خالد لازم تشوف! يخي شين ✨",
-  "@سارة تابعي هذا، والله يستاهل 🙏",
-  "@ياسين هذا المحتوى اللي نحتاجه 🔥",
-  // ⏰ زمني
-  "شفت الفيديو الصبح وعجبني 🔥",
-  "حضرته 3 مرات من امس، ما نمل 💪",
-  "جديد نزل؟ لازم نكون أول متابع! ✨",
-  "البارح شفت الحساب، اليوم تابعتك 🙏",
-  "كل يوم نجي نشوف جديدك، كمل 💯",
-  // 🤔 شك/نقد
-  "صح شين بصح شوية قصير 🔥",
-  "المحتوى زين بصح الجودة شوية ضعيفة",
-  "شين والله، لكن نحتاج شوية تفاصيل زيد",
-  "فكرة شين بصح التنفيذ يحتاج تحسين 🙏",
-  // 💡 رد
-  "تسلم! والله صادق في كل كلمة 💪",
-  "صح كلامك، هذا أحسن جزء 🔥",
-  "شكراً على الرد، راح نجرب نفسه ✨",
-  "واش نفسك اللي جربتيه؟ شين والله 🙏",
-  "تجربتك تشجعني، كمل يا صاحبي 💯",
-  // 😂 رد فعل عاطفي
-  "يخي شين، ربي يبارك فيك 🔥",
-  "ماشاء الله عليك، اگاع شين ✨",
-  "شين بيظ، الله يعطيك الصحة 💪",
-  "والله روعة، كمّل هكذا 🔥",
-  "يخي شي يعجب والله، ربي يسعدك 🙏",
-  "اگاع قوي هذا 💯",
-  "الله يوفقك، واه ممتاز ✨",
-  "والله ما شفت شي أحسن 🔥",
-  "يخي ما هو عادي هذا، مبروك عليك 💪",
-  "يخي شي كبير والله، تسلم 🙏",
-  "هذاك هو، والله يهبل 🔥",
-  "اگاع ممتاز، ربي يزيدك ✨",
-  "الله يعطيك العافية، شي شين 💯",
-  "ربي يبارك فيك، اگاع شين 🔥",
-  "والله صح، هذاك المحتوى اللي ندور عليه 🙏",
-  "يخي شي كبير والله 💪",
-  "ماشاء الله، تبارك الله عليك ✨",
-  "اگاع قوي، كمّل ما تقف 🔥",
-  "والله من غير كلام، ممتاز 💯",
-  "واه شين هذا، ربي يسعدك 🙏",
-  "الله الله، شين بيظ 🔥",
-  "تبارك الله، يخي شي كبير ✨",
-  "والله يهبل هذا المحتوى 💪",
-  "ربي يعطيك ما تتمنى 🙏",
-  "شين بيظ، الله يبارك لك 🔥",
-  "روعة والله، هذاك هو 👏",
-  "يخي نادر تلقاه هكذا، ممتاز 💯",
-  "الله يوفقك ويسعدك دايمن ✨",
-  "واه شين، تسلم يدك 🙏",
-  "والله ما قصّرت، اگاع قوي 🔥",
-];
-
-// ── Category detection from video caption ───────────────────────────────────
-
-type VideoCategory = "store" | "comedy" | "entertainment";
-
-const STORE_KEYWORDS = [
-  "بيع","للبيع","متجر","منتج","سعر","ريال","دج","دينار","درهم",
-  "تواصل","اطلب","خصم","عرض","توصيل","جملة","سلعة","بضاعة",
-  "مستعمل","جديد","موديل","مقاس","لون","قطعة","حجز","شراء",
-  "يبيع","نبيع","عندي","عندنا","متاح","متوفر","stock","كمية",
-];
-
-const COMEDY_KEYWORDS = [
-  "ضحك","كوميدي","مضحك","نكتة","فكاهة","طريف","يضحك","مزح",
-  "فنان","تمثيل","ههه","هههه","😂","🤣","خرافة","واجد فكيه",
-  "كلاكيت","سكيت","sketch","comedy","تياترو",
-];
-
-function detectCategory(caption: string | null | undefined): VideoCategory {
-  if (!caption) return "entertainment";
-  const t = caption.toLowerCase();
-  if (STORE_KEYWORDS.some(w => t.includes(w))) return "store";
-  if (COMEDY_KEYWORDS.some(w => t.includes(w))) return "comedy";
-  return "entertainment";
+// ── Story Boost (fake engagement numbers) ───────────────────────────────────
+export function storyBoost(storyId: string, createdAt: Date) {
+  const ageMs = Date.now() - createdAt.getTime();
+  const ageHours = ageMs / (1000 * 60 * 60);
+  const hash = createHash("sha256").update(storyId).digest("hex");
+  const base = parseInt(hash.slice(0, 8), 16);
+  // More views for older stories (up to 24h)
+  const viewBoost = Math.min(50, Math.floor(ageHours * 2 + (base % 30)));
+  const likeBoost = Math.min(15, Math.floor(ageHours * 0.5 + (base % 10)));
+  return { viewBoost, likeBoost };
 }
 
-function getCommentPool(category: VideoCategory): string[] {
-  if (category === "store") return COMMENTS_STORE;
-  if (category === "comedy") return COMMENTS_COMEDY;
-  return COMMENTS_ENTERTAINMENT;
-}
-
-// ── Core math helpers ────────────────────────────────────────────────────────
-
-function hashId(id: string): number {
-  let h = 5381;
-  for (let i = 0; i < id.length; i++) {
-    h = (((h << 5) + h) ^ id.charCodeAt(i)) >>> 0;
-  }
-  return h >>> 0;
-}
-
-function lcgRand(seed: number): { val: number; next: number } {
-  const next = ((seed * 1664525 + 1013904223) >>> 0);
-  return { val: next / 4294967296, next };
-}
-
-/**
- * Growth factor 0→1 based on post age (للمشاهدات والإعجابات — بطيء).
- * بعد ساعة    ≈ 9%  | بعد 6 ساعات ≈ 45% | بعد 24 ساعة ≈ 91%
- */
-function growth(createdAt: Date): number {
-  const ageHours = (Date.now() - new Date(createdAt).getTime()) / 3_600_000;
-  return 1 - Math.exp(-ageHours / 10);
-}
-
-/**
- * Growth factor للتعليقات — سريع يبدأ بالدقائق (متزامن مع الإشعارات).
- * بعد 2  دقيقة  ≈ 22%  → 2-6   تعليقات
- * بعد 5  دقائق  ≈ 46%  → 4-13  تعليقات
- * بعد 10 دقيقة  ≈ 71%  → 7-20  تعليقات
- * بعد 18 دقيقة  ≈ 89%  → 9-25  تعليقات
- * بعد 60 دقيقة  ≈ 99%  → كامل الـ boost
- */
-function commentGrowth(createdAt: Date): number {
-  const ageMinutes = (Date.now() - new Date(createdAt).getTime()) / 60_000;
-  return 1 - Math.exp(-ageMinutes / 8);
-}
-
-// ── Engagement boosts ────────────────────────────────────────────────────────
-
-/**
- * Story boost:
- *  - views: 100–300
- *  - likes: 5–50 hearts
- */
-export function storyBoost(id: string, createdAt: Date) {
-  const s0 = hashId(id);
-  const r1 = lcgRand(s0);
-  const r2 = lcgRand(r1.next);
-  const g = growth(createdAt);
-  return {
-    viewBoost: Math.round((100 + r1.val * 200) * g),
-    likeBoost: Math.round((5 + r2.val * 45) * g),
-  };
-}
-
-/**
- * Content/Video boost:
- *  - views:    500–15 000
- *  - likes:    50–3 000
- *  - comments: 10–500
- */
-export function contentBoost(id: string, createdAt: Date) {
-  const s0 = hashId(id);
-  const r1 = lcgRand(s0);
-  const r2 = lcgRand(r1.next);
-  const r3 = lcgRand(r2.next);
-  const g = growth(createdAt);
-  return {
-    viewBoost: Math.round((500 + r1.val * 14_500) * g),
-    likeBoost: Math.round((50 + r2.val * 2_950) * g),
-    commentBoost: Math.round((10 + r3.val * 490) * g),
-  };
-}
-
-// ── Fake user list builder ───────────────────────────────────────────────────
-
-/**
- * Picks a realistic-looking avatar URL (or null for initials).
- * Distribution mirrors real Arabic social-media usage:
- *   ~30% no photo  → null (colored initials — very common)
- *   ~35% face photo → pravatar.cc  (real human photos 1-70)
- *   ~35% lifestyle  → picsum.photos (real Unsplash photos:
- *        architecture / children / products / nature —
- *        some IDs reliably contain mosques, markets, families)
- */
-// ── صور بروفايل موريتانية حقيقية ─────────────────────────────────────────────
-
-/** صور رجال موريتانيين حقيقيين — 10 صور — Wikimedia Commons (CC) */
-const MAURITANIAN_MEN_AVATARS = [
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Chinguetti-Guide.JPG/250px-Chinguetti-Guide.JPG",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Nouakchott_Beach_Portrait_%2817638535788%29.jpg/250px-Nouakchott_Beach_Portrait_%2817638535788%29.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Nouakchott_Street_Portrait_%2817086858110%29.jpg/250px-Nouakchott_Street_Portrait_%2817086858110%29.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Nouakchott_Street_Portrait_%2817568034755%29.jpg/250px-Nouakchott_Street_Portrait_%2817568034755%29.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Nouakchott_Street_Portrait_%2817333802316%29.jpg/250px-Nouakchott_Street_Portrait_%2817333802316%29.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/2/2a/Mauritania-aziz-in-his-home-city-Akjoujt-15mar09_1.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Mauritania_boy1.jpg/250px-Mauritania_boy1.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/Nouakchott_Vendor.jpg/250px-Nouakchott_Vendor.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Photo_A_Mauritanian_blacksmith_at_work_1965_-_Touring_Club_Italiano_BBC_21.jpg/250px-Photo_A_Mauritanian_blacksmith_at_work_1965_-_Touring_Club_Italiano_BBC_21.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Smiling_man_in_front_of_a_car%2C_Mauritania.jpg/250px-Smiling_man_in_front_of_a_car%2C_Mauritania.jpg",
-];
-
-/** صور نساء موريتانيات حقيقيات — 10 صور — Wikimedia Commons (CC) */
-const MAURITANIAN_WOMEN_AVATARS = [
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/A_big_smile_from_Mauretania.jpg/250px-A_big_smile_from_Mauretania.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Adrar-Mother%26daughter.JPG/250px-Adrar-Mother%26daughter.JPG",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Young_girl_in_Mauritania.jpg/250px-Young_girl_in_Mauritania.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Girl_from_Mauritania.jpg/250px-Girl_from_Mauritania.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Mauritanian_girl_portrait.jpg/250px-Mauritanian_girl_portrait.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Girl_in_Bareina.jpg/250px-Girl_in_Bareina.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Mauritanian_woman_with_fish.jpg/250px-Mauritanian_woman_with_fish.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Adrar-Nomadic_woman_selling_handicraft_%282%29.JPG/250px-Adrar-Nomadic_woman_selling_handicraft_%282%29.JPG",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Adrar-Nomadic_woman_selling_handicraft%281%29.JPG/250px-Adrar-Nomadic_woman_selling_handicraft%281%29.JPG",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/DSC_1381_%284307384434%29.jpg/250px-DSC_1381_%284307384434%29.jpg",
-];
-
-/** صور منتجات وأسواق موريتانية — 4 صور */
-const MAURITANIAN_PRODUCT_AVATARS = [
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Nouakchott_camel_market2.jpg/250px-Nouakchott_camel_market2.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Oasis_de_Tergit_%2802%29.jpg/250px-Oasis_de_Tergit_%2802%29.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Fish_market_in_Nouakchott_-_Mauritania.jpg/250px-Fish_market_in_Nouakchott_-_Mauritania.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Nouakchott_beach_-_fishing_boat.jpg/250px-Nouakchott_beach_-_fishing_boat.jpg",
-];
-
-/** ألوان خلفية ui-avatars (fallback) */
-const UI_AVATAR_BG = [
-  "1a73e8","e53935","00897b","f4511e","8e24aa",
-  "039be5","43a047","fb8c00","6d4c41","546e7a",
-];
-
-/**
- * يختار صورة بروفايل مختلفة لكل مستخدم:
- *  ~70% صورة موريتانية حقيقية (رجال/نساء حسب الاسم)
- *  ~15% صورة منتج/سوق موريتاني
- *  ~10% ui-avatars حرف عربي ملوّن
- *  ~5%  null → التطبيق يعرض الحرف الأول بلون
- *
- * userIndex يضمن أن كل مستخدم في نفس الفيديو يحصل على صورة مختلفة
- */
-function pickAvatar(seed: number, name: string, userIndex: number): string | null {
-  const bucket = seed % 100;
-  if (bucket < 5) return null;
-
-  const isFemale = name.includes("بنت") || ["ليلى","مريم","نور","سارة","آمنة","رania","زينب","فاطمة","سعاد","خديجة","فريدة","يسرى","حفصة","دنيا","مونة","جميلة","نور الهدى","إيمان","عائشة","حياة","سلمى","نهى","شمس","بشرى","نادية","أميرة","ميساء","أروى","أسماء"].some(n => name.includes(n));
-  const photoPool = isFemale ? MAURITANIAN_WOMEN_AVATARS : MAURITANIAN_MEN_AVATARS;
-
-  // استخدام (seed + userIndex * prime) % poolSize لضمان التنويع
-  const diverseIdx = (seed + userIndex * 7) % photoPool.length;
-
-  if (bucket < 75) return photoPool[diverseIdx]!;
-
-  if (bucket < 90) {
-    return MAURITANIAN_PRODUCT_AVATARS[(seed + userIndex * 3) % MAURITANIAN_PRODUCT_AVATARS.length]!;
-  }
-
-  const bg  = UI_AVATAR_BG[(seed + userIndex) % UI_AVATAR_BG.length]!;
-  const enc = encodeURIComponent(name.slice(0, 8));
-  return `https://ui-avatars.com/api/?name=${enc}&background=${bg}&color=fff&size=100&bold=true&font-size=0.45`;
-}
-
-/** Generate N deterministic fake users from a seeded PRNG state */
-function buildFakeUsers(count: number, seed0: number, createdAt: Date) {
-  const users: { id: string; name: string; avatar: string | null; color: string }[] = [];
-  let s = seed0;
-  const usedNames = new Set<number>();
-
-  for (let i = 0; i < count; i++) {
-    const r1 = lcgRand(s);
-    const r2 = lcgRand(r1.next);
-    const r3 = lcgRand(r2.next);
-    s = r3.next;
-
-    const nameIdx = Math.floor(r1.val * ARABIC_NAMES.length) % ARABIC_NAMES.length;
-    const finalIdx = usedNames.has(nameIdx)
-      ? (nameIdx + 1) % ARABIC_NAMES.length
-      : nameIdx;
-    usedNames.add(finalIdx);
-
-    // Deterministic avatar: Arabic initials via ui-avatars or null
-    const avatarSeed = Math.floor(r2.val * 10000);
-    const avatar = pickAvatar(avatarSeed, ARABIC_NAMES[finalIdx]!, i);
-
-    users.push({
-      id: `fake-${seed0}-${i}`,
-      name: ARABIC_NAMES[finalIdx]!,
-      avatar,
-      color: AVATAR_COLORS[Math.floor(r3.val * AVATAR_COLORS.length) % AVATAR_COLORS.length]!,
-    });
-  }
-  return users;
-}
-
-// ── Fake notification comments picker ───────────────────────────────────────
-
-/**
- * يختار N تعليق وهمي من pool المناسبة للـ caption لإرسالها كإشعارات.
- * النتيجة عشوائية حقيقية (Math.random) لتبدو مختلفة في كل مرة.
- */
-export function pickFakeNotificationComments(
-  _videoId: string,
-  caption: string | null | undefined,
-  count: number,
-): { text: string; userName: string }[] {
-  const pool = getCommentPool(detectCategory(caption));
-  const names = [...ARABIC_NAMES].sort(() => Math.random() - 0.5);
-  const shuffled = [...pool].sort(() => Math.random() - 0.5);
-  const results: { text: string; userName: string }[] = [];
-  for (let i = 0; i < Math.min(count, pool.length); i++) {
-    results.push({
-      text: shuffled[i % shuffled.length]!,
-      userName: names[i % names.length]!,
-    });
-  }
-  return results;
-}
-
-// ── Public fake list functions ───────────────────────────────────────────────
-
-/**
- * Returns fake viewer list for a story.
- * Count is capped at min(viewBoost, 50) so the panel doesn't overflow.
- */
 export function fakeStoryViewers(
-  id: string,
+  storyId: string,
   createdAt: Date,
-  realViewers: { id: string; name: string; avatar: string | null; viewedAt: Date | string }[],
-) {
-  const boost = storyBoost(id, createdAt);
-  const fakeCount = Math.max(0, boost.viewBoost - realViewers.length);
-  const displayCount = Math.min(fakeCount, 50);
-  if (displayCount === 0) return realViewers;
-
-  const s0 = (hashId(id) ^ 0xabcd1234) >>> 0;
-  const fakeUsers = buildFakeUsers(displayCount, s0, createdAt);
-  const postTime = new Date(createdAt).getTime();
-  const span = Date.now() - postTime;
-
-  const fakeEntries = fakeUsers.map((u, i) => ({
-    id: u.id,
-    name: u.name,
-    avatar: u.avatar,
-    color: u.color,
-    viewedAt: new Date(Date.now() - Math.round((i / displayCount) * span * 0.9)),
-  }));
-
-  return [...realViewers, ...fakeEntries];
+  realViewers: any[],
+): any[] {
+  const hash = createHash("sha256").update(storyId + "viewers").digest("hex");
+  const count = (parseInt(hash.slice(0, 4), 16) % 12) + 3;
+  const fake = Array.from({ length: count }, (_, i) => {
+    const names = [
+      "أحمد",
+      "محمد",
+      "فاطمة",
+      "سعاد",
+      "نور",
+      "كارم",
+      "يوسف",
+      "ريم",
+      "ليلى",
+      "سارة",
+      "هودا",
+      "ليان",
+      "تقاء",
+      "نواف",
+      "أمجاد",
+      "جمال",
+      "فيصل",
+      "أنوار",
+      "راشد",
+      "مجد",
+      "ود",
+      "بدوي",
+      "نايف",
+      "يازن",
+    ];
+    const name = names[(parseInt(hash.slice(4, 8), 16) + i) % names.length];
+    return {
+      id: `fake_${i}_${storyId.slice(0, 8)}`,
+      name,
+      avatar: null,
+      viewedAt: new Date(createdAt.getTime() + 1000 * 60 * (i + 1)).toISOString(),
+    };
+  });
+  return [...realViewers, ...fake];
 }
 
-/**
- * Returns fake liker list for a story.
- * Count is capped at min(likeBoost, 30).
- */
 export function fakeStoryLikers(
-  id: string,
+  storyId: string,
   createdAt: Date,
-  realLikers: { id: string; name: string; avatar: string | null; likedAt: Date | string }[],
-) {
-  const boost = storyBoost(id, createdAt);
-  const fakeCount = Math.max(0, boost.likeBoost - realLikers.length);
-  const displayCount = Math.min(fakeCount, 30);
-  if (displayCount === 0) return realLikers;
-
-  const s0 = (hashId(id) ^ 0xface5678) >>> 0;
-  const fakeUsers = buildFakeUsers(displayCount, s0, createdAt);
-  const postTime = new Date(createdAt).getTime();
-  const span = Date.now() - postTime;
-
-  const fakeEntries = fakeUsers.map((u, i) => ({
-    id: u.id,
-    name: u.name,
-    avatar: u.avatar,
-    color: u.color,
-    likedAt: new Date(Date.now() - Math.round((i / displayCount) * span * 0.9)),
-  }));
-
-  return [...realLikers, ...fakeEntries];
-}
-
-/**
- * Returns smart fake comments for a video with nested replies.
- * - Detects video type (store / comedy / entertainment) from caption keywords
- * - Uses the matching Hassaniya+Algerian comment pool (150+ comments, 10 types)
- * - Caps display at 30 comments
- * - Comments are deterministic: same video → same comments every time
- * - Adds fake replies (3-8 replies) to some parent comments for realism
- */
-export function fakeVideoComments(
-  id: string,
-  createdAt: Date,
-  caption: string | null | undefined,
-  realComments: { id: string; text: string; parentId: string | null; createdAt: Date | string; userId: string; userName: string; userAvatar: string | null; userRole: string }[],
-  aiComments: { text: string; userName: string }[] = [],
-) {
-  // عدد التعليقات يعتمد على commentGrowth (سريع، دقائق) لا growth (ساعات)
-  const s0base = hashId(id);
-  const rBase = lcgRand(lcgRand(lcgRand(s0base).next).next);
-  const maxComments = Math.round((10 + rBase.val * 20) * commentGrowth(createdAt));
-  const fakeCount = Math.max(0, maxComments - realComments.length);
-  const displayCount = Math.min(fakeCount, 30);
-  if (displayCount === 0) return realComments;
-
-  // اختر المصدر: AI أولاً، وإلا القوائم الثابتة كـ fallback
-  const useAi = aiComments.length >= 5;
-  const pool = useAi
-    ? aiComments.map((c) => c.text)
-    : getCommentPool(detectCategory(caption));
-
-  // استخدم أسماء AI إذا توفرت، وإلا أسماء عشوائية
-  const aiNamePool = useAi ? aiComments.map((c) => c.userName) : null;
-
-  const s0 = (hashId(id) ^ 0x1357cafe) >>> 0;
-  const fakeUsers = buildFakeUsers(displayCount + 8, s0, createdAt);
-  const postTime = new Date(createdAt).getTime();
-  const span = Date.now() - postTime;
-
-  let commentSeed = s0;
-  const fakeEntries: any[] = [];
-  let userIdx = 0;
-
-  // Generate parent comments
-  for (let i = 0; i < displayCount; i++) {
-    const rc = lcgRand(commentSeed);
-    commentSeed = rc.next;
-    const commentIdx = Math.floor(rc.val * pool.length) % pool.length;
-    const u = fakeUsers[userIdx++];
-
-    let userName = u.name;
-    if (aiNamePool && aiNamePool.length > 0) {
-      const nameIdx = Math.floor(rc.val * aiNamePool.length) % aiNamePool.length;
-      userName = aiNamePool[nameIdx] ?? u.name;
-    }
-
-    const parentId = `fake-c-${s0}-${i}`;
-    fakeEntries.push({
-      id: parentId,
-      text: pool[commentIdx]!,
-      parentId: null,
-      createdAt: new Date(Date.now() - Math.round((i / displayCount) * span * 0.85)).toISOString(),
-      userId: u.id,
-      userName,
-      userAvatar: u.avatar,
-      userRole: "user",
-      isFake: true,
-    });
-
-    // 30% chance: add 1-2 fake replies to this parent
-    if (rc.val < 0.35 && userIdx < fakeUsers.length - 1) {
-      const replyCount = rc.val < 0.15 ? 2 : 1;
-      for (let r = 0; r < replyCount; r++) {
-        const ru = fakeUsers[userIdx++];
-        const replyText = PICK_REPLY_REPLIES[Math.floor(rc.val * PICK_REPLY_REPLIES.length) % PICK_REPLY_REPLIES.length];
-        fakeEntries.push({
-          id: `fake-c-${s0}-${i}-r${r}`,
-          text: replyText!,
-          parentId,
-          createdAt: new Date(Date.now() - Math.round((i / displayCount) * span * 0.7)).toISOString(),
-          userId: ru.id,
-          userName: ru.name,
-          userAvatar: ru.avatar,
-          userRole: "user",
-          isFake: true,
-        });
-      }
-    }
-  }
-
-  return [...fakeEntries, ...realComments];
+  realLikers: any[],
+): any[] {
+  const hash = createHash("sha256").update(storyId + "likers").digest("hex");
+  const count = (parseInt(hash.slice(0, 4), 16) % 6) + 2;
+  const fake = Array.from({ length: count }, (_, i) => {
+    const names = [
+      "محبوب",
+      "غياث",
+      "سعيد",
+      "رانيا",
+      "فيصل",
+      "ليلى",
+      "سارة",
+      "تواء",
+      "نايف",
+      "الآساور",
+      "راشد",
+      "ماجد",
+      "ود",
+      "بدوي",
+      "مهند",
+    ];
+    const name = names[(parseInt(hash.slice(4, 8), 16) + i) % names.length];
+    return {
+      id: `fake_${i}_${storyId.slice(0, 8)}`,
+      name,
+      avatar: null,
+      likedAt: new Date(createdAt.getTime() + 1000 * 60 * (i + 2)).toISOString(),
+    };
+  });
+  return [...realLikers, ...fake];
 }
