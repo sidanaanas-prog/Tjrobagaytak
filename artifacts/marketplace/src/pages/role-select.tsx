@@ -105,10 +105,20 @@ export default function RoleSelectPage() {
     setSaving(false);
     toast({ title: "✅ تم!", description: "تم حفظ أدوارك" });
 
-    // إذا تم إضافة دور السائق → انتقال لصفحة كورسا (وفيها نموذج الاشتراك المدمج)
+    // إذا تم إضافة دور السائق → تحقق من وجود ملف سائق
     const isNewDriver = selected.includes("driver") && !myRoles.includes("driver");
     if (isNewDriver) {
-      navigate("/rides");
+      // تحقق من وجود ملف سائق
+      try {
+        const res = await fetch(`${BASE}/api/driver/profile`, { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          navigate("/rides");
+        } else {
+          navigate("/driver-register");
+        }
+      } catch {
+        navigate("/driver-register");
+      }
     } else {
       navigate("/");
     }

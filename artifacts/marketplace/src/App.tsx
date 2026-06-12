@@ -26,6 +26,7 @@ import SellersPage from "@/pages/sellers";
 import WishlistPage from "@/pages/wishlist";
 import RidesPage from "@/pages/rides";
 import RoleSelectPage from "@/pages/role-select";
+import DriverRegisterPage from "@/pages/driver-register";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -131,6 +132,9 @@ function Router() {
         <RequireAuth><AddStoryPage /></RequireAuth>
       </Route>
       <Route path="/rides" component={RidesPage} />
+      <Route path="/driver-register">
+        <RequireAuth><DriverRegisterPage /></RequireAuth>
+      </Route>
       <Route path="/role-select">
         <RequireAuth><RoleSelectPage /></RequireAuth>
       </Route>
