@@ -1,54 +1,83 @@
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { getStorage } from "firebase/storage";
-import { initializeApp, getApps } from "firebase/app";
+import { getApiUrl } from "./api-url";
 
-// Initialize Firebase if not already initialized
-const app = getApps().length ? getApps()[0]! : initializeApp({
-  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY || "",
-  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID || "",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_SENDER_ID || "",
-  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "",
-  appId:             import.meta.env.VITE_FIREBASE_APP_ID || "",
-});
+const BASE = getApiUrl("");
 
-const storage = getStorage(app);
+/** Compress image to base64 (max 900px, 0.8 JPEG quality) */
+function compressImage(file: File, maxSize = 900, quality = 0.8): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+        if (width > maxSize || height > maxSize) {
+          if (width > height) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          } else {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = ev.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
-/** Upload a file directly to Firebase Storage (fallback for Render where Object Storage is unavailable) */
-export async function uploadToFirebase(
+/** Upload to API server (Cloudinary or Replit Object Storage) */
+async function uploadToServer(
   file: File,
   path: string,
   onProgress?: (progress: number) => void
 ): Promise<string> {
-  const storageRef = ref(storage, path);
+  if (onProgress) onProgress(10);
+  const base64 = await compressImage(file, 1200, 0.85);
+  if (onProgress) onProgress(60);
 
-  // Use uploadBytes with metadata
-  await uploadBytes(storageRef, file, { contentType: file.type });
+  const token = localStorage.getItem("glow_admin_token") ?? "";
+  const res = await fetch(`${BASE}/api/upload`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      base64,
+      path,
+      contentType: file.type,
+    }),
+  });
 
-  // Get public download URL
-  const downloadURL = await getDownloadURL(storageRef);
-  return downloadURL;
+  if (onProgress) onProgress(90);
+  if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+  const data = await res.json();
+  if (onProgress) onProgress(100);
+  return data.url;
 }
 
-/** Upload with progress simulation (Firebase doesn't support native progress) */
+/** Upload with progress tracking */
 export async function uploadToFirebaseWithProgress(
   file: File,
   path: string,
   onProgress: (progress: number) => void
 ): Promise<string> {
-  // Simulate progress since Firebase uploadBytes doesn't expose progress
-  let progress = 0;
-  const interval = setInterval(() => {
-    progress = Math.min(progress + Math.random() * 15, 90);
-    onProgress(Math.round(progress));
-  }, 300);
+  return uploadToServer(file, path, onProgress);
+}
 
-  try {
-    const url = await uploadToFirebase(file, path);
-    clearInterval(interval);
-    onProgress(100);
-    return url;
-  } catch (err) {
-    clearInterval(interval);
-    throw err;
-  }
+/** Simple upload (no progress) */
+export async function uploadToFirebase(
+  file: File,
+  path: string,
+  onProgress?: (progress: number) => void
+): Promise<string> {
+  return uploadToServer(file, path, onProgress);
 }
