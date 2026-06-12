@@ -205,7 +205,8 @@ router.patch("/users/:id", authenticate, async (req, res): Promise<void> => {
     if (pushToken !== undefined) updates.pushToken = pushToken;
     if (role && req.user!.role === "admin") updates.role = role;
 
-    const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, id as string)).returning();
+    await db.update(usersTable).set(updates).where(eq(usersTable.id, id as string));
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id as string));
     if (!user) {
       res.status(404).json({ error: "User not found" });
       return;
@@ -260,16 +261,15 @@ router.post("/admin/users/:id/reactivate", authenticate, requireAdmin, async (re
     const expiresAt = new Date();
     expiresAt.setMonth(expiresAt.getMonth() + monthsNum);
 
-    const [updated] = await db.update(usersTable)
+    await db.update(usersTable)
       .set({ isVerified: true, subscriptionExpiresAt: expiresAt })
-      .where(eq(usersTable.id, id as string))
-      .returning();
+      .where(eq(usersTable.id, id as string));
 
     await db.insert(activityTable).values({
       id: randomUUID(),
       type: "subscription_reactivated",
       description: `تم إعادة تفعيل المتجر ${user.name} (${monthsNum} أشهر) — بواسطة الأدمن`,
-      userId: user.id,
+      userId: id,
       userName: user.name,
     });
 
@@ -285,6 +285,7 @@ router.post("/admin/users/:id/reactivate", authenticate, requireAdmin, async (re
       }
     } catch {}
 
+    const [updated] = await db.select().from(usersTable).where(eq(usersTable.id, id as string));
     res.json({ success: true, expiresAt: expiresAt.toISOString(), user: formatUser(updated) });
   } catch (err) {
     res.status(500).json({ error: "حدث خطأ في الخادم" });
@@ -295,7 +296,8 @@ router.post("/users/:id/ban", authenticate, requireAdmin, async (req, res): Prom
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const { banned } = req.body;
-    const [user] = await db.update(usersTable).set({ banned: !!banned }).where(eq(usersTable.id, id as string)).returning();
+    await db.update(usersTable).set({ banned: !!banned }).where(eq(usersTable.id, id as string));
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id as string));
     if (!user) {
       res.status(404).json({ error: "User not found" });
       return;
@@ -305,7 +307,7 @@ router.post("/users/:id/ban", authenticate, requireAdmin, async (req, res): Prom
       id: randomUUID(),
       type: banned ? "user_banned" : "user_unbanned",
       description: `${user.name} was ${banned ? "banned" : "unbanned"} by admin`,
-      userId: user.id,
+      userId: id,
       userName: user.name,
     });
 

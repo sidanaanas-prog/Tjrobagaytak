@@ -139,21 +139,19 @@ router.post("/stories", authenticate, async (req, res): Promise<void> => {
 
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-  const [story] = await db
-    .insert(storiesTable)
-    .values({
-      id: randomUUID(),
-      userId: req.user!.id,
-      mediaUrl: mediaUrl ?? null,
-      mediaType,
-      bgColor: bgColor ?? null,
-      fontFamily: fontFamily ?? null,
-      caption: caption?.trim() ?? null,
-      isActive: true,
-      expiresAt,
-    })
-    .returning();
-
+  const storyId = randomUUID();
+  await db.insert(storiesTable).values({
+    id: storyId,
+    userId: req.user!.id,
+    mediaUrl: mediaUrl ?? null,
+    mediaType,
+    bgColor: bgColor ?? null,
+    fontFamily: fontFamily ?? null,
+    caption: caption?.trim() ?? null,
+    isActive: true,
+    expiresAt,
+  });
+  const [story] = await db.select().from(storiesTable).where(eq(storiesTable.id, storyId));
   res.status(201).json(story);
 });
 

@@ -176,15 +176,16 @@ router.post("/conversations", authenticate, async (req, res): Promise<void> => {
 
   const id = randomUUID();
   const now = new Date();
-  const [conv] = await db.insert(conversationsTable).values({
+  await db.insert(conversationsTable).values({
     id,
     participant1Id: userId,
     participant2Id: recipientId,
     productId: productId ?? null,
     updatedAt: now,
-  }).returning();
+  });
+  const [conv] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, id));
 
-  const [p1] = await db.select().from(usersTable).where(eq(usersTable.id, conv.participant1Id));
+  const [p1] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   const [p2] = await db.select().from(usersTable).where(eq(usersTable.id, conv.participant2Id));
 
   if (productId) {
@@ -253,7 +254,7 @@ router.post("/conversations/:id/messages", authenticate, async (req, res): Promi
   }
 
   const msgId = randomUUID();
-  const [msg] = await db.insert(messagesTable).values({
+  await db.insert(messagesTable).values({
     id: msgId,
     conversationId: convId,
     senderId: req.user!.id,
@@ -261,7 +262,8 @@ router.post("/conversations/:id/messages", authenticate, async (req, res): Promi
     replyToId: replyToId ?? null,
     imageUrl: imageUrl ?? null,
     voiceUrl: voiceUrl ?? null,
-  }).returning();
+  });
+  const [msg] = await db.select().from(messagesTable).where(eq(messagesTable.id, msgId));
 
   // تحديث تاريخ آخر محادثة لترتيب القائمة
   await db.update(conversationsTable)
@@ -414,15 +416,15 @@ router.post("/conversations/:id/forward", authenticate, async (req, res): Promis
   }
 
   const newId = randomUUID();
-  const [msg] = await db.insert(messagesTable).values({
+  await db.insert(messagesTable).values({
     id: newId,
     conversationId: toConversationId,
     senderId: userId,
     content: origMsg.content,
     imageUrl: origMsg.imageUrl,
     voiceUrl: origMsg.voiceUrl,
-  }).returning();
-
+  });
+  const [msg] = await db.select().from(messagesTable).where(eq(messagesTable.id, newId));
   const formatted = await formatMessage(msg);
   res.status(201).json(formatted);
 });

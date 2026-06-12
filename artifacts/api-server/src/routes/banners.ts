@@ -35,21 +35,18 @@ router.post("/admin/banners", authenticate, requireAdmin, async (req, res): Prom
     return;
   }
 
-  const [banner] = await db
-    .insert(bannersTable)
-    .values({
-      title: title.trim(),
-      subtitle: subtitle?.trim() ?? null,
-      emoji: emoji?.trim() || "🛍️",
-      bg: bg?.trim() || "from-violet-600/40 to-fuchsia-600/20",
-      accent: accent?.trim() || "#a855f7",
-      imageUrl: imageUrl?.trim() ?? null,
-      linkUrl: linkUrl?.trim() ?? null,
-      isActive: isActive !== false,
-      sortOrder: typeof sortOrder === "number" ? sortOrder : 0,
-    })
-    .returning();
-
+  await db.insert(bannersTable).values({
+    title: title.trim(),
+    subtitle: subtitle?.trim() ?? null,
+    emoji: emoji?.trim() || "🛍️",
+    bg: bg?.trim() || "from-violet-600/40 to-fuchsia-600/20",
+    accent: accent?.trim() || "#a855f7",
+    imageUrl: imageUrl?.trim() ?? null,
+    linkUrl: linkUrl?.trim() ?? null,
+    isActive: isActive !== false,
+    sortOrder: typeof sortOrder === "number" ? sortOrder : 0,
+  });
+  const [banner] = await db.select().from(bannersTable).where(eq(bannersTable.title, title.trim()));
   res.status(201).json(banner);
 });
 
@@ -63,8 +60,7 @@ router.put("/admin/banners/:id", authenticate, requireAdmin, async (req, res): P
     return;
   }
 
-  const [banner] = await db
-    .update(bannersTable)
+  await db.update(bannersTable)
     .set({
       title: title.trim(),
       subtitle: subtitle?.trim() ?? null,
@@ -76,9 +72,8 @@ router.put("/admin/banners/:id", authenticate, requireAdmin, async (req, res): P
       isActive: isActive !== false,
       sortOrder: typeof sortOrder === "number" ? sortOrder : 0,
     })
-    .where(eq(bannersTable.id, id as string))
-    .returning();
-
+    .where(eq(bannersTable.id, id as string));
+  const [banner] = await db.select().from(bannersTable).where(eq(bannersTable.id, id as string));
   if (!banner) {
     res.status(404).json({ error: "البانر غير موجود" });
     return;
@@ -97,11 +92,11 @@ router.patch("/admin/banners/:id/toggle", authenticate, requireAdmin, async (req
     return;
   }
 
-  const [banner] = await db
+  await db
     .update(bannersTable)
     .set({ isActive: !existing.isActive })
-    .where(eq(bannersTable.id, id as string))
-    .returning();
+    .where(eq(bannersTable.id, id as string));
+  const [banner] = await db.select().from(bannersTable).where(eq(bannersTable.id, id as string));
 
   res.json(banner);
 });

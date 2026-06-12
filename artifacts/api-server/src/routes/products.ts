@@ -163,7 +163,7 @@ router.post("/products", authenticate, async (req, res): Promise<void> => {
   }
 
   const id = randomUUID();
-  const [product] = await db.insert(productsTable).values({
+  await db.insert(productsTable).values({
     id,
     title,
     description: description ?? null,
@@ -173,7 +173,8 @@ router.post("/products", authenticate, async (req, res): Promise<void> => {
     categoryId: categoryId ?? null,
     status: "active",
     sellerId: req.user!.id,
-  }).returning();
+  });
+  const [product] = await db.select().from(productsTable).where(eq(productsTable.id, id));
 
   const [seller] = await db.select().from(usersTable).where(eq(usersTable.id, req.user!.id));
 
@@ -238,7 +239,8 @@ router.patch("/products/:id", authenticate, async (req, res): Promise<void> => {
   if (images !== undefined) updates.images = images;
   if (categoryId !== undefined) updates.categoryId = categoryId;
 
-  const [product] = await db.update(productsTable).set(updates).where(eq(productsTable.id, id as string)).returning();
+  await db.update(productsTable).set(updates).where(eq(productsTable.id, id as string));
+  const [product] = await db.select().from(productsTable).where(eq(productsTable.id, id as string));
   const [seller] = await db.select().from(usersTable).where(eq(usersTable.id, product.sellerId));
   res.json(formatProduct(product, seller));
 });
@@ -272,7 +274,8 @@ router.post("/products/:id/approve", authenticate, async (req, res): Promise<voi
     return;
   }
 
-  const [product] = await db.update(productsTable).set({ status }).where(eq(productsTable.id, id as string)).returning();
+  await db.update(productsTable).set({ status }).where(eq(productsTable.id, id as string));
+  const [product] = await db.select().from(productsTable).where(eq(productsTable.id, id as string));
   const [seller] = await db.select().from(usersTable).where(eq(usersTable.id, product.sellerId));
 
   await db.insert(activityTable).values({

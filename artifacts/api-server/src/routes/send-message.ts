@@ -44,15 +44,14 @@ router.post("/send-message", async (req, res): Promise<void> => {
   let savedMessage = null;
   if (conversationId && senderId) {
     try {
-      const [msg] = await db
-        .insert(messagesTable)
-        .values({
-          id: randomUUID(),
-          conversationId,
-          senderId,
-          content: message,
-        })
-        .returning();
+      const msgId = randomUUID();
+      await db.insert(messagesTable).values({
+        id: msgId,
+        conversationId,
+        senderId,
+        content: message,
+      });
+      const [msg] = await db.select().from(messagesTable).where(eq(messagesTable.id, msgId));
       savedMessage = msg;
     } catch (e) {
       console.warn("[send-message] خطأ في حفظ الرسالة:", e);

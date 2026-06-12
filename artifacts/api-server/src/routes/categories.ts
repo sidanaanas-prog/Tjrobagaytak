@@ -23,17 +23,20 @@ router.post("/categories", authenticate, requireAdmin, async (req, res): Promise
     res.status(400).json({ error: "Name is required" });
     return;
   }
-  const [cat] = await db.insert(categoriesTable).values({ id: randomUUID(), name, icon: icon ?? null }).returning();
+  const catId = randomUUID();
+  await db.insert(categoriesTable).values({ id: catId, name, icon: icon ?? null });
+  const [cat] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, catId));
   res.status(201).json({ id: cat.id, name: cat.name, icon: cat.icon, productCount: 0 });
 });
 
 router.delete("/categories/:id", authenticate, requireAdmin, async (req, res): Promise<void> => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const [cat] = await db.delete(categoriesTable).where(eq(categoriesTable.id, id as string)).returning();
+  const [cat] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, id as string));
   if (!cat) {
     res.status(404).json({ error: "Category not found" });
     return;
   }
+  await db.delete(categoriesTable).where(eq(categoriesTable.id, id as string));
   res.json({ message: "Category deleted" });
 });
 

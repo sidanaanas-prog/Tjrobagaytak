@@ -61,7 +61,8 @@ export async function sendOtp(phone: string): Promise<{ success: boolean; error?
         console.log(`[OTP-DEV] Wasender failed (${res.status}) but code saved in DB: ${code}`);
         return { success: true, code };
       }
-      await db.delete(phoneOtpsTable).where(eq(phoneOtpsTable.phone, phone));
+      // لا نحذف الرمز من DB - يمكن أن يكون Wasender فاشلاً مؤقتاً
+      // والمستخدم يمكنه استخدام الرمز في dev mode أو إعادة الإرسال
       return { success: false, error: data?.message || data?.error || "فشل إرسال الرمز" };
     }
 
@@ -72,7 +73,7 @@ export async function sendOtp(phone: string): Promise<{ success: boolean; error?
       console.log(`[OTP-DEV] Network error but code saved in DB: ${code}`);
       return { success: true, code };
     }
-    await db.delete(phoneOtpsTable).where(eq(phoneOtpsTable.phone, phone));
+    // لا نحذف الرمز من DB عند خطأ شبكة
     return { success: false, error: "خطأ في الاتصال بخدمة الرسائل" };
   }
 }
