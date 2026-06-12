@@ -113,7 +113,8 @@ router.post("/auth/otp/verify", async (req, res): Promise<void> => {
 
     if (!user) {
       const id = randomUUID();
-      const [created] = await db.insert(usersTable).values({
+      // Neon HTTP driver لا يدعم .returning() → نستخدم select() بعد الإدخال
+      await db.insert(usersTable).values({
         id,
         name: userName,
         phone: normalized,
@@ -121,22 +122,23 @@ router.post("/auth/otp/verify", async (req, res): Promise<void> => {
         passwordHash: randomUUID(),
         role: "user",
         banned: false,
-      }).returning();
+      });
+      const [created] = await db.select().from(usersTable).where(eq(usersTable.id, id));
       user = created;
 
       await db.insert(activityTable).values({
         id: randomUUID(),
         type: "user_registered",
         description: `${userName} انضم عبر رقم الهاتف`,
-        userId: user.id,
-        userName: user.name,
+        userId: id,
+        userName: userName,
       });
     } else if (needsName(user) && name?.trim()) {
-      const [updated] = await db
+      await db
         .update(usersTable)
         .set({ name: name.trim() })
-        .where(eq(usersTable.id, user.id))
-        .returning();
+        .where(eq(usersTable.id, user.id));
+      const [updated] = await db.select().from(usersTable).where(eq(usersTable.id, user.id));
       user = updated;
     }
 

@@ -25,7 +25,8 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     const passwordHash = await bcrypt.hash(password, 10);
     const id = randomUUID();
 
-    const [user] = await db.insert(usersTable).values({
+    // Neon HTTP driver لا يدعم .returning()
+    await db.insert(usersTable).values({
       id,
       name,
       email,
@@ -33,14 +34,15 @@ router.post("/auth/register", async (req, res): Promise<void> => {
       avatar: avatar ?? null,
       role: "user",
       banned: false,
-    }).returning();
+    });
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id));
 
     await db.insert(activityTable).values({
       id: randomUUID(),
       type: "user_registered",
       description: `${name} joined the platform`,
-      userId: user.id,
-      userName: user.name,
+      userId: id,
+      userName: name,
     });
 
     const token = signToken({ userId: user.id, role: user.role });
