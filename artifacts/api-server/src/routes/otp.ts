@@ -67,17 +67,27 @@ router.post("/auth/otp/send", async (req, res): Promise<void> => {
       return;
     }
 
-    const [existing] = (await db.select().from(usersTable).where(eq(usersTable.phone, normalized))) ?? [];
+    // حماية: حتى لو فشل استعلام DB بعد إرسال الرمز، نُرجع success
+    // لأن الرمز وصل للمستخدم ويجب أن يتمكن من إدخاله
+    let isNewUser = true;
+    try {
+      const [existing] = (await db.select().from(usersTable).where(eq(usersTable.phone, normalized))) ?? [];
+      isNewUser = needsName(existing);
+    } catch (dbErr: any) {
+      req.log.error({ err: dbErr }, "otp/send db query error (non-fatal)");
+      // fallback: افتراض أنه مستخدم جديد
+      isNewUser = true;
+    }
 
     const devCode = isDev ? result.code : undefined;
 
     res.json({
       success: true,
-      isNewUser: needsName(existing),
+      isNewUser,
       ...(devCode ? { devCode } : {}),
     });
   } catch (e) {
-    req.log.error({ err: e }, "otp/send error");
+    req.log.error({ err: e }, "otp/send fatal error");
     res.status(500).json({ error: "حدث خطأ، حاول مجدداً" });
   }
 });
