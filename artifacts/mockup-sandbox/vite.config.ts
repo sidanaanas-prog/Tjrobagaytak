@@ -7,24 +7,13 @@ import { mockupPreviewPlugin } from "./mockupPreviewPlugin";
 
 const rawPort = process.env.PORT;
 
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
+// Build only: use dummy port since PORT/BASE_PATH are only needed for dev server
+const port = Number(rawPort || "8081");
 
-const port = Number(rawPort);
+const basePath = process.env.BASE_PATH || "/__mockup";
 
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
-}
-
-const basePath = process.env.BASE_PATH;
-
-if (!basePath) {
-  throw new Error(
-    "BASE_PATH environment variable is required but was not provided.",
-  );
+if (process.env.NODE_ENV !== "production" && !rawPort) {
+  console.warn("PORT not set, using fallback 8081 for build only");
 }
 
 export default defineConfig({
