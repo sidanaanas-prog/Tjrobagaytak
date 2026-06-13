@@ -3,7 +3,7 @@ import { useAuth, getMemToken } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { getApiUrl } from "@/lib/api-url";
-import { compressImage } from "@/lib/compress-image";
+import { uploadDriverDocument } from "@/lib/upload-image";
 import { motion } from "framer-motion";
 import {
   Car, Upload, ChevronLeft, Check, Loader2, Shield,
@@ -29,10 +29,15 @@ export default function DriverRegisterPage() {
   const [vehiclePlate, setVehiclePlate] = useState("");
   const [vehicleColor, setVehicleColor] = useState("");
 
-  const [licenseImage, setLicenseImage] = useState<string | null>(null);
-  const [idCardImage, setIdCardImage] = useState<string | null>(null);
-  const [vehicleDocImage, setVehicleDocImage] = useState<string | null>(null);
+  const [licensePreview, setLicensePreview] = useState<string | null>(null);
+  const [idCardPreview, setIdCardPreview] = useState<string | null>(null);
+  const [vehicleDocPreview, setVehicleDocPreview] = useState<string | null>(null);
 
+  const [licenseFile, setLicenseFile] = useState<File | null>(null);
+  const [idCardFile, setIdCardFile] = useState<File | null>(null);
+  const [vehicleDocFile, setVehicleDocFile] = useState<File | null>(null);
+
+  const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const licenseRef = useRef<HTMLInputElement>(null);
@@ -41,13 +46,17 @@ export default function DriverRegisterPage() {
 
   async function handleFile(
     file: File,
-    setter: (v: string) => void
+    setter: (v: string) => void,
+    fileSetter: (v: File) => void
   ) {
     try {
-      const compressed = await compressImage(file, 1200, 0.85);
-      setter(compressed);
+      // Create preview from original file
+      const reader = new FileReader();
+      reader.onload = () => setter(reader.result as string);
+      reader.readAsDataURL(file);
+      fileSetter(file);
     } catch {
-      toast({ variant: "destructive", title: "خطأ", description: "فشل ضغط الصورة" });
+      toast({ variant: "destructive", title: "خطأ", description: "فشل معاينة الصورة" });
     }
   }
 
@@ -56,7 +65,7 @@ export default function DriverRegisterPage() {
       toast({ variant: "destructive", title: "معلومات ناقصة", description: "أكمل معلومات المركبة" });
       return;
     }
-    if (!licenseImage || !idCardImage) {
+    if (!licenseFile || !idCardFile) {
       toast({ variant: "destructive", title: "وثائق ناقصة", description: "ارفع رخصة القيادة وبطاقة الهوية" });
       return;
     }
@@ -64,6 +73,16 @@ export default function DriverRegisterPage() {
     setSubmitting(true);
     const token = getMemToken();
     try {
+      // 1) Upload images to server
+      setUploading(true);
+      const [licenseUrl, idCardUrl, vehicleDocUrl] = await Promise.all([
+        uploadDriverDocument(licenseFile, user!.id, "license"),
+        uploadDriverDocument(idCardFile, user!.id, "id"),
+        vehicleDocFile ? uploadDriverDocument(vehicleDocFile, user!.id, "vehicle") : Promise.resolve(null),
+      ]);
+      setUploading(false);
+
+      // 2) Submit profile with URLs
       const res = await fetch(`${BASE}/api/driver/profile`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -72,9 +91,9 @@ export default function DriverRegisterPage() {
           vehicleModel,
           vehiclePlate,
           vehicleColor,
-          licenseImage,
-          idCardImage,
-          vehicleDocImage,
+          licenseImage: licenseUrl,
+          idCardImage: idCardUrl,
+          vehicleDocImage: vehicleDocUrl,
         }),
       });
       const data = await res.json();
@@ -84,10 +103,11 @@ export default function DriverRegisterPage() {
       } else {
         toast({ variant: "destructive", title: "خطأ", description: data.error || "فشل التسجيل" });
       }
-    } catch {
-      toast({ variant: "destructive", title: "خطأ", description: "تعذر الاتصال بالخادم" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "خطأ", description: e.message || "تعذر الاتصال بالخادم" });
     }
     setSubmitting(false);
+    setUploading(false);
   }
 
   return (
@@ -210,14 +230,14 @@ export default function DriverRegisterPage() {
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) handleFile(file, setLicenseImage);
+                if (file) handleFile(file, setLicensePreview, setLicenseFile);
               }}
             />
-            {licenseImage ? (
+            {licensePreview ? (
               <div className="relative">
-                <img src={licenseImage} alt="رخصة" className="w-full h-32 object-cover rounded-lg" />
+                <img src={licensePreview} alt="رخصة" className="w-full h-32 object-cover rounded-lg" />
                 <button
-                  onClick={() => setLicenseImage(null)}
+                  onClick={() => { setLicensePreview(null); setLicenseFile(null); }}
                   className="absolute top-2 left-2 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center"
                 >
                   <ChevronLeft className="w-4 h-4 text-white" />
@@ -248,14 +268,14 @@ export default function DriverRegisterPage() {
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) handleFile(file, setIdCardImage);
+                if (file) handleFile(file, setIdCardPreview, setIdCardFile);
               }}
             />
-            {idCardImage ? (
+            {idCardPreview ? (
               <div className="relative">
-                <img src={idCardImage} alt="هوية" className="w-full h-32 object-cover rounded-lg" />
+                <img src={idCardPreview} alt="هوية" className="w-full h-32 object-cover rounded-lg" />
                 <button
-                  onClick={() => setIdCardImage(null)}
+                  onClick={() => { setIdCardPreview(null); setIdCardFile(null); }}
                   className="absolute top-2 left-2 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center"
                 >
                   <ChevronLeft className="w-4 h-4 text-white" />
@@ -286,14 +306,14 @@ export default function DriverRegisterPage() {
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) handleFile(file, setVehicleDocImage);
+                if (file) handleFile(file, setVehicleDocPreview, setVehicleDocFile);
               }}
             />
-            {vehicleDocImage ? (
+            {vehicleDocPreview ? (
               <div className="relative">
-                <img src={vehicleDocImage} alt="رخصة سير" className="w-full h-32 object-cover rounded-lg" />
+                <img src={vehicleDocPreview} alt="رخصة سير" className="w-full h-32 object-cover rounded-lg" />
                 <button
-                  onClick={() => setVehicleDocImage(null)}
+                  onClick={() => { setVehicleDocPreview(null); setVehicleDocFile(null); }}
                   className="absolute top-2 left-2 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center"
                 >
                   <ChevronLeft className="w-4 h-4 text-white" />
@@ -316,7 +336,7 @@ export default function DriverRegisterPage() {
             </button>
             <button
               onClick={() => setStep(3)}
-              disabled={!licenseImage || !idCardImage}
+              disabled={!licenseFile || !idCardFile}
               className="flex-1 bg-primary text-primary-foreground py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
             >
               التالي <ChevronLeft className="w-4 h-4" />
@@ -365,7 +385,7 @@ export default function DriverRegisterPage() {
                 <Check className="w-4 h-4 text-green-400" />
                 <span>بطاقة الهوية: مرفقة</span>
               </div>
-              {vehicleDocImage && (
+              {vehicleDocFile && (
                 <div className="flex items-center gap-2 text-sm mt-1">
                   <Check className="w-4 h-4 text-green-400" />
                   <span>رخصة السير: مرفقة</span>
@@ -388,11 +408,11 @@ export default function DriverRegisterPage() {
             </button>
             <button
               onClick={handleSubmit}
-              disabled={submitting}
+              disabled={submitting || uploading}
               className="flex-1 bg-primary text-primary-foreground py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              {submitting ? "جاري الإرسال..." : "إرسال التسجيل"}
+              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              {uploading ? "جاري رفع الصور..." : submitting ? "جاري الإرسال..." : "إرسال التسجيل"}
             </button>
           </div>
         </motion.div>

@@ -5,6 +5,7 @@ import { useAuth, getMemToken } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/lib/api-url";
 import { compressImage } from "@/lib/compress-image";
+import { uploadDriverDocument } from "@/lib/upload-image";
 import { Crown, Upload, ChevronRight, Loader2, X, Clock, AlertTriangle, RefreshCw, ShieldCheck, Banknote, Copy, Check, Car, Shield, CreditCard, FileText, ChevronLeft } from "lucide-react";
 
 const BASE = getApiUrl("");
@@ -54,6 +55,9 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
   const [licenseImage, setLicenseImage] = useState<string | null>(null);
   const [idCardImage, setIdCardImage] = useState<string | null>(null);
   const [vehicleDocImage, setVehicleDocImage] = useState<string | null>(null);
+  const [licenseFile, setLicenseFile] = useState<File | null>(null);
+  const [idCardFile, setIdCardFile] = useState<File | null>(null);
+  const [vehicleDocFile, setVehicleDocFile] = useState<File | null>(null);
 
   // Payment state
   const [step, setStep] = useState<"vehicle" | "documents" | "payment" | "bankily" | "cash">("vehicle");
@@ -73,6 +77,7 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
     setStep("vehicle");
     setVehicleType(""); setVehicleModel(""); setVehiclePlate(""); setVehicleColor("");
     setLicenseImage(null); setIdCardImage(null); setVehicleDocImage(null);
+    setLicenseFile(null); setIdCardFile(null); setVehicleDocFile(null);
     setProofFile(null); setProofPreview(null);
     setIdFile(null); setIdPreview(null);
     setSubmitting(false);
@@ -83,6 +88,7 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
     setShowModal(false);
     setVehicleType(""); setVehicleModel(""); setVehiclePlate(""); setVehicleColor("");
     setLicenseImage(null); setIdCardImage(null); setVehicleDocImage(null);
+    setLicenseFile(null); setIdCardFile(null); setVehicleDocFile(null);
     setProofFile(null); setProofPreview(null);
     setIdFile(null); setIdPreview(null);
     setSubmitting(false);
@@ -106,7 +112,7 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
 
   // Step 2 → 3
   function goToPayment() {
-    if (!licenseImage || !idCardImage) {
+    if (!licenseFile || !idCardFile) {
       toast({ variant: "destructive", title: "وثائق ناقصة", description: "ارفع رخصة القيادة وبطاقة الهوية" });
       return;
     }
@@ -119,7 +125,13 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
     setSubmitting(true);
     try {
       const token = getMemToken();
-      // 1) Save profile
+      // 1) Upload driver docs
+      const [licenseUrl, idCardUrl, vehicleDocUrl] = await Promise.all([
+        licenseFile ? uploadDriverDocument(licenseFile, user!.id, "license") : Promise.resolve(null),
+        idCardFile ? uploadDriverDocument(idCardFile, user!.id, "id") : Promise.resolve(null),
+        vehicleDocFile ? uploadDriverDocument(vehicleDocFile, user!.id, "vehicle") : Promise.resolve(null),
+      ]);
+      // 2) Save profile
       const profileRes = await fetch(`${BASE}/api/driver/profile`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -128,15 +140,15 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
           vehicleModel,
           vehiclePlate,
           vehicleColor,
-          licenseImage,
-          idCardImage,
-          vehicleDocImage,
+          licenseImage: licenseUrl,
+          idCardImage: idCardUrl,
+          vehicleDocImage: vehicleDocUrl,
         }),
       });
       const profileData = await profileRes.json();
       if (!profileData.success) throw new Error(profileData.error || "فشل حفظ الملف الشخصي");
 
-      // 2) Submit subscription
+      // 3) Submit subscription
       const proofBase64 = await fileToBase64(proofFile);
       const idBase64 = await fileToBase64(idFile);
       const res = await fetch(`${BASE}/api/subscriptions`, {
@@ -158,7 +170,13 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
     setSubmitting(true);
     try {
       const token = getMemToken();
-      // 1) Save profile
+      // 1) Upload driver docs
+      const [licenseUrl, idCardUrl, vehicleDocUrl] = await Promise.all([
+        licenseFile ? uploadDriverDocument(licenseFile, user!.id, "license") : Promise.resolve(null),
+        idCardFile ? uploadDriverDocument(idCardFile, user!.id, "id") : Promise.resolve(null),
+        vehicleDocFile ? uploadDriverDocument(vehicleDocFile, user!.id, "vehicle") : Promise.resolve(null),
+      ]);
+      // 2) Save profile
       const profileRes = await fetch(`${BASE}/api/driver/profile`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -167,15 +185,15 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
           vehicleModel,
           vehiclePlate,
           vehicleColor,
-          licenseImage,
-          idCardImage,
-          vehicleDocImage,
+          licenseImage: licenseUrl,
+          idCardImage: idCardUrl,
+          vehicleDocImage: vehicleDocUrl,
         }),
       });
       const profileData = await profileRes.json();
       if (!profileData.success) throw new Error(profileData.error || "فشل حفظ الملف الشخصي");
 
-      // 2) Submit subscription
+      // 3) Submit subscription
       const idBase64 = await fileToBase64(idFile);
       const res = await fetch(`${BASE}/api/subscriptions`, {
         method: "POST",
@@ -444,14 +462,14 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
                         className="hidden"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
-                          if (file) pickFile(file, setLicenseImage);
+                          if (file) { pickFile(file, setLicenseImage); setLicenseFile(file); }
                         }}
                       />
                       {licenseImage ? (
                         <div className="relative">
                           <img src={licenseImage} alt="رخصة" className="w-full h-32 object-cover rounded-lg" />
                           <button
-                            onClick={() => setLicenseImage(null)}
+                            onClick={() => { setLicenseImage(null); setLicenseFile(null); }}
                             className="absolute top-2 left-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center"
                           >
                             <X className="w-3.5 h-3.5 text-white" />
@@ -482,14 +500,14 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
                         className="hidden"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
-                          if (file) pickFile(file, setIdCardImage);
+                          if (file) { pickFile(file, setIdCardImage); setIdCardFile(file); }
                         }}
                       />
                       {idCardImage ? (
                         <div className="relative">
                           <img src={idCardImage} alt="هوية" className="w-full h-32 object-cover rounded-lg" />
                           <button
-                            onClick={() => setIdCardImage(null)}
+                            onClick={() => { setIdCardImage(null); setIdCardFile(null); }}
                             className="absolute top-2 left-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center"
                           >
                             <X className="w-3.5 h-3.5 text-white" />
@@ -520,14 +538,14 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
                         className="hidden"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
-                          if (file) pickFile(file, setVehicleDocImage);
+                          if (file) { pickFile(file, setVehicleDocImage); setVehicleDocFile(file); }
                         }}
                       />
                       {vehicleDocImage ? (
                         <div className="relative">
                           <img src={vehicleDocImage} alt="رخصة سير" className="w-full h-32 object-cover rounded-lg" />
                           <button
-                            onClick={() => setVehicleDocImage(null)}
+                            onClick={() => { setVehicleDocImage(null); setVehicleDocFile(null); }}
                             className="absolute top-2 left-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center"
                           >
                             <X className="w-3.5 h-3.5 text-white" />
@@ -546,7 +564,7 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
 
                     <button
                       onClick={goToPayment}
-                      disabled={!licenseImage || !idCardImage}
+                      disabled={!licenseFile || !idCardFile}
                       className="w-full bg-primary text-primary-foreground py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
                     >
                       التالي <ChevronLeft className="w-4 h-4" />

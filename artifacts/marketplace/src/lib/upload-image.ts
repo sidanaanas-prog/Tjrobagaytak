@@ -85,3 +85,7 @@ export async function uploadStoryImage(file: File, userId: string): Promise<stri
 export async function uploadChatImage(file: File, conversationId: string): Promise<string> {
   return uploadImageToFirebase(file, `chat/${conversationId}/${Date.now()}.jpg`, 1200, 0.85);
 }
+
+export async function uploadDriverDocument(file: File, userId: string, type: "license" | "id" | "vehicle"): Promise<string> {
+  return uploadImageToFirebase(file, `drivers/${userId}/${type}_${Date.now()}.jpg`, 1200, 0.85);
+}
