@@ -33,7 +33,7 @@ function compressImage(file: File, maxSize = 900, quality = 0.8): Promise<string
   });
 }
 
-/** Upload to API server (Cloudinary or Replit Object Storage) */
+/** Upload to API server (Replit Object Storage) */
 async function uploadToServer(
   file: File,
   path: string,
