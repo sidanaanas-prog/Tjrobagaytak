@@ -75,7 +75,11 @@ router.post("/subscriptions", authenticate, async (req, res): Promise<void> => {
     }
 
     const [pending] = (await db.select().from(subscriptionsTable).where(
-      and(eq(subscriptionsTable.userId, userId), eq(subscriptionsTable.status, "pending"), eq(subscriptionsTable.type, subType))
+      and(
+        eq(subscriptionsTable.userId, userId),
+        eq(subscriptionsTable.status, "pending"),
+        eq(subscriptionsTable.type, subType)
+      )
     )) ?? [];
     if (pending) {
       res.status(409).json({ error: "لديك طلب اشتراك قيد المراجعة بالفعل" });
