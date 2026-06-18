@@ -44,12 +44,41 @@ export function useRideAlert() {
   return ctx;
 }
 
+// ملف صوت ممبلي للرنة المميزة (موشور)
+const CALL_RING_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+
+// نشطف audio لوك مقالب لمساعدة متصفحي
+let audioCtx: AudioContext | null = null;
+
+function getAudioContext() {
+  if (!audioCtx) {
+    const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (AudioCtx) audioCtx = new AudioCtx();
+  }
+  return audioCtx;
+}
+
+// فتح AudioContext بتفاعل مستخدم (لمساعدة Safari)
+export function unlockAudioContext() {
+  const ctx = getAudioContext();
+  if (ctx && ctx.state === "suspended") {
+    ctx.resume();
+  }
+  // شغل صوت صامت لفتح القيود
+  const silent = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQQAAAA=");
+  silent.play().catch(() => {});
+}
+
 // رنة مكالمة مستمرة (تكرار بشكل مستمر)
 function playContinuousAlert() {
   try {
-    const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
-    if (!AudioCtx) return null;
-    const ctx = new AudioCtx();
+    const ctx = getAudioContext();
+    if (!ctx) return null;
+
+    // تأكد أن الـ AudioContext مفتوح
+    if (ctx.state === "suspended") {
+      ctx.resume();
+    }
 
     const playTone = (freq: number, start: number, duration: number) => {
       const osc = ctx.createOscillator();
@@ -84,7 +113,6 @@ function playContinuousAlert() {
 
     return () => {
       clearInterval(interval);
-      ctx.close();
     };
   } catch {
     return null;

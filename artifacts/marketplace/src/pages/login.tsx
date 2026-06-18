@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowRight, ChevronDown, ChevronRight, Shield } from "lucide-react";
 import { getApiUrl, RENDER_API_URL } from "@/lib/api-url";
+import { unlockAudioContext } from "@/components/RideAlertProvider";
 
 const BASE = getApiUrl("");
 
@@ -284,6 +285,8 @@ export default function LoginPage() {
       );
       if (!res.ok) throw new Error(data.error || "الرمز غير صحيح");
       setAuthToken(data.token);
+      // فتح AudioContext لتفعيل صوت الإشعارات (مطلوب من Safari)
+      unlockAudioContext();
       toast({ title: isNewUser ? "أهلاً بك في Gaytak 🎉" : "مرحباً بك مجدداً 👋" });
       setLocation("/");
     } catch (err: any) {

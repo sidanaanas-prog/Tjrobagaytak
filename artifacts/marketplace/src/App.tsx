@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth, handle401 } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { RideAlertProvider } from "@/components/RideAlertProvider";
+import { RideAlertProvider, unlockAudioContext } from "@/components/RideAlertProvider";
 
 import NotFound from "@/pages/not-found";
 import HomePage from "@/pages/home";
