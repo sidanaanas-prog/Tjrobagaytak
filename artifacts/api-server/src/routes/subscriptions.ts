@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, subscriptionsTable, usersTable, activityTable, driverProfilesTable } from "@workspace/db";
-import { eq, desc, and, inArray, sql } from "drizzle-orm";
+import { eq, desc, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { authenticate, requireAdmin } from "../lib/auth";
 import { notifyUsers } from "../lib/notifications";
@@ -25,12 +25,13 @@ router.get("/subscriptions/my", authenticate, async (req, res): Promise<void> =>
     const now = new Date();
     const isActive = !!(user?.isVerified && user.subscriptionExpiresAt && user.subscriptionExpiresAt > now);
 
-    const [latest] = (await db
+    const userSubs2 = (await db
       .select()
       .from(subscriptionsTable)
-      .where(sql`${subscriptionsTable.userId} = ${userId} AND ${subscriptionsTable.type} = 'seller'`)
+      .where(eq(subscriptionsTable.userId, userId))
       .orderBy(desc(subscriptionsTable.createdAt))
       .limit(1)) ?? [];
+    const latest = userSubs2.find((r) => r.type === "seller");
 
     res.json({
       isActive,
@@ -71,9 +72,8 @@ router.post("/subscriptions", authenticate, async (req, res): Promise<void> => {
       return;
     }
 
-    const [pending] = (await db.select().from(subscriptionsTable).where(
-      sql`${subscriptionsTable.userId} = ${userId} AND ${subscriptionsTable.status} = 'pending' AND ${subscriptionsTable.type} = ${subType}`
-    ).limit(1)) ?? [];
+    const userSubs = (await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId))) ?? [];
+    const pending = userSubs.find((r) => r.status === "pending" && r.type === subType);
     if (pending) {
       res.status(409).json({ error: "لديك طلب اشتراك قيد المراجعة بالفعل" });
       return;
