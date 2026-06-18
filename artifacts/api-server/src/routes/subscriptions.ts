@@ -25,10 +25,11 @@ router.get("/subscriptions/my", authenticate, async (req, res): Promise<void> =>
     const now = new Date();
     const isActive = !!(user?.isVerified && user.subscriptionExpiresAt && user.subscriptionExpiresAt > now);
 
-    const userSubs2 = (await db.execute(sql`
+    const rawResult2 = await db.execute(sql`
       SELECT * FROM "subscriptions" WHERE "user_id" = ${userId} ORDER BY "created_at" DESC LIMIT 1
-    `)) ?? [];
-    const latest = (userSubs2 as any[]).find((r: any) => r.type === "seller");
+    `);
+    const userSubs2 = (rawResult2.rows ?? rawResult2 ?? []) as any[];
+    const latest = userSubs2.find((r: any) => r.type === "seller");
 
     res.json({
       isActive,
@@ -70,10 +71,11 @@ router.post("/subscriptions", authenticate, async (req, res): Promise<void> => {
     }
 
     // استخدام raw SQL بدلاً من eq()+انتشار مباشر لتجنب بغ 42P02
-    const userSubs = (await db.execute(sql`
+    const rawResult = await db.execute(sql`
       SELECT * FROM "subscriptions" WHERE "user_id" = ${userId}
-    `)) ?? [];
-    const pending = (userSubs as any[]).find((r: any) => r.status === "pending" && r.type === subType);
+    `);
+    const userSubs = (rawResult.rows ?? rawResult ?? []) as any[];
+    const pending = userSubs.find((r: any) => r.status === "pending" && r.type === subType);
     if (pending) {
       res.status(409).json({ error: "لديك طلب اشتراك قيد المراجعة بالفعل" });
       return;
