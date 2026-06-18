@@ -12,12 +12,11 @@
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",
     "@google/genai": "^1.44.0",
-    "p-limit": "^7.3.0",
-    "p-retry": "^7.1.1",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
     "@workspace/integrations-gemini-ai": "workspace:*",
     "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.10.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2",
     "drizzle-orm": "catalog:",
@@ -26,6 +25,8 @@
     "firebase-admin": "^13.8.0",
     "google-auth-library": "^10.6.2",
     "jsonwebtoken": "^9.0.3",
+    "p-limit": "^7.3.0",
+    "p-retry": "^7.1.1",
     "pg": "^8.20.0",
     "pino": "^9",
     "pino-http": "^10"

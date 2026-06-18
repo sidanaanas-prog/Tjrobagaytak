@@ -11,23 +11,44 @@ import {
 
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
 
-export const objectStorageClient = new Storage({
-  credentials: {
-    audience: "replit",
-    subject_token_type: "access_token",
-    token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
-    type: "external_account",
-    credential_source: {
-      url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
-      format: {
-        type: "json",
-        subject_token_field_name: "access_token",
+// ─── Lazy client: only create when Replit Object Storage is actually used ───
+// This prevents crashes on Render and other non-Replit hosts where the sidecar
+// endpoint does not exist.
+
+let _storageClient: Storage | null = null;
+
+export function getObjectStorageClient(): Storage {
+  if (!_storageClient) {
+    _storageClient = new Storage({
+      credentials: {
+        audience: "replit",
+        subject_token_type: "access_token",
+        token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
+        type: "external_account",
+        credential_source: {
+          url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
+          format: {
+            type: "json",
+            subject_token_field_name: "access_token",
+          },
+        },
+        universe_domain: "googleapis.com",
       },
-    },
-    universe_domain: "googleapis.com",
+      projectId: "",
+    });
+  }
+  return _storageClient;
+}
+
+// Backwards-compatible export — still works on Replit, lazy on other hosts
+export const objectStorageClient = new Proxy({} as Storage, {
+  get(_target, prop) {
+    const client = getObjectStorageClient();
+    const value = (client as any)[prop];
+    return typeof value === "function" ? value.bind(client) : value;
   },
-  projectId: "",
 });
+
 
 export class ObjectNotFoundError extends Error {
   constructor() {
