@@ -84,31 +84,21 @@ router.post("/subscriptions", authenticate, async (req, res): Promise<void> => {
     const planInfo = PLANS[plan as keyof typeof PLANS];
     const id = randomUUID();
 
-    await db.insert(subscriptionsTable).values({
-      id,
-      userId,
-      type: subType,
-      plan,
-      paymentMethod,
-      status: "pending",
-      price: String(planInfo.price),
-      paymentProofUrl: paymentProofUrl ?? null,
-      idDocumentUrl: idDocumentUrl ?? null,
-      notes: notes ?? null,
-      createdAt: new Date(),
-    });
+    // استخدام raw SQL للـ INSERT لتجنب مشاكل db.insert() مع Neon HTTP driver
+    const now = new Date().toISOString();
+    await db.execute(sql`
+      INSERT INTO "subscriptions" ("id", "user_id", "type", "plan", "payment_method", "status", "price", "payment_proof_url", "id_document_url", "notes", "created_at")
+      VALUES (${id}, ${userId}, ${subType}, ${plan}, ${paymentMethod}, 'pending', ${String(planInfo.price)}, ${paymentProofUrl ?? null}, ${idDocumentUrl ?? null}, ${notes ?? null}, ${now})
+    `);
 
     const userResult = await db.execute(sql`SELECT "name" FROM "users" WHERE "id" = ${userId} LIMIT 1`);
     const users = (userResult.rows ?? userResult ?? []) as any[];
     const user = users[0] ?? { name: null };
 
-    await db.insert(activityTable).values({
-      id: randomUUID(),
-      type: "subscription_request",
-      description: `طلب اشتراك جديد (${planInfo.label}) — ${paymentMethod === "ccp" ? "CCP" : "نقدي"} — ${user?.name ?? "مستخدم"}`,
-      userId,
-      userName: user?.name ?? "مستخدم",
-    });
+    await db.execute(sql`
+      INSERT INTO "activity" ("id", "type", "description", "user_id", "user_name", "created_at")
+      VALUES (${randomUUID()}, 'subscription_request', ${`طلب اشتراك جديد (${planInfo.label}) — ${paymentMethod === "ccp" ? "CCP" : "نقدي"} — ${user?.name ?? "مستخدم"}`}, ${userId}, ${user?.name ?? "مستخدم"}, ${now})
+    `);
 
     try {
       const [admin] = (await db.select({ id: usersTable.id })
