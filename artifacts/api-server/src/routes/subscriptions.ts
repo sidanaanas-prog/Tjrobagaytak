@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, subscriptionsTable, usersTable, activityTable, driverProfilesTable } from "@workspace/db";
-import { eq, desc, inArray } from "drizzle-orm";
+import { eq, desc, inArray, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { authenticate, requireAdmin } from "../lib/auth";
 import { notifyUsers } from "../lib/notifications";
@@ -25,13 +25,10 @@ router.get("/subscriptions/my", authenticate, async (req, res): Promise<void> =>
     const now = new Date();
     const isActive = !!(user?.isVerified && user.subscriptionExpiresAt && user.subscriptionExpiresAt > now);
 
-    const userSubs2 = (await db
-      .select()
-      .from(subscriptionsTable)
-      .where(eq(subscriptionsTable.userId, userId))
-      .orderBy(desc(subscriptionsTable.createdAt))
-      .limit(1)) ?? [];
-    const latest = userSubs2.find((r) => r.type === "seller");
+    const userSubs2 = (await db.execute(sql`
+      SELECT * FROM "subscriptions" WHERE "user_id" = ${userId} ORDER BY "created_at" DESC LIMIT 1
+    `)) ?? [];
+    const latest = (userSubs2 as any[]).find((r: any) => r.type === "seller");
 
     res.json({
       isActive,
@@ -72,8 +69,11 @@ router.post("/subscriptions", authenticate, async (req, res): Promise<void> => {
       return;
     }
 
-    const userSubs = (await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId))) ?? [];
-    const pending = userSubs.find((r) => r.status === "pending" && r.type === subType);
+    // استخدام raw SQL بدلاً من eq()+انتشار مباشر لتجنب بغ 42P02
+    const userSubs = (await db.execute(sql`
+      SELECT * FROM "subscriptions" WHERE "user_id" = ${userId}
+    `)) ?? [];
+    const pending = (userSubs as any[]).find((r: any) => r.status === "pending" && r.type === subType);
     if (pending) {
       res.status(409).json({ error: "لديك طلب اشتراك قيد المراجعة بالفعل" });
       return;
