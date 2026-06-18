@@ -60,13 +60,28 @@ export default function RoleSelectPage() {
     const token = getMemToken();
     if (!token) { navigate("/login"); return; }
     fetch(`${BASE}/api/user/roles`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({ error: "فشل الاتصال" }));
+          throw new Error(err.error || `HTTP ${r.status}`);
+        }
+        return r.json();
+      })
       .then((roles: string[]) => {
-        setMyRoles(roles);
-        setSelected(roles);
+        const safeRoles = Array.isArray(roles) ? roles : [];
+        setMyRoles(safeRoles);
+        setSelected(safeRoles);
         setLoading(false);
+      })
+      .catch((err) => {
+        setLoading(false);
+        toast({
+          variant: "destructive",
+          title: "خطأ في الاتصال",
+          description: err?.message || "تعذر تحميل الأدوار. جرب مرة أخرى.",
+        });
       });
-  }, [navigate]);
+  }, [navigate, toast]);
 
   const toggle = (id: string) => {
     setSelected((prev) => prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id]);
