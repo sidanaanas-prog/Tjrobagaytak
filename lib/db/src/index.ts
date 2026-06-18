@@ -30,5 +30,8 @@ function buildDb() {
   return drizzleNode(pool, { schema });
 }
 
+// Helper to check if running on Neon
+export const isNeonDb = isNeon;
+
 export const db = buildDb();
 export * from "./schema";

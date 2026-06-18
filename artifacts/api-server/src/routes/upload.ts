@@ -72,18 +72,10 @@ router.post("/upload", authenticate, async (req: Request, res: Response): Promis
   try {
     const cleanBase64 = base64.replace(/^data:[^;]+;base64,/, "");
 
-    if (IS_REPLIT) {
-      // Replit: use Object Storage
-      const buffer = Buffer.from(cleanBase64, "base64");
-      const url = await uploadToReplitStorage(buffer, filePath, contentType, req);
-      console.log(`[Upload] ✅ Replit Storage: ${filePath}`);
-      res.json({ url, path: filePath });
-    } else {
-      // Non-Replit (Render, etc): use Cloudinary
-      const url = await uploadToCloudinary(base64, filePath.split("/")[0] || "general");
-      console.log(`[Upload] ✅ Cloudinary: ${filePath}`);
-      res.json({ url, path: filePath });
-    }
+    // Always use Cloudinary for cross-platform compatibility
+    const url = await uploadToCloudinary(base64, filePath.split("/")[0] || "general");
+    console.log(`[Upload] ✅ Cloudinary: ${filePath}`);
+    res.json({ url, path: filePath });
   } catch (err: any) {
     console.error("[Upload] ❌", err.message);
     res.status(500).json({ error: "Upload failed: " + err.message });
