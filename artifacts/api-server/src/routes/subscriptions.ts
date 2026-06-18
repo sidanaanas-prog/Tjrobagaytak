@@ -98,7 +98,9 @@ router.post("/subscriptions", authenticate, async (req, res): Promise<void> => {
       createdAt: new Date(),
     });
 
-    const [user] = (await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, userId))) ?? [];
+    const userResult = await db.execute(sql`SELECT "name" FROM "users" WHERE "id" = ${userId} LIMIT 1`);
+    const users = (userResult.rows ?? userResult ?? []) as any[];
+    const user = users[0] ?? { name: null };
 
     await db.insert(activityTable).values({
       id: randomUUID(),
