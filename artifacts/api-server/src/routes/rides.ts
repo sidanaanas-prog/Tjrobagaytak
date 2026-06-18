@@ -50,7 +50,13 @@ router.post("/rides", authenticate, async (req, res): Promise<void> => {
         userIds: drivers.map((d) => d.userId),
         title: "طلب نقل جديد! 🚕",
         body: `${fromAddress} → ${toAddress}`,
-        data: { type: "new_ride", rideId: id },
+        data: {
+          type: "new_ride",
+          rideId: id,
+          _fromAddress: fromAddress,
+          _toAddress: toAddress,
+          _price: String(price),
+        },
       });
     }
 
