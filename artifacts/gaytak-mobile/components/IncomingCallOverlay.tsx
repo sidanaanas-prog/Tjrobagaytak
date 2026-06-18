@@ -99,7 +99,7 @@ export function IncomingCallOverlay({ visible, ride, onAccept, onDismiss, loadin
 
           {/* Icon */}
           <View style={[styles.iconCircle, { backgroundColor: colors.primary + "20", borderColor: colors.primary + "40" }]}>
-            <Feather name="car" size={48} color={colors.primary} />
+            <Feather name={"car" as any} size={48} color={colors.primary} />
           </View>
 
           {/* Title */}

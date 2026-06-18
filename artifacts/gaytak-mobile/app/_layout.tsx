@@ -16,7 +16,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { useNotifications, initOneSignal } from "@/hooks/useNotifications";
+import { useNotifications, initNotifications } from "@/hooks/useNotifications";
 
 setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
 setAuthTokenGetter(async () => AsyncStorage.getItem("glow_token"));
@@ -64,7 +64,7 @@ export default function RootLayout() {
   }, [fontsLoaded, fontError]);
 
   useEffect(() => {
-    initOneSignal();
+    initNotifications();
   }, []);
 
   if (!fontsLoaded && !fontError) return null;

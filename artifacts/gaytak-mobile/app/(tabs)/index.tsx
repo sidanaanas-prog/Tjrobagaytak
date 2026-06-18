@@ -212,7 +212,7 @@ export default function HomeScreen() {
                 onPress={() => router.push("/ride-request")}
               >
                 <Text style={styles.heroBtnText}>طلب نقل</Text>
-                <Feather name="car" size={14} color="#FFF" />
+                <Feather name={"car" as any} size={14} color="#FFF" />
               </TouchableOpacity>
             </View>
           </View>

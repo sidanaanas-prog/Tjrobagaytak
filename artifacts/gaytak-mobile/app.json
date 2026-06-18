@@ -46,7 +46,17 @@
       ],
       "expo-font",
       "expo-web-browser",
-      "expo-image-picker"
+      "expo-image-picker",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#09090F",
+          "androidMode": "default",
+          "androidCollapsedTitle": "Gaytak",
+          "sounds": ["./assets/sounds/alert.mp3"]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
