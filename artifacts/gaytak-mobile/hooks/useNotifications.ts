@@ -111,8 +111,6 @@ export async function initNotifications() {
 
 // ── معالجة النقر على الإشعار ───────────────────────────────────────────────
 
-import { showIncomingCall } from "@/modules/GaytakCall";
-
 export function useNotificationHandlers() {
   const notificationListener = useRef<ReturnType<typeof Notifications.addNotificationReceivedListener> | null>(null);
   const responseListener = useRef<ReturnType<typeof Notifications.addNotificationResponseReceivedListener> | null>(null);
@@ -123,16 +121,6 @@ export function useNotificationHandlers() {
       (notification) => {
         const data = notification.request.content.data as any;
         console.log("[Notifications] received:", data);
-
-        // Show native incoming call screen for new ride requests
-        if (data?.type === "new_ride" && data?.rideId) {
-          showIncomingCall({
-            rideId: data.rideId,
-            fromAddress: data._fromAddress || "",
-            toAddress: data._toAddress || "",
-            price: data._price || "",
-          });
-        }
       }
     );
 
