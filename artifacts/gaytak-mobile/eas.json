@@ -1,0 +1,32 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_DOMAIN": "544d2f7d-c000-41b2-90f1-aabed66935a0-00-2rgnrupiswp8s.spock.replit.dev"
+      }
+    },
+    "production": {
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_DOMAIN": "544d2f7d-c000-41b2-90f1-aabed66935a0-00-2rgnrupiswp8s.spock.replit.dev"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

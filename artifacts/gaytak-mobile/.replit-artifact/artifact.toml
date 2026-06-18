@@ -1,0 +1,23 @@
+kind = "mobile"
+previewPath = "/gaytak-mobile/"
+title = "Gaytak Mobile"
+version = "1.0.0"
+id = "artifacts/gaytak-mobile"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/gaytak-mobile/" ]
+localPort = 22389
+
+[services.development]
+run = "pnpm --filter @workspace/gaytak-mobile run dev"
+
+[services.env]
+PORT = "22389"
+BASE_PATH = "/gaytak-mobile/"

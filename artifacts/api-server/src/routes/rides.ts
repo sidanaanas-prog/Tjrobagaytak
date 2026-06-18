@@ -474,6 +474,8 @@ router.get("/driver/subscription", authenticate, async (req, res): Promise<void>
       isPending,
       plan: isActive ? "driver_monthly" : null,
       hasProfile: !!profile?.documentsSubmittedAt,
+      documentsStatus: profile?.documentsStatus ?? "not_submitted",
+      licenseVerified: profile?.licenseVerified ?? false,
       latestRequest: pendingSub ?? null,
     });
   } catch (e: any) {

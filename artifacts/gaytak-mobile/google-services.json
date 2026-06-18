@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "434895788119",
+    "project_id": "gaytak-14727",
+    "storage_bucket": "gaytak-14727.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:434895788119:android:018452bf6a67da921fab12",
+        "android_client_info": {
+          "package_name": "com.gaytak.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyArJeUiIRQqsWVOrETiDwpplqhEp_EOv20"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
