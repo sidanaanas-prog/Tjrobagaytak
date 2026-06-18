@@ -76,52 +76,87 @@ router.get("/conversations", authenticate, async (req, res): Promise<void> => {
       .orderBy(desc(conversationsTable.updatedAt));
   }
 
-  const result = await Promise.all(
-    conversations.map(async (conv) => {
-      const [p1] = await db.select().from(usersTable).where(eq(usersTable.id, conv.participant1Id));
-      const [p2] = await db.select().from(usersTable).where(eq(usersTable.id, conv.participant2Id));
+  // Batch-fetch user data for ALL conversations in single queries to avoid N+1
+  const allParticipantIds = [...new Set(conversations.flatMap(c => [c.participant1Id, c.participant2Id]))];
+  const allUsers = allParticipantIds.length > 0
+    ? await db.select().from(usersTable).where(inArray(usersTable.id, allParticipantIds))
+    : [];
+  const userMap = Object.fromEntries(allUsers.map(u => [u.id, u]));
 
-      let product = null;
-      if (conv.productId) {
-        const [p] = await db.select().from(productsTable).where(eq(productsTable.id, conv.productId));
-        if (p) product = { id: p.id, title: p.title, price: Number(p.price), images: p.images, status: p.status, sellerId: p.sellerId, createdAt: p.createdAt.toISOString() };
-      }
+  const allProductIds = [...new Set(conversations.map(c => c.productId).filter(Boolean))] as string[];
+  const allProducts = allProductIds.length > 0
+    ? await db.select().from(productsTable).where(inArray(productsTable.id, allProductIds))
+    : [];
+  const productMap = Object.fromEntries(allProducts.map(p => [p.id, p]));
 
-      const [lastMsg] = await db
-        .select()
+  const allConvIds = conversations.map(c => c.id);
+  const lastMessages = allConvIds.length > 0
+    ? await db
+        .select({
+          conversationId: messagesTable.conversationId,
+          content: messagesTable.content,
+          senderId: messagesTable.senderId,
+          createdAt: messagesTable.createdAt,
+          id: messagesTable.id,
+          isRead: messagesTable.isRead,
+          replyToId: messagesTable.replyToId,
+          imageUrl: messagesTable.imageUrl,
+          voiceUrl: messagesTable.voiceUrl,
+        })
         .from(messagesTable)
-        .where(eq(messagesTable.conversationId, conv.id))
+        .where(inArray(messagesTable.conversationId, allConvIds))
         .orderBy(desc(messagesTable.createdAt))
-        .limit(1);
+    : [];
 
-      let lastMessage = null;
-      if (lastMsg) {
-        lastMessage = await formatMessage(lastMsg);
-      }
+  const lastMsgMap = new Map<string, typeof lastMessages[0]>();
+  for (const m of lastMessages) {
+    if (!lastMsgMap.has(m.conversationId)) lastMsgMap.set(m.conversationId, m);
+  }
 
-      const otherParticipantId = conv.participant1Id === userId ? conv.participant2Id : conv.participant1Id;
-
-      const [unreadRow] = await db
-        .select({ cnt: sql<number>`count(*)::int` })
+  const unreadCounts = allConvIds.length > 0
+    ? await db
+        .select({ conversationId: messagesTable.conversationId, cnt: sql<number>`count(*)::int` })
         .from(messagesTable)
         .where(and(
-          eq(messagesTable.conversationId, conv.id),
-          eq(messagesTable.senderId, otherParticipantId),
-          eq(messagesTable.isRead, false)
-        ));
-      const unreadCount = Number(unreadRow?.cnt ?? 0);
+          inArray(messagesTable.conversationId, allConvIds),
+          eq(messagesTable.isRead, false),
+          sql`${messagesTable.senderId} != ${userId}`
+        ))
+        .groupBy(messagesTable.conversationId)
+    : [];
+  const unreadMap = Object.fromEntries(unreadCounts.map(u => [u.conversationId, u.cnt]));
 
-      return {
-        id: conv.id,
-        participants: [p1 ? formatUser(p1) : null, p2 ? formatUser(p2) : null].filter(Boolean),
-        product,
-        lastMessage,
-        unreadCount,
-        createdAt: conv.createdAt.toISOString(),
-        updatedAt: conv.updatedAt.toISOString(),
-      };
-    })
-  );
+  const result = conversations.map((conv) => {
+    const p1 = userMap[conv.participant1Id];
+    const p2 = userMap[conv.participant2Id];
+    const product = conv.productId ? productMap[conv.productId] : null;
+    const lastMsg = lastMsgMap.get(conv.id);
+    const lastSender = lastMsg ? userMap[lastMsg.senderId] : null;
+    const lastMessage = lastMsg ? {
+      id: lastMsg.id,
+      conversationId: lastMsg.conversationId,
+      senderId: lastMsg.senderId,
+      sender: lastSender ? formatUser(lastSender) : null,
+      content: lastMsg.content,
+      replyToId: lastMsg.replyToId,
+      replyTo: null,
+      imageUrl: lastMsg.imageUrl,
+      voiceUrl: lastMsg.voiceUrl,
+      isRead: lastMsg.isRead,
+      createdAt: lastMsg.createdAt.toISOString(),
+    } : null;
+    const unreadCount = unreadMap[conv.id] ?? 0;
+
+    return {
+      id: conv.id,
+      participants: [p1 ? formatUser(p1) : null, p2 ? formatUser(p2) : null].filter(Boolean),
+      product: product ? { id: product.id, title: product.title, price: Number(product.price), images: product.images, status: product.status, sellerId: product.sellerId, createdAt: product.createdAt.toISOString() } : null,
+      lastMessage,
+      unreadCount,
+      createdAt: conv.createdAt.toISOString(),
+      updatedAt: conv.updatedAt.toISOString(),
+    };
+  });
 
   res.json(result);
 });
