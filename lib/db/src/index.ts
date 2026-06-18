@@ -14,7 +14,10 @@ const isNeon = DATABASE_URL.includes("neon.tech");
 function buildDb() {
   if (isNeon) {
     // Neon serverless HTTP — لا يعاني من انقطاع TCP مع Neon
-    const sql = neon(DATABASE_URL);
+    // استخدام endpoint pooler لتجنب "connection slots are reserved" على Free tier
+    const poolerUrl = DATABASE_URL.replace(".neon.tech", "-pooler.neon.tech");
+    const urlToUse = poolerUrl.includes("-pooler") ? poolerUrl : DATABASE_URL;
+    const sql = neon(urlToUse, { fetchOptions: { timeout: 10000 } });
     return drizzleNeon(sql, { schema });
   }
   // node-postgres — للتطوير المحلي
