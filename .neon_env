@@ -1,0 +1,1 @@
+NEON_URL=postgresql://neondb_owner:npg_YD5eWOfhF9gS@ep-cool-dream-ab4ufrmc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require

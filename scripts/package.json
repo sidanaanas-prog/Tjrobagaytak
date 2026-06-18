@@ -6,6 +6,8 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "fix-base64-images": "tsx ./src/fix-base64-images.ts",
+    "migrate-to-neon": "tsx ./src/migrate-to-neon.ts",
+    "migrate-images": "tsx ./src/migrate-images.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
