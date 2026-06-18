@@ -119,3 +119,9 @@ id = "RqcWdMkO4tg9uRQaeo9DY"
 uri = "file://attached_assets/mauritanian/aziz_m.jpg"
 type = "image"
 title = "رجل من أكجوجط"
+
+[[outputs]]
+id = "QLDH3t5qLu2nxAv98WSKt"
+uri = "file://artifacts/gaytak-mobile/assets/sounds/alert.mp3"
+type = "audio"
+title = "Gaytak Ride Alert Sound"
