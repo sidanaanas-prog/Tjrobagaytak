@@ -135,7 +135,7 @@ export default function Banners() {
         isActive: editBanner?.isActive ?? true,
         sortOrder: editBanner?.sortOrder ?? banners.length,
       };
-      const url = editBanner ? `/api/admin/banners/${editBanner.id}` : "/api/admin/banners";
+      const url = editBanner ? `${BASE}/api/admin/banners/${editBanner.id}` : `${BASE}/api/admin/banners`;
       const res = await fetch(url, {
         method: editBanner ? "PUT" : "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
