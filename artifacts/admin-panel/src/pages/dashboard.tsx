@@ -18,46 +18,33 @@ function BulkFreeButton() {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleClick = async (activate: boolean) => {
-    const msg = activate
-      ? "هل أنت متأكد من تفعيل الوضع المجاني لجميع البائعين والسائقين؟"
-      : "هل أنت متأكد من إلغاء الوضع المجاني لجميع البائعين والسائقين؟";
-    if (!confirm(msg)) return;
+  const handleClick = async () => {
+    if (!confirm("هل أنت متأكد من تفعيل الوضع المجاني لجميع البائعين والسائقين؟")) return;
     setLoading(true);
     try {
       const token = localStorage.getItem("glow_admin_token");
       const res = await fetch(`${BASE}/api/admin/bulk/free-all`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ free: activate }),
+        body: JSON.stringify({ free: true }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || data.message || "فشل");
-      toast({ title: activate ? "✅ تم التفعيل" : "✅ تم الإلغاء", description: data.message });
+      toast({ title: "✅ تم التفعيل", description: data.message });
     } catch (e: any) {
       toast({ variant: "destructive", title: "خطأ", description: e.message });
     } finally { setLoading(false); }
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <button
-        onClick={() => handleClick(true)}
-        disabled={loading}
-        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold transition-all disabled:opacity-50 shadow-[0_0_15px_rgba(245,158,11,0.3)]"
-      >
-        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />}
-        تفعيل مجاني للجميع
-      </button>
-      <button
-        onClick={() => handleClick(false)}
-        disabled={loading}
-        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-white text-sm font-bold transition-all disabled:opacity-50"
-      >
-        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-        إلغاء المجاني للجميع
-      </button>
-    </div>
+    <button
+      onClick={handleClick}
+      disabled={loading}
+      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold transition-all disabled:opacity-50 shadow-[0_0_15px_rgba(245,158,11,0.3)]"
+    >
+      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />}
+      تفعيل مجاني للجميع
+    </button>
   );
 }
 
@@ -111,7 +98,7 @@ export default function Dashboard() {
           <p className="text-muted-foreground font-mono text-sm">PLATFORM METRICS AND PENDING ACTIONS</p>
         </div>
         <div className="flex items-center gap-3">
-          <BulkFreeButton />
+          <BulkFreeButton stats={stats} />
           <div className="text-right">
             <p className="font-mono text-xs text-primary/60">SYSTEM STATUS: <span className="text-primary font-bold">ONLINE</span></p>
             <p className="font-mono text-xs text-muted-foreground">{format(new Date(), "yyyy-MM-dd HH:mm:ss")}</p>
