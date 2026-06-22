@@ -98,7 +98,7 @@ export default function Dashboard() {
           <p className="text-muted-foreground font-mono text-sm">PLATFORM METRICS AND PENDING ACTIONS</p>
         </div>
         <div className="flex items-center gap-3">
-          <BulkFreeButton stats={stats} />
+          <BulkFreeButton />
           <div className="text-right">
             <p className="font-mono text-xs text-primary/60">SYSTEM STATUS: <span className="text-primary font-bold">ONLINE</span></p>
             <p className="font-mono text-xs text-muted-foreground">{format(new Date(), "yyyy-MM-dd HH:mm:ss")}</p>
