@@ -589,21 +589,30 @@ router.post("/admin/logout-all", authenticate, requireAdmin, async (req, res): P
   res.json({ success: true, loggedOutAt: now.toISOString() });
 });
 
-// ── تفعيل جميع المستخدمين والسائقين مجاناً (للأدمن) ─────
-router.post("/admin/bulk/free-all", authenticate, requireAdmin, async (_req, res): Promise<void> => {
+// ── تفعيل/إلغاء الوضع المجاني لجميع المستخدمين والسائقين (للأدمن) ──
+router.post("/admin/bulk/free-all", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  const { free } = req.body as { free?: boolean };
+  const isFree = free ?? true;
   const now = new Date();
   const expiry = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-  // جميع البائعين → مجانيون
-  await db.update(usersTable)
-    .set({ isFree: true, isVerified: true, subscriptionExpiresAt: expiry, updatedAt: now })
-    .where(eq(usersTable.role, "user"));
+  if (isFree) {
+    // تفعيل مجاني
+    await db.update(usersTable)
+      .set({ isFree: true, isVerified: true, subscriptionExpiresAt: expiry, updatedAt: now })
+      .where(eq(usersTable.role, "user"));
+    await db.update(driverProfilesTable)
+      .set({ isFree: true, isSubscribed: true, subscriptionExpiresAt: expiry, updatedAt: now });
+  } else {
+    // إلغاء وضع مجاني
+    await db.update(usersTable)
+      .set({ isFree: false, updatedAt: now })
+      .where(eq(usersTable.role, "user"));
+    await db.update(driverProfilesTable)
+      .set({ isFree: false, updatedAt: now });
+  }
 
-  // جميع السائقين → مجانيون
-  await db.update(driverProfilesTable)
-    .set({ isFree: true, isSubscribed: true, subscriptionExpiresAt: expiry, updatedAt: now });
-
-  res.json({ success: true, message: "تم تفعيل الوضع المجاني لجميع المستخدمين والسائقين" });
+  res.json({ success: true, message: isFree ? "تم تفعيل الوضع المجاني لجميع المستخدمين والسائقين" : "تم إلغاء الوضع المجاني لجميع المستخدمين والسائقين" });
 });
 
 export default router;

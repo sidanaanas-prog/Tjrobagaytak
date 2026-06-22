@@ -18,32 +18,46 @@ function BulkFreeButton() {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleClick = async () => {
-    if (!confirm("هل أنت متأكد من تفعيل الوضع المجاني لجميع البائعين والسائقين؟")) return;
+  const handleClick = async (activate: boolean) => {
+    const msg = activate
+      ? "هل أنت متأكد من تفعيل الوضع المجاني لجميع البائعين والسائقين؟"
+      : "هل أنت متأكد من إلغاء الوضع المجاني لجميع البائعين والسائقين؟";
+    if (!confirm(msg)) return;
     setLoading(true);
     try {
       const token = localStorage.getItem("glow_admin_token");
       const res = await fetch(`${BASE}/api/admin/bulk/free-all`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ free: activate }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || data.message || "فشل");
-      toast({ title: "✅ تم التفعيل", description: data.message });
+      toast({ title: activate ? "✅ تم التفعيل" : "✅ تم الإلغاء", description: data.message });
     } catch (e: any) {
       toast({ variant: "destructive", title: "خطأ", description: e.message });
     } finally { setLoading(false); }
   };
 
   return (
-    <button
-      onClick={handleClick}
-      disabled={loading}
-      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold transition-all disabled:opacity-50 shadow-[0_0_15px_rgba(245,158,11,0.3)]"
-    >
-      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />}
-      هدية مجانية للجميع
-    </button>
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => handleClick(true)}
+        disabled={loading}
+        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold transition-all disabled:opacity-50 shadow-[0_0_15px_rgba(245,158,11,0.3)]"
+      >
+        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />}
+        تفعيل مجاني للجميع
+      </button>
+      <button
+        onClick={() => handleClick(false)}
+        disabled={loading}
+        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-white text-sm font-bold transition-all disabled:opacity-50"
+      >
+        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+        إلغاء المجاني للجميع
+      </button>
+    </div>
   );
 }
 
