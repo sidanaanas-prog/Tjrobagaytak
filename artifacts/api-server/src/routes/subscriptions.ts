@@ -23,8 +23,10 @@ router.get("/subscriptions/my", authenticate, async (req, res): Promise<void> =>
       subscriptionExpiresAt: usersTable.subscriptionExpiresAt,
     }).from(usersTable).where(eq(usersTable.id, userId))) ?? [];
 
-    const now = new Date();
-    const isActive = !!(user?.isFree || (user?.isVerified && user.subscriptionExpiresAt && user.subscriptionExpiresAt > now));
+    // ✅ جميع البائعين مجانيون بشكل تلقائي
+    const isActive = true;
+    const isFree = true;
+    const isVerified = true;
 
     const rawResult2 = await db.execute(sql`
       SELECT * FROM "subscriptions" WHERE "user_id" = ${userId} ORDER BY "created_at" DESC LIMIT 1
@@ -34,8 +36,8 @@ router.get("/subscriptions/my", authenticate, async (req, res): Promise<void> =>
 
     res.json({
       isActive,
-      isFree: user?.isFree ?? false,
-      isVerified: user?.isVerified ?? false,
+      isFree,
+      isVerified,
       expiresAt: user?.subscriptionExpiresAt ?? null,
       latestRequest: latest ?? null,
     });

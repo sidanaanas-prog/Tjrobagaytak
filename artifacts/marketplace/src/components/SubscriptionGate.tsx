@@ -289,10 +289,10 @@ export function SubscriptionGate({ children, type }: Props) {
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 onClick={openModal}
-                className="w-full h-12 rounded-2xl bg-gradient-to-l from-orange-500 to-orange-400 text-white font-black text-sm shadow-[0_0_28px_rgba(249,115,22,0.4)] flex items-center justify-center gap-2"
+                className="w-full h-12 rounded-2xl bg-gradient-to-l from-amber-500 to-amber-400 text-white font-black text-sm shadow-[0_0_28px_rgba(245,158,11,0.4)] flex items-center justify-center gap-2"
               >
-                <Crown className="w-4 h-4" />
-                اشترك الآن وأعِد تفعيل متجرك
+                <Gift className="w-4 h-4" />
+                هدية — اشتراك مجاني شهر
                 <ChevronRight className="w-4 h-4" />
               </motion.button>
 
@@ -401,10 +401,10 @@ export function SubscriptionGate({ children, type }: Props) {
           initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.27 }}
           whileTap={{ scale: 0.97 }}
           onClick={openModal}
-          className="w-full h-14 rounded-2xl bg-primary font-black text-white text-base shadow-[0_0_35px_rgba(168,85,247,0.45)] flex items-center justify-center gap-2.5"
+          className="w-full h-14 rounded-2xl bg-amber-500 font-black text-white text-base shadow-[0_0_35px_rgba(245,158,11,0.45)] flex items-center justify-center gap-2.5"
         >
-          <Crown className="w-5 h-5" />
-          اشترك الآن — ابدأ النشر فوراً
+          <Gift className="w-5 h-5" />
+          هدية — اشتراك مجاني شهر
           <ChevronRight className="w-4 h-4" />
         </motion.button>
 
