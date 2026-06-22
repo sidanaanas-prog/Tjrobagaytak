@@ -81,6 +81,8 @@ router.get("/admin/stats", authenticate, requireAdmin, async (_req, res): Promis
   const [{ activeDrivers }]       = await db.select({ activeDrivers: count() }).from(driverProfilesTable).where(eq(driverProfilesTable.isOnline, true));
   const [{ subscribedDrivers }]   = await db.select({ subscribedDrivers: count() }).from(driverProfilesTable).where(eq(driverProfilesTable.isSubscribed, true));
   const [{ availableDrivers }]    = await db.select({ availableDrivers: count() }).from(driverProfilesTable).where(eq(driverProfilesTable.isAvailable, true));
+  const [{ freeDrivers }]         = await db.select({ freeDrivers: count() }).from(driverProfilesTable).where(eq(driverProfilesTable.isFree, true));
+  const [{ freeSellers }]         = await db.select({ freeSellers: count() }).from(usersTable).where(eq(usersTable.isFree, true));
 
   res.json({
     totalUsers: Number(totalUsers),
@@ -122,6 +124,8 @@ router.get("/admin/stats", authenticate, requireAdmin, async (_req, res): Promis
     activeDrivers: Number(activeDrivers),
     subscribedDrivers: Number(subscribedDrivers),
     availableDrivers: Number(availableDrivers),
+    freeDrivers: Number(freeDrivers),
+    freeSellers: Number(freeSellers),
   });
 });
 

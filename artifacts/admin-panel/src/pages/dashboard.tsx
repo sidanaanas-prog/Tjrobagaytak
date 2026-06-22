@@ -1,6 +1,6 @@
 import { useGetAdminStats, useGetAdminActivity, useListProducts, useApproveProduct, getGetAdminStatsQueryKey, getListProductsQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Box, MessageSquare, AlertCircle, CheckCircle2, XCircle, ShoppingBag, TrendingUp, DollarSign, Clock, Truck, Package, Car, MapPin, Navigation, CreditCard } from "lucide-react";
+import { Users, Box, MessageSquare, AlertCircle, CheckCircle2, XCircle, ShoppingBag, TrendingUp, DollarSign, Clock, Truck, Package, Car, MapPin, Navigation, CreditCard, Gift } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -206,6 +206,17 @@ export default function Dashboard() {
           <CardContent>
             <div className="text-2xl font-mono font-bold text-foreground">{stats?.totalMessages || 0}</div>
             <p className="text-xs text-primary/70 font-mono mt-1">ACROSS {stats?.totalConversations || 0} CHATS</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card border-amber-500/30 shadow-[0_0_15px_rgba(255,180,0,0.05)]">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-mono font-medium text-amber-400">FREE SELLERS</CardTitle>
+            <Gift className="h-4 w-4 text-amber-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-mono font-bold text-amber-400">{(stats as any)?.freeSellers || 0}</div>
+            <p className="text-xs text-amber-400/70 font-mono mt-1">FREE SELLER SUBSCRIPTIONS</p>
           </CardContent>
         </Card>
       </div>
@@ -463,6 +474,17 @@ export default function Dashboard() {
               <CardContent>
                 <div className="text-2xl font-mono font-bold text-purple-400">{(stats as any)?.subscribedDrivers || 0}</div>
                 <p className="text-xs text-purple-400/70 font-mono mt-1">من {(stats as any)?.totalDrivers || 0} سائق</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-amber-500/30 shadow-[0_0_15px_rgba(255,180,0,0.05)]">
+              <CardHeader className="flex flex-row items-center justify-between pb-1">
+                <CardTitle className="text-xs font-mono font-medium text-amber-400">سائقون مجانيون</CardTitle>
+                <Gift className="h-4 w-4 text-amber-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-mono font-bold text-amber-400">{(stats as any)?.freeDrivers || 0}</div>
+                <p className="text-xs text-amber-400/70 font-mono mt-1">من {(stats as any)?.totalDrivers || 0} سائق</p>
               </CardContent>
             </Card>
           </div>
