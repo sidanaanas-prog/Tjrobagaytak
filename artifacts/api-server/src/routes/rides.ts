@@ -470,7 +470,7 @@ router.get("/driver/subscription", authenticate, async (req, res): Promise<void>
     const driverId = (req as any).user.id;
     const [profile] = (await db.select().from(driverProfilesTable).where(eq(driverProfilesTable.userId, driverId))) ?? [];
     const now = new Date();
-    const isActive = profile?.isSubscribed && profile?.subscriptionExpiresAt && new Date(profile.subscriptionExpiresAt) > now;
+    const isActive = (profile?.isSubscribed && profile?.subscriptionExpiresAt && new Date(profile.subscriptionExpiresAt) > now) || profile?.isFree === true;
 
     // Check for pending driver subscription requests
     const [pendingSub] = (await db
@@ -486,6 +486,7 @@ router.get("/driver/subscription", authenticate, async (req, res): Promise<void>
 
     res.json({
       isSubscribed: isActive ?? false,
+      isFree: profile?.isFree ?? false,
       expiresAt: profile?.subscriptionExpiresAt ?? null,
       isPending,
       plan: isActive ? "driver_monthly" : null,

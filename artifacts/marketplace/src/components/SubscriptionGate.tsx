@@ -185,7 +185,7 @@ export function SubscriptionGate({ children, type }: Props) {
     );
   }
 
-  if (status?.isActive) return <>{children}</>;
+  if (status?.isActive || status?.isFree) return <>{children}</>;
 
   const typeLabel = type === "product" ? "المنتجات" : "الفيديوهات";
   const isExistingUser = !!(user as any)?.createdAt;

@@ -6,6 +6,7 @@ const BASE = getApiUrl("");
 
 export type SubscriptionStatus = {
   isActive: boolean;
+  isFree: boolean;
   isVerified: boolean;
   expiresAt: string | null;
   latestRequest: {

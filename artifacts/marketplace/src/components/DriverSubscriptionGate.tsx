@@ -217,7 +217,7 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
     );
   }
 
-  if (status?.isSubscribed) return <>{children}</>;
+  if (status?.isSubscribed || status?.isFree) return <>{children}</>;
 
   // ── حالة الاشتراك القيد المراجعة ──
   if (status?.isPending) {

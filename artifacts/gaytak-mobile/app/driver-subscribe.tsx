@@ -85,6 +85,7 @@ export default function DriverSubscribeScreen() {
   }
 
   const isSubscribed = subscription?.isSubscribed ?? false;
+  const isFree = subscription?.isFree ?? false;
   const isPending = subscription?.isPending ?? false;
   const hasProfile = subscription?.hasProfile ?? false;
   const expiresAt = subscription?.expiresAt
@@ -107,7 +108,17 @@ export default function DriverSubscribeScreen() {
 
       <ScrollView style={styles.content} contentContainerStyle={{ padding: 20, paddingBottom: 80 }}>
         {/* Status card */}
-        {isSubscribed ? (
+        {isFree ? (
+          <View style={[styles.statusCard, { backgroundColor: "#FFAA0020", borderColor: "#FFAA00" }]}>
+            <Feather name="gift" size={24} color="#FFAA00" />
+            <Text style={[styles.statusTitle, { color: "#FFAA00" }]}>
+              سائق مجاني
+            </Text>
+            <Text style={[styles.statusSub, { color: colors.mutedForeground }]}>
+              لديك حساب مجاني من الأدمن
+            </Text>
+          </View>
+        ) : isSubscribed ? (
           <View style={[styles.statusCard, { backgroundColor: "#00CC6620", borderColor: "#00CC66" }]}>
             <Feather name="check-circle" size={24} color="#00CC66" />
             <Text style={[styles.statusTitle, { color: "#00CC66" }]}>
@@ -142,7 +153,7 @@ export default function DriverSubscribeScreen() {
         )}
 
         {/* Driver profile check */}
-        {!hasProfile && !isSubscribed && (
+        {!hasProfile && !isSubscribed && !isFree && (
           <View style={[styles.warningBanner, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Feather name="info" size={18} color={colors.primary} />
             <Text style={[styles.warningText, { color: colors.text }]}>

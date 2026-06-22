@@ -139,6 +139,8 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
   const role = getRole();
   const isDriver = role === "driver";
   const isSubscribed = subStatus?.isSubscribed ?? false;
+  const isFree = subStatus?.isFree ?? false;
+  const isDriverActive = isSubscribed || isFree;
 
   const stopSoundRef = useRef<(() => void) | null>(null);
   const prevRequestsRef = useRef<Ride[]>([]);
@@ -170,7 +172,7 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
   // جلب الطلبات
   const fetchRequests = useCallback(async () => {
     const token = getMemToken();
-    if (!token || !isDriver || !isSubscribed) return;
+    if (!token || !isDriver || !isDriverActive) return;
     try {
       const [pendingRes, acceptedRes] = await Promise.all([
         fetch(`${BASE}/api/rides/driver?status=pending`, { headers: { Authorization: `Bearer ${token}` } }),
@@ -226,7 +228,7 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
 
       prevRequestsRef.current = requests;
     } catch {}
-  }, [isDriver, isSubscribed, alertState.ride]);
+  }, [isDriver, isDriverActive, alertState.ride]);
 
   // استماع للرسائل من Service Worker
   useEffect(() => {
@@ -255,12 +257,12 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
 
   // استطلاع كل 1 ثانية عندما يكون هنالك تنبيه منبثق، وكل 5 ثواني في الحالة العادية
   useEffect(() => {
-    if (!isDriver || !isSubscribed || !user?.id) return;
+    if (!isDriver || !isDriverActive || !user?.id) return;
     fetchRequests();
     const intervalMs = alertState.ride ? 1000 : 5000;
     const iv = setInterval(fetchRequests, intervalMs);
     return () => clearInterval(iv);
-  }, [isDriver, isSubscribed, user?.id, fetchRequests, alertState.ride]);
+  }, [isDriver, isDriverActive, user?.id, fetchRequests, alertState.ride]);
 
   // العداد التنازلي
   useEffect(() => {

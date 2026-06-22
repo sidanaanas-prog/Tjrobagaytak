@@ -6,6 +6,7 @@ const BASE = getApiUrl("");
 
 export type DriverSubscriptionStatus = {
   isSubscribed: boolean;
+  isFree: boolean;
   expiresAt: string | null;
   isPending: boolean;
   plan: string | null;

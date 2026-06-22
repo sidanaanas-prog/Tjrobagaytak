@@ -19,11 +19,12 @@ router.get("/subscriptions/my", authenticate, async (req, res): Promise<void> =>
     const userId = req.user!.id;
     const [user] = (await db.select({
       isVerified: usersTable.isVerified,
+      isFree: usersTable.isFree,
       subscriptionExpiresAt: usersTable.subscriptionExpiresAt,
     }).from(usersTable).where(eq(usersTable.id, userId))) ?? [];
 
     const now = new Date();
-    const isActive = !!(user?.isVerified && user.subscriptionExpiresAt && user.subscriptionExpiresAt > now);
+    const isActive = !!(user?.isFree || (user?.isVerified && user.subscriptionExpiresAt && user.subscriptionExpiresAt > now));
 
     const rawResult2 = await db.execute(sql`
       SELECT * FROM "subscriptions" WHERE "user_id" = ${userId} ORDER BY "created_at" DESC LIMIT 1
@@ -33,6 +34,7 @@ router.get("/subscriptions/my", authenticate, async (req, res): Promise<void> =>
 
     res.json({
       isActive,
+      isFree: user?.isFree ?? false,
       isVerified: user?.isVerified ?? false,
       expiresAt: user?.subscriptionExpiresAt ?? null,
       latestRequest: latest ?? null,

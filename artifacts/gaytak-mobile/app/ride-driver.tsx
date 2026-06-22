@@ -120,9 +120,10 @@ export default function RideDriverScreen() {
   }
 
   const isSubscribed = subscription?.isSubscribed ?? false;
+  const isFree = subscription?.isFree ?? false;
   const hasProfile = subscription?.hasProfile ?? false;
   const docsStatus = subscription?.documentsStatus ?? "not_submitted";
-  const isDriverActive = isSubscribed && docsStatus === "verified";
+  const isDriverActive = (isSubscribed || isFree) && docsStatus === "verified";
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -176,7 +177,7 @@ export default function RideDriverScreen() {
       )}
 
       {/* Subscription Status */}
-      {hasProfile && docsStatus === "verified" && !isSubscribed && (
+      {hasProfile && docsStatus === "verified" && !isSubscribed && !isFree && (
         <View style={[styles.banner, { backgroundColor: "#FFAA0020" }]}>
           <Text style={[styles.bannerText, { color: "#FFAA00" }]}>
             الاشتراك غير مفعل
