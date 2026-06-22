@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   Search, ShieldAlert, Shield, ShieldOff, UserX, UserCheck,
   Trash2, Edit2, LogOut, MessageSquare, Phone, Copy, Check,
-  RefreshCw, CreditCard,
+  RefreshCw, CreditCard, Gift,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -55,6 +55,9 @@ export default function Users() {
   const [userToReactivate, setUserToReactivate] = useState<{ id: string; name: string; subscriptionExpiresAt: string | null } | null>(null);
   const [reactivateMonths, setReactivateMonths] = useState(6);
   const [reactivateLoading, setReactivateLoading] = useState(false);
+
+  // ── تفعيل/إلغاء البائع المجاني ──
+  const [freeLoading, setFreeLoading] = useState<string | null>(null);
 
   // ── رسالة مباشرة ──
   const [userToMessage, setUserToMessage] = useState<{ id: string; name: string; phone: string | null } | null>(null);
@@ -140,6 +143,24 @@ export default function Users() {
     } catch (e: any) {
       toast({ variant: "destructive", title: "خطأ", description: e.message || "تعذر إعادة التفعيل" });
     } finally { setReactivateLoading(false); }
+  };
+
+  const handleToggleFreeSeller = async (userId: string, name: string, isFree: boolean) => {
+    setFreeLoading(userId);
+    try {
+      const token = localStorage.getItem("glow_admin_token");
+      const res = await fetch(`${BASE}/api/admin/sellers/${userId}/free`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ isFree: !isFree }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast({ title: !isFree ? "✅ تم التفعيل" : "تم الإلغاء", description: !isFree ? `تم تفعيل وضع البائع المجاني لـ ${name}` : `تم إلغاء وضع البائع المجاني لـ ${name}` });
+      queryClient.invalidateQueries({ queryKey: getListUsersQueryKey(queryParams) });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "خطأ", description: e.message || "تعذر تحديث الوضع" });
+    } finally { setFreeLoading(null); }
   };
 
   const handleSendMessage = async () => {
@@ -274,7 +295,7 @@ export default function Users() {
 
                     {/* ── الدور ── */}
                     <TableCell>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         {user.banned ? (
                           <Badge variant="outline" className="font-mono text-[10px] uppercase border-destructive/50 text-destructive bg-destructive/10">
                             <ShieldAlert className="w-3 h-3 mr-1" /> BANNED
@@ -286,6 +307,11 @@ export default function Users() {
                         ) : (
                           <Badge variant="outline" className="font-mono text-[10px] uppercase border-muted-foreground/30 text-muted-foreground">
                             <ShieldOff className="w-3 h-3 mr-1" /> USER
+                          </Badge>
+                        )}
+                        {user.isFree && (
+                          <Badge variant="outline" className="font-mono text-[10px] uppercase border-amber-500/50 text-amber-400 bg-amber-500/10">
+                            <Gift className="w-3 h-3 mr-1" /> FREE
                           </Badge>
                         )}
                       </div>
@@ -332,6 +358,16 @@ export default function Users() {
                                 <RefreshCw className="w-4 h-4" />
                               </Button>
                             )}
+                            {/* زر البائع المجاني */}
+                            <Button
+                              size="icon" variant="ghost"
+                              className={`h-8 w-8 ${user.isFree ? "text-amber-400 hover:text-amber-400 hover:bg-amber-400/10" : "text-muted-foreground hover:text-amber-400 hover:bg-amber-400/10"}`}
+                              onClick={() => handleToggleFreeSeller(user.id, user.name, user.isFree)}
+                              disabled={freeLoading === user.id}
+                              title={user.isFree ? "إلغاء وضع البائع المجاني" : "تفعيل البائع المجاني"}
+                            >
+                              {freeLoading === user.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />}
+                            </Button>
                             <Button
                               size="icon" variant="ghost"
                               className={`h-8 w-8 ${user.banned ? "text-primary hover:text-primary hover:bg-primary/10" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"}`}

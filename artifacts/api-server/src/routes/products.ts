@@ -7,7 +7,7 @@ import { sendNotification } from "../lib/notifications";
 
 const router: IRouter = Router();
 
-/** IDs البائعين الذين لديهم اشتراك نشط أو دور admin */
+/** IDs البائعين الذين لديهم اشتراك نشط أو دور admin أو مجاني */
 async function getSubscribedSellerIds(): Promise<string[]> {
   const now = new Date();
   const rows = await db
@@ -16,6 +16,7 @@ async function getSubscribedSellerIds(): Promise<string[]> {
     .where(
       or(
         eq(usersTable.role, "admin"),
+        eq(usersTable.isFree, true),
         and(
           eq(usersTable.isVerified, true),
           gt(usersTable.subscriptionExpiresAt, now)

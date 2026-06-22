@@ -33,16 +33,20 @@ router.post("/rides", authenticate, async (req, res): Promise<void> => {
       updatedAt: now,
     });
 
-    // إشعار السائقين المشتركين المتاحين
+    // إشعار السائقين المشتركين المتاحين أو المجانيين
     const drivers = (await db
       .select({ userId: driverProfilesTable.userId })
       .from(driverProfilesTable)
       .where(and(
         eq(driverProfilesTable.isOnline, true),
         eq(driverProfilesTable.isAvailable, true),
-        eq(driverProfilesTable.isSubscribed, true),
-        // الاشتراك صالح
-        sql`${driverProfilesTable.subscriptionExpiresAt} > ${now}`,
+        or(
+          eq(driverProfilesTable.isFree, true),
+          and(
+            eq(driverProfilesTable.isSubscribed, true),
+            sql`${driverProfilesTable.subscriptionExpiresAt} > ${now}`,
+          ),
+        ),
       ))) ?? [];
 
     if (drivers.length > 0) {
@@ -284,15 +288,20 @@ router.patch("/rides/:id/price", authenticate, async (req, res): Promise<void> =
       price: String(price), updatedAt: now,
     }).where(eq(ridesTable.id, req.params.id as string));
 
-    // إشعار السائقين المشتركين بالسعر الجديد
+    // إشعار السائقين المشتركين أو المجانيين بالسعر الجديد
     const drivers = (await db
       .select({ userId: driverProfilesTable.userId })
       .from(driverProfilesTable)
       .where(and(
         eq(driverProfilesTable.isOnline, true),
         eq(driverProfilesTable.isAvailable, true),
-        eq(driverProfilesTable.isSubscribed, true),
-        sql`${driverProfilesTable.subscriptionExpiresAt} > ${now}`,
+        or(
+          eq(driverProfilesTable.isFree, true),
+          and(
+            eq(driverProfilesTable.isSubscribed, true),
+            sql`${driverProfilesTable.subscriptionExpiresAt} > ${now}`,
+          ),
+        ),
       ))) ?? [];
 
     if (drivers.length > 0) {
@@ -345,10 +354,11 @@ router.patch("/driver/location", authenticate, async (req, res): Promise<void> =
     const { lat, lng, isAvailable } = req.body;
     const now = new Date();
 
-    // ✅ تحقق من الاشتراك الشهري
+    // ✅ تحقق من الاشتراك الشهري أو المجاني
     const [profile] = (await db.select().from(driverProfilesTable).where(eq(driverProfilesTable.userId, driverId))) ?? [];
     const isSubscribed = profile?.isSubscribed && profile?.subscriptionExpiresAt && new Date(profile.subscriptionExpiresAt) > now;
-    if (isAvailable && !isSubscribed) {
+    const isFree = profile?.isFree === true;
+    if (isAvailable && !isSubscribed && !isFree) {
       res.status(403).json({ error: "اشتراك_مطلوب", message: "يجب الاشتراك الشهري (2000 دج) لتفعيل وضع السائق" });
       return;
     }

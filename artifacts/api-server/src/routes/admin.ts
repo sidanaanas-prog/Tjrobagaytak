@@ -494,6 +494,28 @@ router.get("/admin/drivers", authenticate, requireAdmin, async (_req, res): Prom
   }));
 });
 
+// ── تفعيل/إلغاء وضع السائق المجاني (للأدمن) ──────────────────
+router.patch("/admin/drivers/:userId/free", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  const userId = req.params.userId as string;
+  const { isFree } = req.body;
+  const now = new Date();
+  await db.update(driverProfilesTable)
+    .set({ isFree: isFree ?? false, updatedAt: now })
+    .where(eq(driverProfilesTable.userId, userId));
+  res.json({ success: true });
+});
+
+// ── تفعيل/إلغاء وضع البائع المجاني (للأدمن) ──────────────────
+router.patch("/admin/sellers/:userId/free", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  const userId = req.params.userId as string;
+  const { isFree } = req.body;
+  const now = new Date();
+  await db.update(usersTable)
+    .set({ isFree: isFree ?? false, updatedAt: now })
+    .where(eq(usersTable.id, userId));
+  res.json({ success: true });
+});
+
 // ── إيقاف اشتراك سائق (للأدمن) ──────────────────────────────
 router.patch("/admin/drivers/:userId/deactivate", authenticate, requireAdmin, async (req, res): Promise<void> => {
   const userId = req.params.userId as string;

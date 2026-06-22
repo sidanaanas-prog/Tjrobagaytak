@@ -20,6 +20,7 @@ export const usersTable = pgTable("users", {
   missYouNotifiedAt: timestamp("miss_you_notified_at", { withTimezone: true }),
   isVerified: boolean("is_verified").notNull().default(false),
   subscriptionExpiresAt: timestamp("subscription_expires_at", { withTimezone: true }),
+  isFree: boolean("is_free").notNull().default(false),
 });
 
 export const insertUserSchema = createInsertSchema(usersTable).omit({ createdAt: true });
