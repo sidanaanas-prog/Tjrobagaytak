@@ -51,6 +51,8 @@ export const driverProfilesTable = pgTable("driver_profiles", {
   // اشتراك السائق الشهري
   isSubscribed: boolean("is_subscribed").notNull().default(false),
   subscriptionExpiresAt: timestamp("subscription_expires_at", { withTimezone: true }),
+  // سائق مجاني (يعمل بدون دفع اشتراك)
+  isFree: boolean("is_free").notNull().default(false),
   // وثائق السائق
   licenseImage: text("license_image"), // صورة رخصة القيادة
   idCardImage: text("id_card_image"), // صورة بطاقة الهوية

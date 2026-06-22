@@ -489,6 +489,7 @@ router.get("/admin/drivers", authenticate, requireAdmin, async (_req, res): Prom
       licenseVerified: d.licenseVerified,
       documentsStatus: d.documentsStatus,
       documentsSubmittedAt: d.documentsSubmittedAt?.toISOString() ?? null,
+      isFree: d.isFree,
     };
   }));
 });

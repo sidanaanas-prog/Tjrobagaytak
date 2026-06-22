@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/lib/api-url";
-import { Loader2, CheckCircle, XCircle, Clock, Navigation, User, Phone, Calendar, CreditCard, Car, Shield, FileCheck, AlertTriangle, Eye } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Clock, Navigation, User, Phone, Calendar, CreditCard, Car, Shield, FileCheck, AlertTriangle, Eye, Gift } from "lucide-react";
 
 const BASE = getApiUrl("");
 
@@ -23,6 +23,7 @@ type DriverSub = {
   totalRides: number;
   totalEarnings: string;
   createdAt: string;
+  isFree: boolean;
   // الوثائق
   licenseImage: string | null;
   idCardImage: string | null;
@@ -81,6 +82,23 @@ export default function DriverSubscriptions() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       toast({ title: "تم الإيقاف", description: "تم إيقاف اشتراك السائق" });
+      load();
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "خطأ", description: e.message });
+    } finally { setActionId(null); }
+  }
+
+  async function toggleFreeDriver(userId: string, isFree: boolean) {
+    setActionId(userId);
+    try {
+      const res = await fetch(`${BASE}/api/admin/drivers/${userId}/free`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ isFree }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast({ title: isFree ? "✅ تم التفعيل" : "تم الإلغاء", description: isFree ? "تم تفعيل وضع السائق المجاني" : "تم إلغاء وضع السائق المجاني" });
       load();
     } catch (e: any) {
       toast({ variant: "destructive", title: "خطأ", description: e.message });
@@ -195,11 +213,17 @@ export default function DriverSubscriptions() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   {driver.isOnline && (
                     <span className="bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                       متصل
+                    </span>
+                  )}
+                  {driver.isFree && (
+                    <span className="bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                      <Gift className="w-3 h-3" />
+                      مجاني
                     </span>
                   )}
                   {driver.isSubscribed ? (
@@ -289,6 +313,20 @@ export default function DriverSubscriptions() {
                     إيقاف الاشتراك
                   </button>
                 )}
+
+                {/* زر السائق المجاني */}
+                <button
+                  onClick={() => toggleFreeDriver(driver.userId, !driver.isFree)}
+                  disabled={actionId === driver.userId}
+                  className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all disabled:opacity-50 ${
+                    driver.isFree
+                      ? "bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-400"
+                      : "bg-slate-600/20 hover:bg-slate-600/30 border border-slate-500/30 text-slate-400"
+                  }`}
+                >
+                  {actionId === driver.userId ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />}
+                  {driver.isFree ? "سائق مجاني" : "تفعيل مجاني"}
+                </button>
               </div>
             </div>
           ))}
