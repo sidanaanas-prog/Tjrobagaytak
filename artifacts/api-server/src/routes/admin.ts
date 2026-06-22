@@ -504,7 +504,12 @@ router.patch("/admin/drivers/:userId/free", authenticate, requireAdmin, async (r
   const { isFree } = req.body;
   const now = new Date();
   await db.update(driverProfilesTable)
-    .set({ isFree: isFree ?? false, updatedAt: now })
+    .set({
+      isFree: isFree ?? false,
+      isSubscribed: isFree ? true : undefined,
+      subscriptionExpiresAt: isFree ? null : undefined,
+      updatedAt: now,
+    })
     .where(eq(driverProfilesTable.userId, userId));
   res.json({ success: true });
 });
@@ -514,8 +519,14 @@ router.patch("/admin/sellers/:userId/free", authenticate, requireAdmin, async (r
   const userId = req.params.userId as string;
   const { isFree } = req.body;
   const now = new Date();
+  const expiry = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
   await db.update(usersTable)
-    .set({ isFree: isFree ?? false, updatedAt: now })
+    .set({
+      isFree: isFree ?? false,
+      isVerified: isFree ? true : undefined,
+      subscriptionExpiresAt: isFree ? expiry : undefined,
+      updatedAt: now,
+    })
     .where(eq(usersTable.id, userId));
   res.json({ success: true });
 });
@@ -598,11 +609,13 @@ router.post("/admin/bulk/free-all", authenticate, requireAdmin, async (req, res)
 
   if (isFree) {
     // تفعيل مجاني
+    // البائعين: اشتراك مجاني شهر (30 يوم)
     await db.update(usersTable)
       .set({ isFree: true, isVerified: true, subscriptionExpiresAt: expiry, updatedAt: now })
       .where(eq(usersTable.role, "user"));
+    // السائقين: مجاني دائم (بدون انتهاء اشتراك)
     await db.update(driverProfilesTable)
-      .set({ isFree: true, isSubscribed: true, subscriptionExpiresAt: expiry, updatedAt: now });
+      .set({ isFree: true, isSubscribed: true, subscriptionExpiresAt: null, updatedAt: now });
   } else {
     // إلغاء وضع مجاني
     await db.update(usersTable)
