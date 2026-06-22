@@ -148,11 +148,11 @@ export default function DriverSubscriptions() {
             <Navigation className="w-6 h-6 text-primary" />
             اشتراكات السائقين
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">إدارة اشتراكات السائقين (2000 دج/شهر)</p>
+          <p className="text-sm text-muted-foreground mt-1">إدارة السائقين — جميع السائقين مجانيون</p>
         </div>
         <div className="flex gap-2">
-          <span className="bg-primary/15 border border-primary/30 text-primary text-sm font-bold px-3 py-1.5 rounded-full">
-            {subscribedCount} مشترك
+          <span className="bg-amber-500/15 border border-amber-500/30 text-amber-400 text-sm font-bold px-3 py-1.5 rounded-full">
+            {drivers.filter((d) => d.isFree).length} مجاني
           </span>
           <span className="bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-sm font-bold px-3 py-1.5 rounded-full">
             {onlineCount} متصل
@@ -161,7 +161,7 @@ export default function DriverSubscriptions() {
       </div>
 
       <div className="flex gap-2 flex-wrap">
-        {(["all", "subscribed", "not-subscribed", "online", "pending-docs"] as const).map((f) => (
+        {(["all", "online", "pending-docs"] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f as any)}
@@ -173,8 +173,6 @@ export default function DriverSubscriptions() {
           >
             {{
               all: "الكل",
-              subscribed: `مشترك (${drivers.filter((d) => d.isSubscribed).length})`,
-              "not-subscribed": `غير مشترك (${drivers.filter((d) => !d.isSubscribed).length})`,
               online: `متصل (${drivers.filter((d) => d.isOnline).length})`,
               "pending-docs": `وثائق قيد المراجعة (${drivers.filter((d) => d.documentsStatus === "pending").length})`,
             }[f]}
@@ -220,13 +218,12 @@ export default function DriverSubscriptions() {
                       متصل
                     </span>
                   )}
-                  {driver.isFree && (
+                  {driver.isFree ? (
                     <span className="bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
                       <Gift className="w-3 h-3" />
                       مجاني
                     </span>
-                  )}
-                  {driver.isSubscribed ? (
+                  ) : driver.isSubscribed ? (
                     <span className="bg-green-500/15 border border-green-500/30 text-green-400 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
                       <CheckCircle className="w-3 h-3" />
                       مشترك
@@ -294,27 +291,7 @@ export default function DriverSubscriptions() {
               )}
 
               <div className="flex gap-3 pt-1 flex-wrap">
-                {!driver.isSubscribed ? (
-                  <button
-                    onClick={() => approveSubscription(driver.userId)}
-                    disabled={actionId === driver.userId}
-                    className="flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-bold transition-all disabled:opacity-50"
-                  >
-                    {actionId === driver.userId ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                    تفعيل الاشتراك
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => deactivateSubscription(driver.userId)}
-                    disabled={actionId === driver.userId}
-                    className="flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2.5 rounded-lg bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-400 text-sm font-bold transition-all disabled:opacity-50"
-                  >
-                    <XCircle className="w-4 h-4" />
-                    إيقاف الاشتراك
-                  </button>
-                )}
-
-                {/* زر السائق المجاني */}
+                {/* زر السائق المجاني —الحالة الإفتراضية */}
                 <button
                   onClick={() => toggleFreeDriver(driver.userId, !driver.isFree)}
                   disabled={actionId === driver.userId}
@@ -325,7 +302,7 @@ export default function DriverSubscriptions() {
                   }`}
                 >
                   {actionId === driver.userId ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />}
-                  {driver.isFree ? "سائق مجاني" : "تفعيل مجاني"}
+                  {driver.isFree ? "مجاني" : "تفعيل مجاني"}
                 </button>
               </div>
             </div>

@@ -530,31 +530,23 @@ function DriverDashboard() {
         </div>
         {profile && (
           <>
-            {/* الاشتراك الشهري */}
-            <div className={`mb-4 rounded-xl p-3 border ${profile.subscriptionExpiresAt ? "bg-green-500/8 border-green-500/20" : "bg-red-500/8 border-red-500/20"}`}>
+            {/* الاشتراك الشهري — مجاني لجميع السائقين */}
+            <div className="mb-4 rounded-xl p-3 border bg-amber-500/8 border-amber-500/20">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${profile.subscriptionExpiresAt ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400"}`}>
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-500/15 text-amber-400">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-white">
-                      {profile.subscriptionExpiresAt ? "الاشتراك نشط" : "الاشتراك منتهي"}
+                    <p className="text-xs font-bold text-white">حساب مجاني</p>
+                    <p className="text-[10px] text-white/50">
+                      جميع السائقين يستخدمون التطبيق مجاناً
                     </p>
-                    {profile.subscriptionExpiresAt && (
-                      <p className="text-[10px] text-white/50">
-                        ينتهي: {new Date(profile.subscriptionExpiresAt).toLocaleDateString("ar-DZ", { year: "numeric", month: "short", day: "numeric" })}
-                      </p>
-                    )}
                   </div>
                 </div>
-                {profile.subscriptionExpiresAt ? (
-                  <span className="text-[10px] px-2 py-1 rounded-full bg-green-500/15 text-green-400 font-bold">نشط</span>
-                ) : (
-                  <span className="text-[10px] px-2 py-1 rounded-full bg-red-500/15 text-red-400 font-bold">منتهي</span>
-                )}
+                <span className="text-[10px] px-2 py-1 rounded-full bg-amber-500/15 text-amber-400 font-bold">مجاني</span>
               </div>
             </div>
 

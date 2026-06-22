@@ -354,12 +354,11 @@ router.patch("/driver/location", authenticate, async (req, res): Promise<void> =
     const { lat, lng, isAvailable } = req.body;
     const now = new Date();
 
-    // ✅ تحقق من الاشتراك الشهري أو المجاني
+    // ✅ جميع السائقين مجانيون — لا حاجة لتحقق من الاشتراك
     const [profile] = (await db.select().from(driverProfilesTable).where(eq(driverProfilesTable.userId, driverId))) ?? [];
-    const isSubscribed = profile?.isSubscribed && profile?.subscriptionExpiresAt && new Date(profile.subscriptionExpiresAt) > now;
-    const isFree = profile?.isFree === true;
-    if (isAvailable && !isSubscribed && !isFree) {
-      res.status(403).json({ error: "اشتراك_مطلوب", message: "يجب الاشتراك الشهري (2000 دج) لتفعيل وضع السائق" });
+    // دائماً يُسمح بالتفعيل للسائقين المجانيين
+    if (isAvailable && !profile) {
+      res.status(403).json({ error: "profile_missing", message: "يجب إكمال تسجيل السائق أولاً" });
       return;
     }
 
@@ -427,6 +426,7 @@ router.post("/driver/profile", authenticate, async (req, res): Promise<void> => 
         licenseImage: licenseImage ?? null,
         idCardImage: idCardImage ?? null,
         vehicleDocImage: vehicleDocImage ?? null,
+        isFree: true,
         documentsSubmittedAt: (licenseImage || idCardImage || vehicleDocImage) ? now : null,
         documentsStatus: (licenseImage || idCardImage || vehicleDocImage) ? "pending" : null,
         createdAt: now,
@@ -470,7 +470,9 @@ router.get("/driver/subscription", authenticate, async (req, res): Promise<void>
     const driverId = (req as any).user.id;
     const [profile] = (await db.select().from(driverProfilesTable).where(eq(driverProfilesTable.userId, driverId))) ?? [];
     const now = new Date();
-    const isActive = (profile?.isSubscribed && profile?.subscriptionExpiresAt && new Date(profile.subscriptionExpiresAt) > now) || profile?.isFree === true;
+    // ✅ جميع السائقين مجانيون بشكل تلقائي
+    const isActive = true;
+    const isFree = true;
 
     // Check for pending driver subscription requests
     const [pendingSub] = (await db
@@ -485,11 +487,11 @@ router.get("/driver/subscription", authenticate, async (req, res): Promise<void>
     const isPending = pendingSub?.status === "pending";
 
     res.json({
-      isSubscribed: isActive ?? false,
-      isFree: profile?.isFree ?? false,
+      isSubscribed: isActive,
+      isFree: isFree,
       expiresAt: profile?.subscriptionExpiresAt ?? null,
-      isPending,
-      plan: isActive ? "driver_monthly" : null,
+      isPending: false,
+      plan: "driver_monthly",
       hasProfile: !!profile?.documentsSubmittedAt,
       documentsStatus: profile?.documentsStatus ?? "not_submitted",
       licenseVerified: profile?.licenseVerified ?? false,

@@ -167,8 +167,8 @@ export default function DriverSubscribeScreen() {
           </View>
         )}
 
-        {/* Plan card */}
-        {!isSubscribed && (
+        {/* Plan card — hidden for free drivers */}
+        {!isFree && !isSubscribed && (
           <View style={[styles.planCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.planTitle, { color: colors.text }]}>
               {PLANS[0].label}
@@ -192,8 +192,8 @@ export default function DriverSubscribeScreen() {
           </View>
         )}
 
-        {/* Payment instructions */}
-        {!isSubscribed && !isPending && hasProfile && (
+        {/* Payment instructions — hidden for free drivers */}
+        {!isFree && !isSubscribed && !isPending && hasProfile && (
           <View style={[styles.paymentBox, { backgroundColor: colors.input, borderColor: colors.border }]}>
             <Text style={[styles.paymentTitle, { color: colors.text }]}>
               طريقة الدفع
