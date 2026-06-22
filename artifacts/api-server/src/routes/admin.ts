@@ -589,4 +589,21 @@ router.post("/admin/logout-all", authenticate, requireAdmin, async (req, res): P
   res.json({ success: true, loggedOutAt: now.toISOString() });
 });
 
+// ── تفعيل جميع المستخدمين والسائقين مجاناً (للأدمن) ─────
+router.post("/admin/bulk/free-all", authenticate, requireAdmin, async (_req, res): Promise<void> => {
+  const now = new Date();
+  const expiry = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+  // جميع البائعين → مجانيون
+  await db.update(usersTable)
+    .set({ isFree: true, isVerified: true, subscriptionExpiresAt: expiry, updatedAt: now })
+    .where(eq(usersTable.role, "user"));
+
+  // جميع السائقين → مجانيون
+  await db.update(driverProfilesTable)
+    .set({ isFree: true, isSubscribed: true, subscriptionExpiresAt: expiry, updatedAt: now });
+
+  res.json({ success: true, message: "تم تفعيل الوضع المجاني لجميع المستخدمين والسائقين" });
+});
+
 export default router;
