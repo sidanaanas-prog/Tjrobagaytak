@@ -113,6 +113,29 @@ export default function LoginScreen() {
     }
   }
 
+  async function handleDemoLogin() {
+    setLoading(true);
+    try {
+      const res = await fetch(`${BASE}/api/auth/demo/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const text = await res.text();
+      let data: any;
+      try { data = JSON.parse(text); } catch {
+        throw new Error(`Server error (${res.status})`);
+      }
+      if (!res.ok) throw new Error(data.error || "Demo login failed");
+      await login(data.token, data.user);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace("/(tabs)/");
+    } catch (e: any) {
+      Alert.alert("خطأ", e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const s = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     scroll: { flexGrow: 1, justifyContent: "center", paddingHorizontal: 24 },
@@ -191,6 +214,18 @@ export default function LoginScreen() {
       elevation: 8,
     },
     btnText: { color: "#FFF", fontSize: 16, fontWeight: "700" },
+    demoBtn: {
+      backgroundColor: colors.muted,
+      borderRadius: 16,
+      paddingVertical: 14,
+      alignItems: "center",
+      justifyContent: "center",
+      flexDirection: "row",
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginTop: 8,
+    },
+    demoBtnText: { color: colors.foreground, fontSize: 14, fontWeight: "600" },
     hint: { fontSize: 12, color: colors.mutedForeground, textAlign: "center" },
     backBtn: {
       flexDirection: "row",
@@ -298,6 +333,15 @@ export default function LoginScreen() {
               <Text style={s.hint}>سيصلك رمز التحقق عبر واتساب</Text>
               <TouchableOpacity style={s.btn} onPress={handleSendOtp} disabled={loading}>
                 {loading ? <ActivityIndicator color="#FFF" /> : <Text style={s.btnText}>إرسال رمز التحقق</Text>}
+              </TouchableOpacity>
+              {/* Demo login for Google Play reviewers */}
+              <TouchableOpacity style={s.demoBtn} onPress={handleDemoLogin} disabled={loading}>
+                {loading ? <ActivityIndicator color="#FFF" /> : (
+                  <>
+                    <Feather name="user" size={16} color="#FFF" />
+                    <Text style={s.demoBtnText}> Demo Login</Text>
+                  </>
+                )}
               </TouchableOpacity>
             </>
           ) : (
