@@ -191,18 +191,6 @@ export default function LoginScreen() {
       elevation: 8,
     },
     btnText: { color: "#FFF", fontSize: 16, fontWeight: "700" },
-    demoBtn: {
-      backgroundColor: colors.muted,
-      borderRadius: 16,
-      paddingVertical: 14,
-      alignItems: "center",
-      justifyContent: "center",
-      flexDirection: "row",
-      borderWidth: 1,
-      borderColor: colors.border,
-      marginTop: 8,
-    },
-    demoBtnText: { color: colors.foreground, fontSize: 14, fontWeight: "600" },
     hint: { fontSize: 12, color: colors.mutedForeground, textAlign: "center" },
     backBtn: {
       flexDirection: "row",
