@@ -60,6 +60,18 @@ router.post("/auth/otp/send", async (req, res): Promise<void> => {
     }
 
     const normalized = normalizePhone(phone);
+
+    // الرقم السحري لمراجعي Google Play: لا نرسل OTP حقيقياً
+    if (normalized === MAGIC_PHONE) {
+      let isNewUser = true;
+      try {
+        const [existing] = (await db.select().from(usersTable).where(eq(usersTable.phone, normalized))) ?? [];
+        isNewUser = needsName(existing);
+      } catch {}
+      res.json({ success: true, isNewUser });
+      return;
+    }
+
     const result = await unifiedSendOtp(normalized);
 
     if (!result.success) {
@@ -92,6 +104,8 @@ router.post("/auth/otp/send", async (req, res): Promise<void> => {
   }
 });
 
+const MAGIC_PHONE = "+966500000000";
+
 router.post("/auth/otp/verify", async (req, res): Promise<void> => {
   try {
     const { phone, code, name } = req.body;
@@ -101,7 +115,15 @@ router.post("/auth/otp/verify", async (req, res): Promise<void> => {
     }
 
     const normalized = normalizePhone(phone);
-    const result = await unifiedVerifyOtp(normalized, code);
+
+    // ــالرقم السحري: يقبل أي رمز لمراجعي Google Play ــ
+    const isMagicPhone = normalized === MAGIC_PHONE;
+    let result: { valid: boolean; error?: string };
+    if (isMagicPhone) {
+      result = { valid: true };
+    } else {
+      result = await unifiedVerifyOtp(normalized, code);
+    }
 
     if (!result.valid) {
       res.status(400).json({ error: result.error || "الرمز غير صحيح أو منتهي الصلاحية" });
