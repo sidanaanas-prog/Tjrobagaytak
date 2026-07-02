@@ -130,13 +130,31 @@ router.get("/rides/my", authenticate, async (req, res): Promise<void> => {
 router.patch("/rides/:id/accept", authenticate, async (req, res): Promise<void> => {
   try {
     const driverId = (req as any).user.id;
+
+    // تحقق من إشتراك/تجربة السائق
+    const [profile] = (await db.select({
+      trialExpiresAt: driverProfilesTable.trialExpiresAt,
+      subscriptionExpiresAt: driverProfilesTable.subscriptionExpiresAt,
+      isFree: driverProfilesTable.isFree,
+      isSubscribed: driverProfilesTable.isSubscribed,
+    }).from(driverProfilesTable).where(eq(driverProfilesTable.userId, driverId))) ?? [];
+
+    const now = new Date();
+    const trialActive = profile?.trialExpiresAt && new Date(profile.trialExpiresAt) > now;
+    const subscriptionActive = profile?.subscriptionExpiresAt && new Date(profile.subscriptionExpiresAt) > now;
+
+    if (!profile?.isFree && !trialActive && !subscriptionActive) {
+      res.status(403).json({ error: "يجب اشتراك لقبول الرحلات" });
+      return;
+    }
+
     const [ride] = (await db.select().from(ridesTable).where(eq(ridesTable.id, req.params.id as string))) ?? [];
     if (!ride) { res.status(404).json({ error: "الرحلة غير موجودة" }); return; }
     if (ride.status !== "pending") { res.status(400).json({ error: "الرحلة تم قبولها" }); return; }
 
-    const now = new Date();
+    const now2 = new Date();
     await db.update(ridesTable).set({
-      driverId, status: "accepted", acceptedAt: now, updatedAt: now,
+      driverId, status: "accepted", acceptedAt: now2, updatedAt: now2,
     }).where(eq(ridesTable.id, req.params.id as string));
 
     // إنشاء/إيجاد محادثة بين السائق والراكب
@@ -370,7 +388,7 @@ router.patch("/driver/location", authenticate, async (req, res): Promise<void> =
       updatedAt: now,
     }).where(eq(driverProfilesTable.userId, driverId));
 
-    res.json({ success: true, isSubscribed: isSubscribed ?? false });
+    res.json({ success: true, isSubscribed: !!profile });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -416,6 +434,7 @@ router.post("/driver/profile", authenticate, async (req, res): Promise<void> => 
         updatedAt: now,
       }).where(eq(driverProfilesTable.userId, driverId));
     } else {
+      const trialExpiry = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days trial
       await db.insert(driverProfilesTable).values({
         id: randomUUID(),
         userId: driverId,
@@ -427,6 +446,7 @@ router.post("/driver/profile", authenticate, async (req, res): Promise<void> => 
         idCardImage: idCardImage ?? null,
         vehicleDocImage: vehicleDocImage ?? null,
         isFree: true,
+        trialExpiresAt: trialExpiry,
         documentsSubmittedAt: (licenseImage || idCardImage || vehicleDocImage) ? now : null,
         documentsStatus: (licenseImage || idCardImage || vehicleDocImage) ? "pending" : null,
         createdAt: now,
@@ -470,9 +490,10 @@ router.get("/driver/subscription", authenticate, async (req, res): Promise<void>
     const driverId = (req as any).user.id;
     const [profile] = (await db.select().from(driverProfilesTable).where(eq(driverProfilesTable.userId, driverId))) ?? [];
     const now = new Date();
-    // ✅ جميع السائقين مجانيون بشكل تلقائي
-    const isActive = true;
-    const isFree = true;
+    const trialActive = profile?.trialExpiresAt && new Date(profile.trialExpiresAt) > now;
+    const subscriptionActive = profile?.subscriptionExpiresAt && new Date(profile.subscriptionExpiresAt) > now;
+    const isActive = profile?.isFree || trialActive || subscriptionActive;
+    const isFree = profile?.isFree || trialActive;
 
     // Check for pending driver subscription requests
     const [pendingSub] = (await db
@@ -490,6 +511,7 @@ router.get("/driver/subscription", authenticate, async (req, res): Promise<void>
       isSubscribed: isActive,
       isFree: isFree,
       expiresAt: profile?.subscriptionExpiresAt ?? null,
+      trialExpiresAt: profile?.trialExpiresAt ?? null,
       isPending: false,
       plan: "driver_monthly",
       hasProfile: !!profile?.documentsSubmittedAt,

@@ -48,6 +48,7 @@ export interface User {
   totalSales?: number;
   isVerified?: boolean;
   subscriptionExpiresAt?: string | null;
+  trialExpiresAt?: string | null;
   phone?: string | null;
 }
 
@@ -181,20 +182,6 @@ export interface AdminStats {
   ordersShipped: number;
   ordersDelivered: number;
   ordersCancelled: number;
-  // Rides
-  totalRides?: number;
-  ridesToday?: number;
-  ridesPending?: number;
-  ridesAccepted?: number;
-  ridesCompleted?: number;
-  ridesCancelled?: number;
-  totalRideRevenue?: number;
-  rideRevenueToday?: number;
-  // Drivers
-  totalDrivers?: number;
-  activeDrivers?: number;
-  subscribedDrivers?: number;
-  availableDrivers?: number;
 }
 
 export type ActivityItemType =

@@ -1,11 +1,12 @@
 import { useRef, useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { useSubscription } from "@/hooks/use-subscription";
 import { useUpdateUser, getGetMeQueryKey } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, LogOut, Shield, User as UserIcon, Camera, ChevronLeft, Bell, Trash2, AlertTriangle, Package, Users, Image, Car, Store, UserCheck, Check } from "lucide-react";
+import { Loader2, LogOut, Shield, User as UserIcon, Camera, ChevronLeft, Bell, Trash2, AlertTriangle, Package, Users, Image, Car, Store, UserCheck, Check, Clock, Gift } from "lucide-react";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { useToast } from "@/hooks/use-toast";
 import { getMemToken } from "@/hooks/use-auth";
@@ -16,8 +17,16 @@ import { uploadAvatar } from "@/lib/upload-image";
 import { getApiUrl } from "@/lib/api-url";
 const BASE = getApiUrl("");
 
+function getTrialDaysLeft(trialExpiresAt: string | null | undefined): number | null {
+  if (!trialExpiresAt) return null;
+  const diff = new Date(trialExpiresAt).getTime() - Date.now();
+  if (diff <= 0) return null;
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+}
+
 export default function ProfilePage() {
   const { user, logout } = useAuth();
+  const { status: subStatus } = useSubscription();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const updateUser = useUpdateUser();
@@ -29,6 +38,22 @@ export default function ProfilePage() {
   const [compressing, setCompressing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testingPush, setTestingPush] = useState(false);
+
+  // رسالة ترحيب للمستخدمين الجدد
+  const [showWelcomePopup, setShowWelcomePopup] = useState(false);
+
+  useEffect(() => {
+    if (user && subStatus?.trialExpiresAt) {
+      const daysLeft = getTrialDaysLeft(subStatus.trialExpiresAt);
+      if (daysLeft && daysLeft > 0 && daysLeft <= 7) {
+        const shown = localStorage.getItem(`welcome_shown_${user.id}`);
+        if (!shown) {
+          setShowWelcomePopup(true);
+          localStorage.setItem(`welcome_shown_${user.id}`, "true");
+        }
+      }
+    }
+  }, [user, subStatus]);
 
   // حالات (Stories)
   const [myStories, setMyStories] = useState<any[]>([]);
@@ -152,9 +177,39 @@ export default function ProfilePage() {
     );
   }
 
+  const trialDays = subStatus?.trialExpiresAt ? getTrialDaysLeft(subStatus.trialExpiresAt) : null;
+  const isTrialActive = trialDays !== null && trialDays > 0;
+
   return (
     <AppLayout>
       <div className="flex flex-col">
+
+        {/* ── Welcome Popup for New Users ── */}
+        {showWelcomePopup && isTrialActive && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mx-5 mt-4 p-4 rounded-2xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30"
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                <Gift className="w-5 h-5 text-amber-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-black text-white">مبروك عليك! 🎉</h3>
+                <p className="text-xs text-white/70 mt-1">
+                  اشتراك مجاني {trialDays} أيام لاستخدام جميع الخدمات
+                </p>
+              </div>
+              <button
+                onClick={() => setShowWelcomePopup(false)}
+                className="text-white/40 hover:text-white text-xs"
+              >
+                ✕
+              </button>
+            </div>
+          </motion.div>
+        )}
 
         {/* ── Header ── */}
         <div className="relative px-5 pt-14 pb-8 bg-gradient-to-b from-primary/10 to-background">
@@ -197,6 +252,14 @@ export default function ProfilePage() {
                 <Shield className="w-3.5 h-3.5 text-accent" />
                 <span className="text-xs font-bold text-accent uppercase">{user.role}</span>
               </div>
+              {isTrialActive && (
+                <div className="flex items-center justify-center gap-1.5 mt-2 px-3 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/25">
+                  <Clock className="w-3 h-3 text-amber-400 animate-pulse" />
+                  <span className="text-[10px] font-bold text-amber-400">
+                    {trialDays} أيام متبقية في التجربة المجانية
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>

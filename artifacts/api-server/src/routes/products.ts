@@ -163,6 +163,23 @@ router.post("/products", authenticate, async (req, res): Promise<void> => {
     return;
   }
 
+  // تحقق من إشتراك البائع
+  const [sellerCheck] = (await db.select({
+    trialExpiresAt: usersTable.trialExpiresAt,
+    subscriptionExpiresAt: usersTable.subscriptionExpiresAt,
+    isFree: usersTable.isFree,
+    isVerified: usersTable.isVerified,
+  }).from(usersTable).where(eq(usersTable.id, req.user!.id))) ?? [];
+
+  const now = new Date();
+  const trialActive = sellerCheck?.trialExpiresAt && new Date(sellerCheck.trialExpiresAt) > now;
+  const subscriptionActive = sellerCheck?.subscriptionExpiresAt && new Date(sellerCheck.subscriptionExpiresAt) > now;
+
+  if (!sellerCheck?.isFree && !trialActive && !subscriptionActive) {
+    res.status(403).json({ error: "يجب اشتراك لإضافة منتجات" });
+    return;
+  }
+
   const id = randomUUID();
   await db.insert(productsTable).values({
     id,

@@ -673,6 +673,9 @@ components:
         subscriptionExpiresAt:
           type: string
           nullable: true
+        trialExpiresAt:
+          type: string
+          nullable: true
         phone:
           type: string
           nullable: true

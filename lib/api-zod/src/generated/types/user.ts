@@ -19,5 +19,6 @@ export interface User {
   totalSales?: number;
   isVerified?: boolean;
   subscriptionExpiresAt?: string | null;
+  trialExpiresAt?: string | null;
   phone?: string | null;
 }

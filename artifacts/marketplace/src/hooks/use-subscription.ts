@@ -9,6 +9,7 @@ export type SubscriptionStatus = {
   isFree: boolean;
   isVerified: boolean;
   expiresAt: string | null;
+  trialExpiresAt: string | null;
   latestRequest: {
     id: string;
     plan: string;

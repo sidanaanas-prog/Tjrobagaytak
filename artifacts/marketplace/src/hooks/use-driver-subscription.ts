@@ -8,6 +8,7 @@ export type DriverSubscriptionStatus = {
   isSubscribed: boolean;
   isFree: boolean;
   expiresAt: string | null;
+  trialExpiresAt: string | null;
   isPending: boolean;
   plan: string | null;
   hasProfile: boolean;
