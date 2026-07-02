@@ -21,6 +21,7 @@ export const usersTable = pgTable("users", {
   isVerified: boolean("is_verified").notNull().default(false),
   subscriptionExpiresAt: timestamp("subscription_expires_at", { withTimezone: true }),
   isFree: boolean("is_free").notNull().default(false),
+  trialExpiresAt: timestamp("trial_expires_at", { withTimezone: true }),
 });
 
 export const insertUserSchema = createInsertSchema(usersTable).omit({ createdAt: true });

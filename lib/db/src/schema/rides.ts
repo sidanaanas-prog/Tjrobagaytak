@@ -53,6 +53,8 @@ export const driverProfilesTable = pgTable("driver_profiles", {
   subscriptionExpiresAt: timestamp("subscription_expires_at", { withTimezone: true }),
   // سائق مجاني (يعمل بدون دفع اشتراك)
   isFree: boolean("is_free").notNull().default(false),
+  // تجربة مجانية 7 أيام للسائقين الجدد
+  trialExpiresAt: timestamp("trial_expires_at", { withTimezone: true }),
   // وثائق السائق
   licenseImage: text("license_image"), // صورة رخصة القيادة
   idCardImage: text("id_card_image"), // صورة بطاقة الهوية
