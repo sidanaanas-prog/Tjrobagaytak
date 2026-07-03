@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/lib/api-url";
 import { compressImage } from "@/lib/compress-image";
 import { uploadDriverDocument } from "@/lib/upload-image";
-import { Crown, Upload, ChevronRight, Loader2, X, Clock, AlertTriangle, RefreshCw, ShieldCheck, Banknote, Copy, Check, Car, Shield, CreditCard, FileText, ChevronLeft } from "lucide-react";
+import { Crown, Upload, ChevronRight, Loader2, X, Clock, AlertTriangle, RefreshCw, ShieldCheck, Banknote, Copy, Check, Car, Shield, CreditCard, FileText, ChevronLeft, MapPin, Wallet, Star, Bell } from "lucide-react";
 
 const BASE = getApiUrl("");
 
@@ -21,6 +21,37 @@ const VEHICLE_TYPES = [
   { id: "car", label: "سيارة" },
   { id: "van", label: "فان" },
   { id: "bike", label: "دراجة" },
+];
+
+const DRIVER_BENEFITS = [
+  {
+    icon: MapPin,
+    color: "text-primary",
+    bg: "bg-primary/10 border-primary/20",
+    title: "تلقي طلبات فورية",
+    desc: "بدون اشتراك لا تستقبل أي طلب — الاشتراك يجعل حسابك متاحاً للاستقبال فوراً",
+  },
+  {
+    icon: Star,
+    color: "text-blue-400",
+    bg: "bg-blue-400/10 border-blue-400/20",
+    title: "شارة سائق موثّق ✓",
+    desc: "حسابك يحصل على شارة التوثيق التي تكسب ثقة العملاء وتزيد الرحلات بنسبة 3 أضعاف",
+  },
+  {
+    icon: Wallet,
+    color: "text-green-400",
+    bg: "bg-green-400/10 border-green-400/20",
+    title: "دخل يومي سابق ومرن حر",
+    desc: "استقبل طلبات يومياً واجن مرن حر من كل رحلة — دخل مضمون مع الرحلات الإضافية",
+  },
+  {
+    icon: Bell,
+    color: "text-yellow-400",
+    bg: "bg-yellow-400/10 border-yellow-400/20",
+    title: "إشعارات فورية ودعم ذو أولوية",
+    desc: "فريق الدعم يعطيك الأولوية في كل طلب، وإشعارات فورية عند كل رحلة جديدة",
+  },
 ];
 
 function fileToBase64(file: File): Promise<string> {
@@ -287,10 +318,28 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
           <h2 className="text-2xl font-black text-white">حسابك السائق موقوف</h2>
           <p className="text-sm text-white/45 max-w-xs mx-auto leading-relaxed">
             {trialExpired
-              ? "انتهت تجربتك المجانية البدون اشتراك. للاستمرار في استقبال الطلبات، اشترك الآن."
-              : "لتفعيل وضع السائق واستقبال الطلبات، يجب الاشتراك الشهري."
+              ? "انتهت تجربتك المجانية. لاستقبال طلبات كورسا وتفعيل وضع السائق، اشترك الآن."
+              : "حسابك موقوف مؤقتاً — لا تستقبل طلبات حالياً. اشترك لتفعيل وضع السائق فوراً."
             }
           </p>
+        </motion.div>
+
+        {/* مزايا السائق */}
+        <motion.div
+          initial={{ y: 14, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.15 }}
+          className="space-y-2.5 w-full max-w-xs"
+        >
+          {DRIVER_BENEFITS.map(({ icon: Icon, color, bg, title, desc }) => (
+            <div key={title} className={`flex items-start gap-3.5 p-3.5 rounded-2xl border ${bg}`}>
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${bg}`}>
+                <Icon className={`w-5 h-5 ${color}`} />
+              </div>
+              <div className="flex-1">
+                <p className={`text-sm font-bold ${color}`}>{title}</p>
+                <p className="text-[11px] text-white/40 mt-0.5 leading-relaxed">{desc}</p>
+              </div>
+            </div>
+          ))}
         </motion.div>
 
         <div className="bg-red-500/8 border border-red-500/20 rounded-2xl px-6 py-4 w-full max-w-xs space-y-2">
@@ -341,10 +390,28 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
           </div>
         </motion.div>
         <motion.div initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="space-y-2">
-          <h2 className="text-2xl font-black text-white">اشتراك السائق الشهري</h2>
+          <h2 className="text-2xl font-black text-white">فعل حسابك السائق</h2>
           <p className="text-sm text-white/45 max-w-xs mx-auto leading-relaxed">
-            لإتاحة وضع السائق واستقبال طلبات كورسا، يجب الاشتراك الشهري.
+            حسابك موقوف مؤقتاً — لا تستقبل طلبات حالياً<br />اشترك واستقبل طلبات كورسا فوراً
           </p>
+        </motion.div>
+
+        {/* مزايا السائق */}
+        <motion.div
+          initial={{ y: 14, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.15 }}
+          className="space-y-2.5 w-full max-w-xs"
+        >
+          {DRIVER_BENEFITS.map(({ icon: Icon, color, bg, title, desc }) => (
+            <div key={title} className={`flex items-start gap-3.5 p-3.5 rounded-2xl border ${bg}`}>
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${bg}`}>
+                <Icon className={`w-5 h-5 ${color}`} />
+              </div>
+              <div className="flex-1">
+                <p className={`text-sm font-bold ${color}`}>{title}</p>
+                <p className="text-[11px] text-white/40 mt-0.5 leading-relaxed">{desc}</p>
+              </div>
+            </div>
+          ))}
         </motion.div>
 
         <div className="bg-primary/8 border border-primary/20 rounded-2xl px-6 py-4 w-full max-w-xs">
