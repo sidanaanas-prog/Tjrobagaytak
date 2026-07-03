@@ -98,8 +98,31 @@ export function SubscriptionGate({ children, type }: Props) {
   const [idPreview, setIdPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [activatingTrial, setActivatingTrial] = useState(false);
   const proofRef = useRef<HTMLInputElement>(null);
   const idRef = useRef<HTMLInputElement>(null);
+
+  async function activateTrial() {
+    setActivatingTrial(true);
+    try {
+      const token = getMemToken();
+      const res = await fetch(`${BASE}/api/subscriptions/trial`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: data.message, description: "تم تفعيل التجربة المجانية بنجاح" });
+        refetch();
+      } else {
+        toast({ title: "تنبيه", description: data.error || "فشل التفعيل", variant: "destructive" });
+      }
+    } catch (e: any) {
+      toast({ title: "خطأ", description: e.message, variant: "destructive" });
+    } finally {
+      setActivatingTrial(false);
+    }
+  }
 
   function openModal() {
     setStep("plan");
@@ -288,15 +311,23 @@ export function SubscriptionGate({ children, type }: Props) {
 
               <motion.button
                 whileTap={{ scale: 0.97 }}
-                onClick={openModal}
-                className="w-full h-12 rounded-2xl bg-gradient-to-l from-amber-500 to-amber-400 text-white font-black text-sm shadow-[0_0_28px_rgba(245,158,11,0.4)] flex items-center justify-center gap-2"
+                onClick={activateTrial}
+                disabled={activatingTrial}
+                className="w-full h-12 rounded-2xl bg-gradient-to-l from-amber-500 to-amber-400 text-white font-black text-sm shadow-[0_0_28px_rgba(245,158,11,0.4)] flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                <Crown className="w-4 h-4" />
-                اشترك الآن — اختر باقتك
+                {activatingTrial ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />}
+                🎉 اشترك مجاني — 7 أيام
                 <ChevronRight className="w-4 h-4" />
               </motion.button>
 
-              <p className="text-center text-[11px] text-white/25 mt-3">
+              <button
+                onClick={openModal}
+                className="mt-2 text-xs text-white/30 hover:text-white/60 transition-colors"
+              >
+                أو اشترك في باقة مدفوعة ←
+              </button>
+
+              <p className="text-center text-[11px] text-white/25 mt-2">
                 الحالات مجانية دائماً ✓ — الاشتراك للنشر التجاري فقط
               </p>
             </div>
@@ -400,15 +431,23 @@ export function SubscriptionGate({ children, type }: Props) {
         <motion.button
           initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.27 }}
           whileTap={{ scale: 0.97 }}
-          onClick={openModal}
-          className="w-full h-14 rounded-2xl bg-amber-500 font-black text-white text-base shadow-[0_0_35px_rgba(245,158,11,0.45)] flex items-center justify-center gap-2.5"
+          onClick={activateTrial}
+          disabled={activatingTrial}
+          className="w-full h-14 rounded-2xl bg-amber-500 font-black text-white text-base shadow-[0_0_35px_rgba(245,158,11,0.45)] flex items-center justify-center gap-2.5 disabled:opacity-50"
         >
-          <Crown className="w-5 h-5" />
-          اشترك الآن — اختر باقتك
+          {activatingTrial ? <Loader2 className="w-5 h-5 animate-spin" /> : <Gift className="w-5 h-5" />}
+          🎉 اشترك مجاني — 7 أيام
           <ChevronRight className="w-4 h-4" />
         </motion.button>
 
-        <p className="mt-3 text-center text-[11px] text-white/25">
+        <button
+          onClick={openModal}
+          className="mt-2 text-xs text-white/30 hover:text-white/60 transition-colors"
+        >
+          أو اشترك في باقة مدفوعة ←
+        </button>
+
+        <p className="mt-2 text-center text-[11px] text-white/25">
           الحالات مجانية دائماً ✓ — الاشتراك للنشر التجاري فقط
         </p>
       </div>

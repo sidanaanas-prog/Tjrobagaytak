@@ -276,4 +276,42 @@ router.patch("/admin/subscriptions/:id/reject", authenticate, requireAdmin, asyn
   }
 });
 
+// ── تفعيل تجربة مجانية 7 أيام ──────────────────────────────────────────
+router.post("/subscriptions/trial", authenticate, async (req, res): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+    const now = new Date();
+    const trialExpiry = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const [user] = (await db.select({ trialExpiresAt: usersTable.trialExpiresAt })
+      .from(usersTable).where(eq(usersTable.id, userId))) ?? [];
+
+    // إذا كان لديه تجربة نشطة، لا تعيد التفعيل
+    if (user?.trialExpiresAt && new Date(user.trialExpiresAt) > now) {
+      res.status(400).json({ error: "لديك تجربة مجانية نشطة بالفعل" });
+      return;
+    }
+
+    await db.update(usersTable)
+      .set({ trialExpiresAt: trialExpiry })
+      .where(eq(usersTable.id, userId));
+
+    await db.insert(activityTable).values({
+      id: randomUUID(),
+      type: "trial_activated",
+      description: "تم تفعيل التجربة المجانية (7 أيام)",
+      userId,
+      userName: "User",
+    });
+
+    res.json({
+      success: true,
+      message: "🎉 مبروك! تم تفعيل التجربة المجانية 7 أيام",
+      trialExpiresAt: trialExpiry.toISOString(),
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;
