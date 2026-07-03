@@ -219,6 +219,11 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
 
   if (status?.isSubscribed || status?.isFree) return <>{children}</>;
 
+  // ── حساب موقوف: التجربة انتهت ولا يوجد اشتراك ──
+  const trialExpired = status?.trialExpiresAt && new Date(status.trialExpiresAt) <= new Date();
+  const neverSubscribed = !status?.trialExpiresAt && !status?.isSubscribed && !status?.isFree;
+  const isPaused = trialExpired || neverSubscribed;
+
   // ── حالة الاشتراك القيد المراجعة ──
   if (status?.isPending) {
     return (
@@ -269,6 +274,64 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
     );
   }
 
+  // ── حساب موقوف: التجربة انتهت ──
+  if (isPaused) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[78vh] px-6 text-center gap-5" dir="rtl">
+        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+          <div className="w-24 h-24 rounded-3xl bg-red-500/10 border border-red-500/25 flex items-center justify-center mx-auto shadow-[0_0_50px_rgba(239,68,68,0.15)]">
+            <AlertTriangle className="w-12 h-12 text-red-500" />
+          </div>
+        </motion.div>
+        <motion.div initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="space-y-2">
+          <h2 className="text-2xl font-black text-white">حسابك السائق موقوف</h2>
+          <p className="text-sm text-white/45 max-w-xs mx-auto leading-relaxed">
+            {trialExpired
+              ? "انتهت تجربتك المجانية البدون اشتراك. للاستمرار في استقبال الطلبات، اشترك الآن."
+              : "لتفعيل وضع السائق واستقبال الطلبات، يجب الاشتراك الشهري."
+            }
+          </p>
+        </motion.div>
+
+        <div className="bg-red-500/8 border border-red-500/20 rounded-2xl px-6 py-4 w-full max-w-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-white/50 text-sm">الحالة</span>
+            <span className="text-red-400 font-bold text-sm flex items-center gap-1">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              موقوف
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-white/50 text-sm">الباقة</span>
+            <span className="text-white font-bold text-sm">الشهرية — 2,000 دج</span>
+          </div>
+          {trialExpired && status?.trialExpiresAt && (
+            <div className="flex items-center justify-between">
+              <span className="text-white/50 text-sm">انتهت التجربة</span>
+              <span className="text-white/70 text-sm">
+                {new Date(status.trialExpiresAt).toLocaleDateString("ar-DZ")}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          onClick={openModal}
+          className="w-full max-w-xs h-14 rounded-2xl bg-primary font-black text-white text-base shadow-[0_0_35px_rgba(168,85,247,0.45)] flex items-center justify-center gap-2"
+        >
+          <Crown className="w-5 h-5" />
+          اشترك الآن — 2000 دج/شهر
+          <ChevronRight className="w-4 h-4" />
+        </motion.button>
+
+        <p className="text-[11px] text-white/25">
+          الاشتراك يُجدٍّ شهرياً — يمكن إلغاؤه في أي وقت
+        </p>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="flex flex-col items-center justify-center min-h-[78vh] px-6 text-center gap-5" dir="rtl">
@@ -304,7 +367,7 @@ export function DriverSubscriptionGate({ children, onOpen }: Props) {
         </motion.button>
 
         <p className="text-[11px] text-white/25">
-          الاشتراك يُجدّد شهرياً — يمكن إلغاؤه في أي وقت
+          الاشتراك يُجدّم شهرياً — يمكن إلغاؤه في أي وقت
         </p>
       </div>
 
