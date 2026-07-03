@@ -21,9 +21,7 @@ function initCloudinary() {
   cloudinary.config({ cloud_name: name, api_key: key, api_secret: secret });
 }
 
-if (!IS_REPLIT) {
-  initCloudinary();
-}
+initCloudinary(); // always configure Cloudinary (used by all upload routes)
 
 async function uploadToCloudinary(base64: string, folder: string): Promise<string> {
   const result = await cloudinary.uploader.upload(base64, {
