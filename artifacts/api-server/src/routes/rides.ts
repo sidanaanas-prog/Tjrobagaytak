@@ -33,7 +33,7 @@ router.post("/rides", authenticate, async (req, res): Promise<void> => {
       updatedAt: now,
     });
 
-    // إشعار السائقين المشتركين المتاحين أو المجانيين
+    // إشعار السائقين المشتركين المتاحين أو المجانيين أو في التجربة
     const drivers = (await db
       .select({ userId: driverProfilesTable.userId })
       .from(driverProfilesTable)
@@ -46,6 +46,7 @@ router.post("/rides", authenticate, async (req, res): Promise<void> => {
             eq(driverProfilesTable.isSubscribed, true),
             sql`${driverProfilesTable.subscriptionExpiresAt} > ${now}`,
           ),
+          sql`${driverProfilesTable.trialExpiresAt} > ${now}`,
         ),
       ))) ?? [];
 
@@ -306,7 +307,7 @@ router.patch("/rides/:id/price", authenticate, async (req, res): Promise<void> =
       price: String(price), updatedAt: now,
     }).where(eq(ridesTable.id, req.params.id as string));
 
-    // إشعار السائقين المشتركين أو المجانيين بالسعر الجديد
+    // إشعار السائقين المشتركين أو المجانيين أو في التجربة بالسعر الجديد
     const drivers = (await db
       .select({ userId: driverProfilesTable.userId })
       .from(driverProfilesTable)
@@ -319,6 +320,7 @@ router.patch("/rides/:id/price", authenticate, async (req, res): Promise<void> =
             eq(driverProfilesTable.isSubscribed, true),
             sql`${driverProfilesTable.subscriptionExpiresAt} > ${now}`,
           ),
+          sql`${driverProfilesTable.trialExpiresAt} > ${now}`,
         ),
       ))) ?? [];
 
@@ -445,7 +447,6 @@ router.post("/driver/profile", authenticate, async (req, res): Promise<void> => 
         licenseImage: licenseImage ?? null,
         idCardImage: idCardImage ?? null,
         vehicleDocImage: vehicleDocImage ?? null,
-        isFree: true,
         trialExpiresAt: trialExpiry,
         documentsSubmittedAt: (licenseImage || idCardImage || vehicleDocImage) ? now : null,
         documentsStatus: (licenseImage || idCardImage || vehicleDocImage) ? "pending" : null,

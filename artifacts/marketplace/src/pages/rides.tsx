@@ -6,10 +6,11 @@ import { getApiUrl } from "@/lib/api-url";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { DriverSubscriptionGate } from "@/components/DriverSubscriptionGate";
+import { useDriverSubscription } from "@/hooks/use-driver-subscription";
 import {
   Car, MapPin, Clock, Star, CheckCircle, XCircle, Phone, MessageSquare,
   ChevronLeft, Loader2, Navigation, User, Circle, Flag,
-  Plus, Trash2, TrendingUp, Shield,
+  Plus, Trash2, TrendingUp, Shield, Gift,
 } from "lucide-react";
 
 const BASE = getApiUrl("");
@@ -424,6 +425,12 @@ function DriverDashboard() {
   const [loading, setLoading] = useState(true);
   const [online, setOnline] = useState(false);
   const [profile, setProfile] = useState<any>(null);
+  const { status: subStatus } = useDriverSubscription();
+
+  const driverTrialDays = subStatus?.trialExpiresAt
+    ? Math.max(0, Math.ceil((new Date(subStatus.trialExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : null;
+  const isDriverTrialActive = driverTrialDays !== null && driverTrialDays > 0;
 
   const fetchRequests = useCallback(async () => {
     const token = getMemToken();
@@ -530,25 +537,78 @@ function DriverDashboard() {
         </div>
         {profile && (
           <>
-            {/* الاشتراك الشهري — مجاني لجميع السائقين */}
-            <div className="mb-4 rounded-xl p-3 border bg-amber-500/8 border-amber-500/20">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-500/15 text-amber-400">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+            {/* حالة الاشتراك / التجربة المجانية */}
+            {isDriverTrialActive ? (
+              <div className="mb-4 rounded-xl p-3 border bg-amber-500/8 border-amber-500/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-500/15 text-amber-400">
+                      <Gift className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white">🎉 تجربة مجانية 7 أيام</p>
+                      <p className="text-[10px] text-white/50">
+                        متبقى {driverTrialDays} أيام — استخدم جميع الميزات
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-bold text-white">حساب مجاني</p>
-                    <p className="text-[10px] text-white/50">
-                      جميع السائقين يستخدمون التطبيق مجاناً
-                    </p>
-                  </div>
+                  <span className="text-[10px] px-2 py-1 rounded-full bg-amber-500/15 text-amber-400 font-bold animate-pulse">
+                    {driverTrialDays} أيام
+                  </span>
                 </div>
-                <span className="text-[10px] px-2 py-1 rounded-full bg-amber-500/15 text-amber-400 font-bold">مجاني</span>
               </div>
-            </div>
+            ) : subStatus?.isFree ? (
+              <div className="mb-4 rounded-xl p-3 border bg-green-500/8 border-green-500/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-green-500/15 text-green-400">
+                      <CheckCircle className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white">اشتراك نشط</p>
+                      <p className="text-[10px] text-white/50">
+                        حسابك مجاني مدى الحياة
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] px-2 py-1 rounded-full bg-green-500/15 text-green-400 font-bold">نشط</span>
+                </div>
+              </div>
+            ) : subStatus?.isSubscribed ? (
+              <div className="mb-4 rounded-xl p-3 border bg-primary/8 border-primary/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary/15 text-primary">
+                      <Clock className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white">اشتراك مدفوع</p>
+                      <p className="text-[10px] text-white/50">
+                        {subStatus?.expiresAt ? `ينتهي ${new Date(subStatus.expiresAt).toLocaleDateString('ar-DZ')}` : 'اشتراك نشط'}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] px-2 py-1 rounded-full bg-primary/15 text-primary font-bold">مدفوع</span>
+                </div>
+              </div>
+            ) : (
+              <div className="mb-4 rounded-xl p-3 border bg-red-500/8 border-red-500/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-red-500/15 text-red-400">
+                      <Clock className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white">التجربة انتهت</p>
+                      <p className="text-[10px] text-white/50">
+                        اشترك الآن لاستقبال الطلبات
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] px-2 py-1 rounded-full bg-red-500/15 text-red-400 font-bold">منتهي</span>
+                </div>
+              </div>
+            )}
 
             {/* حالة الوثائق */}
             <div className={`mb-4 rounded-xl p-3 border ${profile.documentsStatus === "verified" ? "bg-green-500/8 border-green-500/20" : profile.documentsStatus === "pending" ? "bg-yellow-500/8 border-yellow-500/20" : "bg-red-500/8 border-red-500/20"}`}>
