@@ -258,16 +258,16 @@ function StoryViewer({ groups, startGroupIndex, onClose, currentUserId, onLikeTo
       className="fixed inset-0 z-[100] bg-black flex items-center justify-center"
     >
       <div className="relative w-full max-w-lg h-full">
-        {/* Media with swipe gesture */}
+        {/* Media with swipe gesture — TikTok vertical */}
         <motion.div
           className="absolute inset-0"
           style={story.mediaType === "text" ? { background: story.bgColor ?? "linear-gradient(160deg,#0f0c29,#302b63,#24243e)" } : { background: "#000" }}
-          drag="x"
+          drag="y"
           dragElastic={0.15}
-          dragConstraints={{ left: 0, right: 0 }}
+          dragConstraints={{ top: 0, bottom: 0 }}
           onDragEnd={(_, info) => {
-            if (info.offset.x < -60) goNext();
-            else if (info.offset.x > 60) goPrev();
+            if (info.offset.y < -80) goNext();      // swipe up → next
+            else if (info.offset.y > 80) goPrev();  // swipe down → prev
           }}
         >
           {story.mediaType === "text" ? (
@@ -340,11 +340,12 @@ function StoryViewer({ groups, startGroupIndex, onClose, currentUserId, onLikeTo
           </button>
         </div>
 
-        {/* Tap zones */}
+        {/* Tap zones — vertical: bottom half = next, top half = prev */}
         {!showDetails && (
-          <div className="absolute inset-0 flex z-10 pointer-events-none">
-            <div className="w-1/3 h-full pointer-events-auto" onClick={goNext} />
-            <div className="w-2/3 h-full pointer-events-auto" onClick={goPrev} />
+          <div className="absolute inset-0 flex flex-col z-10 pointer-events-none">
+            <div className="w-full h-1/3 pointer-events-auto" onClick={goPrev} />
+            <div className="w-full h-1/3 pointer-events-none" />
+            <div className="w-full h-1/3 pointer-events-auto" onClick={goNext} />
           </div>
         )}
 
@@ -357,47 +358,88 @@ function StoryViewer({ groups, startGroupIndex, onClose, currentUserId, onLikeTo
           </div>
         )}
 
-        {/* Bottom actions */}
+        {/* Bottom actions — TikTok style */}
         {!showDetails && (
-          <div className="absolute bottom-10 left-0 right-0 z-30 px-5">
-            <div className="flex items-center gap-3">
-              {/* Like button — for others */}
-              {!isMyStory && (
-                <motion.button
-                  whileTap={{ scale: 0.85 }}
-                  onClick={(e) => { e.stopPropagation(); handleLike(); }}
-                  disabled={liking}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white/15 backdrop-blur-md border border-white/20"
+          <div className="absolute bottom-6 left-0 right-0 z-30 px-5">
+            <div className="flex items-center justify-between">
+              {/* Left: Caption + user info */}
+              <div className="flex-1 min-w-0 pr-4">
+                <p className="text-white font-bold text-sm flex items-center gap-1.5 mb-1">
+                  {group.userName}
+                  {(group.userIsVerified || group.userRole === "admin") && <VerifiedBadge size="xs" role={group.userRole} />}
+                </p>
+                {story.caption && story.mediaType !== "text" && (
+                  <p className="text-white/80 text-xs leading-relaxed line-clamp-3">{story.caption}</p>
+                )}
+                {story.mediaType === "text" && (
+                  <p className="text-white/80 text-xs leading-relaxed line-clamp-3">{story.caption ?? "حالة نصية"}</p>
+                )}
+              </div>
+
+              {/* Right: action buttons column */}
+              <div className="flex flex-col items-center gap-4">
+                {/* Avatar on top */}
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold text-white border-2 border-white/50 shrink-0 overflow-hidden"
+                  style={{ background: avatarColor(group.userName) }}
                 >
-                  <Heart
-                    className={`w-5 h-5 transition-colors ${story.likedByMe ? "text-red-500 fill-red-500" : "text-white"}`}
-                  />
-                  <span className="text-white text-xs font-bold">{liveLikes}</span>
-                </motion.button>
-              )}
+                  {group.userAvatar
+                    ? <img src={group.userAvatar} className="w-full h-full object-cover" alt="" />
+                    : group.userName[0]}
+                </div>
 
-              {/* Viewers / Likes buttons — for me */}
-              {isMyStory && (
-                <>
+                {/* Like button — for others */}
+                {!isMyStory && (
                   <motion.button
-                    whileTap={{ scale: 0.95 }}
-                    onClick={(e) => { e.stopPropagation(); openDetails("viewers"); }}
-                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10"
+                    whileTap={{ scale: 0.85 }}
+                    onClick={(e) => { e.stopPropagation(); handleLike(); }}
+                    disabled={liking}
+                    className="flex flex-col items-center gap-0.5"
                   >
-                    <Users className="w-4 h-4 text-primary" />
-                    <span className="text-white text-xs font-bold">{liveViews} مشاهدة</span>
+                    <Heart
+                      className={`w-8 h-8 transition-colors ${story.likedByMe ? "text-red-500 fill-red-500" : "text-white"}`}
+                    />
+                    <span className="text-white text-[10px] font-bold">{liveLikes}</span>
                   </motion.button>
-                  <motion.button
-                    whileTap={{ scale: 0.95 }}
-                    onClick={(e) => { e.stopPropagation(); openDetails("likes"); }}
-                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10"
-                  >
-                    <Heart className="w-4 h-4 text-red-400 fill-red-400" />
-                    <span className="text-white text-xs font-bold">{liveLikes} إعجاب</span>
-                  </motion.button>
-                </>
-              )}
+                )}
 
+                {/* Viewers / Likes — for me */}
+                {isMyStory && (
+                  <>
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={(e) => { e.stopPropagation(); openDetails("viewers"); }}
+                      className="flex flex-col items-center gap-0.5"
+                    >
+                      <Users className="w-7 h-7 text-white" />
+                      <span className="text-white text-[10px] font-bold">{liveViews}</span>
+                    </motion.button>
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={(e) => { e.stopPropagation(); openDetails("likes"); }}
+                      className="flex flex-col items-center gap-0.5"
+                    >
+                      <Heart className="w-7 h-7 text-red-400 fill-red-400" />
+                      <span className="text-white text-[10px] font-bold">{liveLikes}</span>
+                    </motion.button>
+                  </>
+                )}
+
+                {/* دردشة button — always visible for others */}
+                {!isMyStory && (
+                  <motion.button
+                    whileTap={{ scale: 0.85 }}
+                    onClick={(e) => { e.stopPropagation(); handleContact(); }}
+                    disabled={messaging}
+                    className="flex flex-col items-center gap-0.5"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center shadow-[0_0_16px_rgba(168,85,247,0.5)]">
+                      <MessageCircle className="w-5 h-5 text-white" />
+                    </div>
+                    <span className="text-white text-[10px] font-bold">دردشة</span>
+                  </motion.button>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -469,20 +511,11 @@ function StoryViewer({ groups, startGroupIndex, onClose, currentUserId, onLikeTo
           )}
         </AnimatePresence>
 
-        {/* Nav arrows */}
+        {/* Vertical swipe hint */}
         {!showDetails && (
-          <>
-            {groupIdx > 0 && (
-              <button onClick={(e) => { e.stopPropagation(); goPrev(); }} className="absolute left-2 top-1/2 -translate-y-1/2 z-30 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center">
-                <ChevronLeft className="w-5 h-5 text-white" />
-              </button>
-            )}
-            {groupIdx < groups.length - 1 && (
-              <button onClick={(e) => { e.stopPropagation(); goNext(); }} className="absolute right-2 top-1/2 -translate-y-1/2 z-30 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center">
-                <ChevronRight className="w-5 h-5 text-white" />
-              </button>
-            )}
-          </>
+          <div className="absolute bottom-1 left-0 right-0 z-20 flex justify-center">
+            <div className="w-8 h-1 rounded-full bg-white/20" />
+          </div>
         )}
       </div>
     </motion.div>

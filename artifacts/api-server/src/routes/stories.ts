@@ -42,7 +42,7 @@ router.get("/stories", optionalAuthenticate, async (req, res): Promise<void> => 
         storyId: storyViewsTable.storyId,
         viewCount: sql<number>`count(*)::int`,
         viewedByMe: viewerId
-          ? sql<boolean>`bool_or(${storyViewsTable.viewerId} = ${viewerId})`
+          ? sql<boolean>`bool_or(${storyViewsTable.userId} = ${viewerId})`
           : sql<boolean>`false`,
       })
       .from(storyViewsTable)
@@ -173,7 +173,7 @@ router.post("/stories/:id/view", authenticate, async (req, res): Promise<void> =
 
   await db
     .insert(storyViewsTable)
-    .values({ storyId: id as string, viewerId })
+    .values({ storyId: id as string, userId: viewerId })
     .onConflictDoNothing();
 
   res.json({ ok: true });
@@ -251,12 +251,12 @@ router.get("/stories/:id/viewers", authenticate, async (req, res): Promise<void>
       id: usersTable.id,
       name: usersTable.name,
       avatar: usersTable.avatar,
-      viewedAt: storyViewsTable.viewedAt,
+      viewedAt: storyViewsTable.createdAt,
     })
     .from(storyViewsTable)
-    .innerJoin(usersTable, eq(storyViewsTable.viewerId, usersTable.id))
+    .innerJoin(usersTable, eq(storyViewsTable.userId, usersTable.id))
     .where(eq(storyViewsTable.storyId, id as string))
-    .orderBy(desc(storyViewsTable.viewedAt));
+    .orderBy(desc(storyViewsTable.createdAt));
 
   res.json(fakeStoryViewers(id as string, story.createdAt as Date, viewers as any[]));
 });
