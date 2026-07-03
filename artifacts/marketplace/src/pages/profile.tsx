@@ -6,7 +6,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, LogOut, Shield, User as UserIcon, Camera, ChevronLeft, Bell, Trash2, AlertTriangle, Package, Users, Image, Car, Store, UserCheck, Check, Clock } from "lucide-react";
+import { Loader2, LogOut, Shield, User as UserIcon, Camera, ChevronLeft, Bell, Trash2, AlertTriangle, Package, Users, Image, Car, Store, UserCheck, Check, Clock, Gift } from "lucide-react";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { useToast } from "@/hooks/use-toast";
 import { getMemToken } from "@/hooks/use-auth";
@@ -196,9 +196,9 @@ export default function ProfilePage() {
                 <Gift className="w-5 h-5 text-amber-400" />
               </div>
               <div className="flex-1">
-                <h3 className="text-sm font-black text-white">مبروك عليك! 🎉</h3>
+                <h3 className="text-sm font-black text-white">🎉 مبروك! تجربة مجانية 7 أيام</h3>
                 <p className="text-xs text-white/70 mt-1">
-                  اشتراك مجاني {trialDays} أيام لاستخدام جميع الخدمات
+                  متبقى {trialDays} أيام في تجربتك المجانية. استخدم جميع الميزات الآن!
                 </p>
               </div>
               <button
@@ -256,7 +256,7 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-center gap-1.5 mt-2 px-3 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/25">
                   <Clock className="w-3 h-3 text-amber-400 animate-pulse" />
                   <span className="text-[10px] font-bold text-amber-400">
-                    {trialDays} أيام متبقية في التجربة المجانية
+                    {trialDays} أيام متبقية
                   </span>
                 </div>
               )}

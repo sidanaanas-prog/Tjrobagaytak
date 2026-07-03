@@ -292,7 +292,7 @@ export function SubscriptionGate({ children, type }: Props) {
                 className="w-full h-12 rounded-2xl bg-gradient-to-l from-amber-500 to-amber-400 text-white font-black text-sm shadow-[0_0_28px_rgba(245,158,11,0.4)] flex items-center justify-center gap-2"
               >
                 <Gift className="w-4 h-4" />
-                هدية — اشتراك مجاني شهر
+                مبروك — 7 أيام مجانية
                 <ChevronRight className="w-4 h-4" />
               </motion.button>
 
@@ -404,7 +404,7 @@ export function SubscriptionGate({ children, type }: Props) {
           className="w-full h-14 rounded-2xl bg-amber-500 font-black text-white text-base shadow-[0_0_35px_rgba(245,158,11,0.45)] flex items-center justify-center gap-2.5"
         >
           <Gift className="w-5 h-5" />
-          هدية — اشتراك مجاني شهر
+          مبروك — 7 أيام مجانية
           <ChevronRight className="w-4 h-4" />
         </motion.button>
 
