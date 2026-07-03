@@ -7,7 +7,7 @@ import { getApiUrl } from "@/lib/api-url";
 import {
   Crown, Check, Upload, ChevronRight, Loader2, X,
   Clock, BadgeCheck, Eye, TrendingUp, Zap, Copy,
-  ShieldCheck, AlertTriangle, RefreshCw, Smartphone, Banknote,
+  ShieldCheck, AlertTriangle, RefreshCw, Smartphone, Banknote, Gift,
 } from "lucide-react";
 
 const BASE = getApiUrl("");
