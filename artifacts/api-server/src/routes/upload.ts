@@ -76,12 +76,26 @@ router.post("/upload", authenticate, async (req: Request, res: Response): Promis
     const folder = filePath.split("/")[0] || "general";
     const resourceType = isAudioContentType(contentType) ? "video" : "image";
 
-    const url = await uploadToCloudinary(cleanBase64, folder, resourceType);
-    console.log(`[Upload] ✅ Cloudinary (${resourceType}): ${filePath}`);
+    let url: string;
+
+    if (IS_REPLIT) {
+      // Use Replit Object Storage (works on both dev & prod)
+      const buffer = Buffer.from(cleanBase64, "base64");
+      url = await uploadToReplitStorage(buffer, filePath, contentType, req);
+      console.log(`[Upload] ✅ Replit Storage (${resourceType}): ${filePath}`);
+    } else {
+      // Fallback to Cloudinary (Render / external)
+      const cloudinaryBase64 = resourceType === "video"
+        ? `data:video/webm;base64,${cleanBase64}`
+        : base64;
+      url = await uploadToCloudinary(cloudinaryBase64, folder, resourceType);
+      console.log(`[Upload] ✅ Cloudinary (${resourceType}): ${filePath}`);
+    }
+
     res.json({ url, path: filePath });
   } catch (err: any) {
-    console.error("[Upload] ❌", err.message);
-    res.status(500).json({ error: "Upload failed: " + err.message });
+    console.error("[Upload] ❌", err?.message || err);
+    res.status(500).json({ error: "Upload failed: " + (err?.message || "unknown") });
   }
 });
 
