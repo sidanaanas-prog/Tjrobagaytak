@@ -1,8 +1,10 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useCreateProduct, useListCategories } from "@workspace/api-client-react";
 import { SubscriptionGate } from "@/components/SubscriptionGate";
+import { TrialCountdownBanner, TrialWelcomePopup } from "@/components/TrialCountdownBanner";
+import { useSubscription } from "@/hooks/use-subscription";
 import { AppLayout } from "@/components/AppLayout";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,14 +21,30 @@ export default function SellPage() {
   const { data: categories } = useListCategories();
   const createProduct = useCreateProduct();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { status: subStatus } = useSubscription();
 
   const [form, setForm] = useState({ title: "", description: "", price: "", originalPrice: "", categoryId: "" });
   const [images, setImages] = useState<string[]>([]);
   const [urlInput, setUrlInput] = useState("");
   const [imgTab, setImgTab] = useState<"gallery" | "url">("gallery");
   const [compressing, setCompressing] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   if (!user) { setLocation("/login"); return null; }
+
+  const trialDays = subStatus?.trialExpiresAt
+    ? Math.ceil((new Date(subStatus.trialExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  useEffect(() => {
+    if (user && trialDays && trialDays > 0 && trialDays <= 7) {
+      const shown = localStorage.getItem(`sell_welcome_${user.id}`);
+      if (!shown) {
+        setShowWelcome(true);
+        localStorage.setItem(`sell_welcome_${user.id}`, "true");
+      }
+    }
+  }, [user, trialDays]);
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
@@ -88,6 +106,21 @@ export default function SellPage() {
     <AppLayout>
       <SubscriptionGate type="product">
       <div className="flex flex-col">
+        {/* Trial Banner */}
+        {trialDays && trialDays > 0 && (
+          <TrialCountdownBanner
+            trialExpiresAt={subStatus?.trialExpiresAt}
+            role="seller"
+          />
+        )}
+        {/* Welcome Popup */}
+        {showWelcome && trialDays && trialDays > 0 && (
+          <TrialWelcomePopup
+            role="seller"
+            daysLeft={trialDays}
+            onClose={() => setShowWelcome(false)}
+          />
+        )}
         <div className="sticky top-0 z-30 px-5 pt-12 pb-4 bg-background/90 backdrop-blur-xl border-b border-white/5">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center">

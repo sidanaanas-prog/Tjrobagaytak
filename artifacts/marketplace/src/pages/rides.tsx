@@ -7,6 +7,7 @@ import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { DriverSubscriptionGate } from "@/components/DriverSubscriptionGate";
 import { useDriverSubscription } from "@/hooks/use-driver-subscription";
+import { TrialCountdownBanner, TrialWelcomePopup } from "@/components/TrialCountdownBanner";
 import {
   Car, MapPin, Clock, Star, CheckCircle, XCircle, Phone, MessageSquare,
   ChevronLeft, Loader2, Navigation, User, Circle, Flag,
@@ -755,6 +756,22 @@ export default function RidesPage() {
     );
   }
 
+  const { status: driverSub } = useDriverSubscription();
+  const trialDays = driverSub?.trialExpiresAt
+    ? Math.ceil((new Date(driverSub.trialExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null;
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  useEffect(() => {
+    if (user && role === "driver" && trialDays && trialDays > 0 && trialDays <= 7) {
+      const shown = localStorage.getItem(`rides_welcome_${user.id}`);
+      if (!shown) {
+        setShowWelcome(true);
+        localStorage.setItem(`rides_welcome_${user.id}`, "true");
+      }
+    }
+  }, [user, role, trialDays]);
+
   return (
     <AppLayout>
       <div className="p-4 space-y-4" dir="rtl">
@@ -772,6 +789,23 @@ export default function RidesPage() {
             </div>
           )}
         </div>
+
+        {/* Driver trial banner */}
+        {role === "driver" && trialDays && trialDays > 0 && (
+          <TrialCountdownBanner
+            trialExpiresAt={driverSub?.trialExpiresAt}
+            role="driver"
+          />
+        )}
+
+        {/* Welcome popup for new drivers */}
+        {showWelcome && trialDays && trialDays > 0 && (
+          <TrialWelcomePopup
+            role="driver"
+            daysLeft={trialDays}
+            onClose={() => setShowWelcome(false)}
+          />
+        )}
 
         {/* Content */}
         {role === "driver" ? (

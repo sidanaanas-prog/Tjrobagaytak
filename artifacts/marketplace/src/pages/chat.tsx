@@ -6,14 +6,14 @@ import {
   getListConversationsQueryKey,
 } from "@workspace/api-client-react";
 import { useApiMessages } from "@/hooks/use-api-messages";
-import { uploadChatImage } from "@/lib/upload-image";
+import { uploadChatImage, uploadChatVoice } from "@/lib/upload-image";
 import { AppLayout } from "@/components/AppLayout";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Send, ArrowRight, MessageCircle, Loader2, Trash2, Copy, ChevronDown, ChevronUp,
   Reply, Share2, ImageIcon, X, Search, CheckCheck, Check, Headphones,
-  MoreVertical, Flag, ShieldOff, ShieldCheck,
+  MoreVertical, Flag, ShieldOff, ShieldCheck, Mic, Play, Pause,
 } from "lucide-react";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { motion, AnimatePresence } from "framer-motion";
@@ -65,6 +65,7 @@ export default function ChatPage() {
     msgId: string; content: string; x: number; y: number; isMe: boolean;
     replyTo?: { id: string; content: string; senderName: string; senderId: string } | null;
     imageUrl?: string | null;
+    voiceUrl?: string | null;
   } | null>(null);
 
   const [showScrollBtn, setShowScrollBtn] = useState(false);
@@ -76,6 +77,19 @@ export default function ChatPage() {
   const [searchResults, setSearchResults] = useState<number[]>([]);
   const [currentSearchIdx, setCurrentSearchIdx] = useState(-1);
   const messageRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  // ── تسجيل صوتي ──
+  const [recording, setRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const voiceBtnRef = useRef<HTMLButtonElement | null>(null);
+  const [dragDelete, setDragDelete] = useState(false);
+  const dragStartXRef = useRef(0);
+  const [voiceSending, setVoiceSending] = useState(false);
+  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => { if (!user) setLocation("/login"); }, [user, setLocation]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [firestoreMessages]);
@@ -236,6 +250,77 @@ export default function ChatPage() {
     } catch {
       toast({ variant: "destructive", title: "خطأ", description: "تعذر إرسال الصورة" });
     }
+  }
+
+  // ── دوال تسجيل صوتي ──
+  async function startRecording() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      toast({ variant: "destructive", title: "المتصفح لا يدعم التسجيل الصوتي" });
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/mp4")
+          ? "audio/mp4"
+          : "audio/webm";
+      const recorder = new MediaRecorder(stream, { mimeType });
+      chunksRef.current = [];
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setRecording(true);
+      setRecordingTime(0);
+      setDragDelete(false);
+      timerRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
+    } catch {
+      toast({ variant: "destructive", title: "فشل الوصول للميكروفون", description: "تحقق من إذن الميكروفون" });
+    }
+  }
+
+  function stopAndSend() {
+    if (!mediaRecorderRef.current || !activeId || !user) return;
+    const recorder = mediaRecorderRef.current;
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    recorder.onstop = async () => {
+      if (dragDelete) { setRecording(false); setRecordingTime(0); setDragDelete(false); return; }
+      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+      if (blob.size < 1000) { setRecording(false); setRecordingTime(0); return; }
+      const file = new File([blob], `voice_${Date.now()}.webm`, { type: blob.type });
+      setVoiceSending(true);
+      try {
+        const voiceUrl = await uploadChatVoice(file, activeId);
+        await fsSendMessage({ senderId: user.id, content: "", voiceUrl });
+        queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
+      } catch {
+        toast({ variant: "destructive", title: "خطأ", description: "تعذر إرسال الرسالة الصوتية" });
+      } finally {
+        setVoiceSending(false);
+        setRecording(false);
+        setRecordingTime(0);
+      }
+    };
+    recorder.stop();
+    recorder.stream.getTracks().forEach(t => t.stop());
+  }
+
+  function cancelRecording() {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
+    }
+    setRecording(false);
+    setRecordingTime(0);
+    setDragDelete(false);
+    toast({ title: "تم إلغاء التسجيل" });
+  }
+
+  function formatTime(sec: number) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
   }
 
   const [sending, setSending] = useState(false);
@@ -562,7 +647,7 @@ export default function ChatPage() {
                         e.stopPropagation();
                         setContextMenu({
                           msgId: msg.id, content: msg.content, x: e.clientX, y: e.clientY, isMe,
-                          replyTo: msg.replyTo, imageUrl: msg.imageUrl,
+                          replyTo: msg.replyTo, imageUrl: msg.imageUrl, voiceUrl: msg.voiceUrl,
                         });
                       }}
                       className={`max-w-[78%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed cursor-pointer select-text relative
@@ -589,6 +674,47 @@ export default function ChatPage() {
                           loading="lazy"
                           decoding="async"
                         />
+                      )}
+                      {/* Voice message */}
+                      {msg.voiceUrl && (
+                        <div className="flex items-center gap-2 mb-1 min-w-[180px]">
+                          <button
+                            onClick={() => {
+                              if (playingVoiceId === msg.id) {
+                                audioRef.current?.pause();
+                                setPlayingVoiceId(null);
+                              } else {
+                                audioRef.current?.pause();
+                                const a = new Audio(msg.voiceUrl as string);
+                                a.play().catch(() => {});
+                                a.onended = () => setPlayingVoiceId(null);
+                                a.onpause = () => setPlayingVoiceId(null);
+                                audioRef.current = a;
+                                setPlayingVoiceId(msg.id);
+                              }
+                            }}
+                            className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center shrink-0 hover:bg-white/30 transition-colors"
+                          >
+                            {playingVoiceId === msg.id ? (
+                              <Pause className="w-4 h-4 text-white" />
+                            ) : (
+                              <Play className="w-4 h-4 text-white ml-0.5" />
+                            )}
+                          </button>
+                          <div className="flex-1 h-6 flex items-center gap-[3px]">
+                            {Array.from({ length: 20 }).map((_, i) => (
+                              <div
+                                key={i}
+                                className={`w-[3px] rounded-full ${playingVoiceId === msg.id ? "bg-white/80 animate-pulse" : "bg-white/40"}`}
+                                style={{
+                                  height: `${Math.max(6, Math.sin(i * 0.8) * 14 + 14)}px`,
+                                  animationDelay: `${i * 50}ms`,
+                                }}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-[10px] text-white/50 font-mono">رسالة صوتية</span>
+                        </div>
                       )}
                       {/* Text */}
                       {msg.content && <p className="whitespace-pre-line">{msg.content}</p>}
@@ -660,6 +786,14 @@ export default function ChatPage() {
                 حذف
               </button>
             )}
+            {/* Delete voice message (always available for voice messages from me) */}
+            {contextMenu.isMe && contextMenu.voiceUrl && (
+              <button onClick={() => handleDeleteMessage(contextMenu.msgId)}
+                className="flex items-center gap-2 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 w-full text-right">
+                <Trash2 className="w-4 h-4" />
+                حذف الرسالة الصوتية
+              </button>
+            )}
           </div>
         )}
 
@@ -683,10 +817,37 @@ export default function ChatPage() {
         )}
 
         {/* Input area */}
-        <div className="px-4 pb-6 pt-2 bg-black/60 backdrop-blur-xl border-t border-white/5">
+        <div className="px-4 pb-6 pt-2 bg-black/60 backdrop-blur-xl border-t border-white/5 relative">
+          {/* Recording overlay */}
+          <AnimatePresence>
+            {recording && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="absolute inset-x-0 -top-14 z-20 flex items-center justify-center gap-3 px-6"
+              >
+                <div className="flex items-center gap-3 bg-[#1a1a2e] border border-red-500/30 rounded-2xl px-4 py-2 shadow-xl">
+                  <Trash2 className={`w-5 h-5 ${dragDelete ? "text-red-400 scale-125" : "text-white/40"} transition-all`} />
+                  <span className="text-sm text-white font-mono">{formatTime(recordingTime)}</span>
+                  <div className="flex gap-[2px] items-end h-4">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="w-[3px] bg-red-400 rounded-full animate-pulse"
+                        style={{ height: `${Math.max(4, Math.random() * 14 + 4)}px`, animationDelay: `${i * 80}ms` }}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[10px] text-white/40">اسحب للإلغاء</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <form onSubmit={handleSend} className="flex gap-2 items-center">
             <button type="button"
-              disabled={!!blockStatus?.blocked}
+              disabled={!!blockStatus?.blocked || recording || voiceSending}
               onClick={() => {
                 const input = document.createElement("input");
                 input.type = "file";
@@ -701,31 +862,82 @@ export default function ChatPage() {
             >
               <ImageIcon className="w-4 h-4 text-white/60" />
             </button>
-            <Input
-              value={message}
-              onChange={(e) => { setMessage(e.target.value); handleTyping(); }}
-              placeholder={blockStatus?.blocked ? "لا يمكنك الإرسال..." : "اكتب رسالة..."}
-              className="flex-1 bg-white/5 border-white/10 focus-visible:border-primary/50 h-11 rounded-xl text-sm"
-              disabled={sending || !!blockStatus?.blocked}
-            />
-            <button type="button" onClick={scrollUp} className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
+
+            {/* Text input (hidden when recording) */}
+            {!recording && (
+              <Input
+                value={message}
+                onChange={(e) => { setMessage(e.target.value); handleTyping(); }}
+                placeholder={blockStatus?.blocked ? "لا يمكنك الإرسال..." : "اكتب رسالة..."}
+                className="flex-1 bg-white/5 border-white/10 focus-visible:border-primary/50 h-11 rounded-xl text-sm"
+                disabled={sending || !!blockStatus?.blocked}
+              />
+            )}
+            {recording && (
+              <div className="flex-1 h-11 rounded-xl bg-white/5 border border-white/10 flex items-center px-4 text-sm text-white/50">
+                <span className="animate-pulse">• جارٍ التسجيل...</span>
+              </div>
+            )}
+
+            <button type="button" onClick={scrollUp} className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center shrink-0" disabled={recording}>
               <ChevronUp className="w-4 h-4 text-white/60" />
             </button>
-            <button type="button" onClick={scrollDown} className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
+            <button type="button" onClick={scrollDown} className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center shrink-0" disabled={recording}>
               <ChevronDown className="w-4 h-4 text-white/60" />
             </button>
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              type="submit"
-              disabled={!message.trim() || sending}
-              className="w-11 h-11 rounded-xl bg-primary flex items-center justify-center shadow-[0_0_14px_rgba(168,85,247,0.5)] disabled:opacity-40 shrink-0"
-            >
-              {sending ? (
-                <Loader2 className="w-4 h-4 animate-spin text-white" />
-              ) : (
-                <Send className="w-4 h-4 text-white" />
-              )}
-            </motion.button>
+
+            {/* Voice / Send button */}
+            {!message.trim() && !recording ? (
+              <motion.button
+                type="button"
+                ref={voiceBtnRef}
+                whileTap={{ scale: 0.9 }}
+                disabled={!!blockStatus?.blocked || voiceSending}
+                onPointerDown={(e) => {
+                  dragStartXRef.current = e.clientX;
+                  startRecording();
+                }}
+                onPointerMove={(e) => {
+                  if (!recording) return;
+                  const dx = e.clientX - dragStartXRef.current;
+                  setDragDelete(dx < -60);
+                }}
+                onPointerUp={() => {
+                  if (recording) stopAndSend();
+                }}
+                className="w-11 h-11 rounded-xl bg-green-500 flex items-center justify-center shadow-[0_0_14px_rgba(34,197,94,0.5)] disabled:opacity-40 shrink-0 relative"
+              >
+                {voiceSending ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                ) : (
+                  <Mic className="w-5 h-5 text-white" />
+                )}
+                {/* Glow ring */}
+                <span className="absolute inset-0 rounded-xl border border-green-400/50 animate-ping opacity-30" />
+              </motion.button>
+            ) : recording ? (
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.9 }}
+                onClick={() => dragDelete ? cancelRecording() : stopAndSend()}
+                className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-lg shrink-0 ${dragDelete ? "bg-red-500" : "bg-green-500"}`}
+              >
+                {dragDelete ? <Trash2 className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5 text-white animate-pulse" />}
+              </motion.button>
+            ) : (
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                type="submit"
+                disabled={!message.trim() || sending}
+                className="w-11 h-11 rounded-xl bg-primary flex items-center justify-center shadow-[0_0_14px_rgba(168,85,247,0.5)] disabled:opacity-40 shrink-0"
+              >
+                {sending ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                ) : (
+                  <Send className="w-4 h-4 text-white" />
+                )}
+              </motion.button>
+            )}
           </form>
         </div>
 

@@ -3,7 +3,7 @@ import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowRight, ChevronDown, ChevronRight, Shield } from "lucide-react";
+import { Loader2, ArrowRight, ChevronDown, ChevronRight, Shield, Copy } from "lucide-react";
 import { getApiUrl, RENDER_API_URL } from "@/lib/api-url";
 import { unlockAudioContext } from "@/components/RideAlertProvider";
 
@@ -189,8 +189,9 @@ export default function LoginPage() {
   const [isNewUser, setIsNewUser] = useState(false);
   const [loading, setLoading] = useState(false);
   const [serverWaking, setServerWaking] = useState(false);
-  // true طالما الـ pre-warm لم يتأكد بعد أن الخادم جاهز
   const [preWarming, setPreWarming] = useState(false);
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
 
   // ── Pre-warm على Render فور فتح الصفحة ──────────────────────────────────
   useEffect(() => {
@@ -258,8 +259,13 @@ export default function LoginPage() {
       );
       if (!res.ok) throw new Error(data.error || "فشل إرسال الرمز");
       setIsNewUser(data.isNewUser);
+      if (data.code) {
+        setOtpCode(data.code);
+        setShowOtpModal(true);
+      } else {
+        toast({ title: "تم إرسال الرمز ✓", description: "تحقق من واتساب الخاص بك" });
+      }
       setStep("otp");
-      toast({ title: "تم إرسال الرمز ✓", description: "تحقق من واتساب الخاص بك" });
     } catch (err: any) {
       toast({ variant: "destructive", title: "خطأ", description: err.message });
     } finally {
@@ -491,6 +497,66 @@ export default function LoginPage() {
               )}
 
             </AnimatePresence>
+
+              {/* OTP Modal */}
+              <AnimatePresence>
+                {showOtpModal && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+                    onClick={() => setShowOtpModal(false)}
+                  >
+                    <motion.div
+                      initial={{ y: 20 }}
+                      animate={{ y: 0 }}
+                      className="w-full max-w-sm bg-[#1a1a2e] border border-primary/30 rounded-3xl p-6 shadow-[0_0_40px_rgba(168,85,247,0.3)]"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <div className="text-center space-y-3">
+                        <div className="w-14 h-14 rounded-2xl bg-primary/20 border border-primary/40 flex items-center justify-center mx-auto">
+                          <Shield className="w-7 h-7 text-primary" />
+                        </div>
+                        <h3 className="text-white font-bold text-lg">رمز التحقق</h3>
+                        <p className="text-white/50 text-sm">يمكنك نسخ الرمز أو كتابته مباشرة</p>
+                      </div>
+
+                      <div className="mt-6 bg-black/40 border border-white/10 rounded-2xl px-6 py-4 flex items-center justify-center gap-3">
+                        <span className="text-white text-3xl font-mono font-bold tracking-[0.3em] dir-ltr" dir="ltr">
+                          {otpCode}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(otpCode);
+                            toast({ title: "تم النسخ" });
+                          }}
+                          className="w-9 h-9 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center hover:bg-primary/30 transition-colors shrink-0"
+                        >
+                          <Copy className="w-4 h-4 text-primary" />
+                        </button>
+                      </div>
+
+                      <div className="mt-6 grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => { setOtp(otpCode); setShowOtpModal(false); }}
+                          className="py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-colors"
+                        >
+                          استخدم الرمز
+                        </button>
+                        <button
+                          onClick={() => setShowOtpModal(false)}
+                          className="py-3 rounded-xl bg-white/10 text-white/60 font-bold text-sm hover:bg-white/20 transition-colors"
+                        >
+                          متابعة
+                        </button>
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
           </div>
 
         </div>

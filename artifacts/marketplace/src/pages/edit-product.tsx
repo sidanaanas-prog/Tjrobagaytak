@@ -8,6 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Pencil, ImageIcon, X, Plus, Link as LinkIcon, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { SubscriptionGate } from "@/components/SubscriptionGate";
+import { TrialCountdownBanner, TrialWelcomePopup } from "@/components/TrialCountdownBanner";
+import { useSubscription } from "@/hooks/use-subscription";
 import { motion, AnimatePresence } from "framer-motion";
 import { uploadProductImages } from "@/lib/upload-image";
 import { getMemToken } from "@/hooks/use-auth";
@@ -30,6 +33,22 @@ export default function EditProductPage() {
   const [imgTab, setImgTab] = useState<"gallery" | "url">("gallery");
   const [compressing, setCompressing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const { status: subStatus } = useSubscription();
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  const trialDays = subStatus?.trialExpiresAt
+    ? Math.ceil((new Date(subStatus.trialExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  useEffect(() => {
+    if (user && trialDays && trialDays > 0 && trialDays <= 7) {
+      const shown = localStorage.getItem(`edit_welcome_${user.id}`);
+      if (!shown) {
+        setShowWelcome(true);
+        localStorage.setItem(`edit_welcome_${user.id}`, "true");
+      }
+    }
+  }, [user, trialDays]);
 
   useEffect(() => {
     if (!user) setLocation("/login");
@@ -129,7 +148,23 @@ export default function EditProductPage() {
 
   return (
     <AppLayout>
+      <SubscriptionGate type="product">
       <div className="flex flex-col">
+        {/* Trial Banner */}
+        {trialDays && trialDays > 0 && (
+          <TrialCountdownBanner
+            trialExpiresAt={subStatus?.trialExpiresAt}
+            role="seller"
+          />
+        )}
+        {/* Welcome Popup */}
+        {showWelcome && trialDays && trialDays > 0 && (
+          <TrialWelcomePopup
+            role="seller"
+            daysLeft={trialDays}
+            onClose={() => setShowWelcome(false)}
+          />
+        )}
         <div className="sticky top-0 z-30 px-5 pt-12 pb-4 bg-background/90 backdrop-blur-xl border-b border-white/5">
           <div className="flex items-center gap-3">
             <button onClick={() => setLocation("/my-listings")}
@@ -274,6 +309,7 @@ export default function EditProductPage() {
           </motion.button>
         </form>
       </div>
+      </SubscriptionGate>
     </AppLayout>
   );
 }

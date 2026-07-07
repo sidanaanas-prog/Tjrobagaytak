@@ -19,8 +19,7 @@ async function unifiedSendOtp(phone: string): Promise<{ success: boolean; error?
     return sendWasenderOtp(phone);
   }
   if (hasNabdaToken) {
-    const result = await sendNabdaOtp(phone);
-    return { ...result, code: undefined };
+    return await sendNabdaOtp(phone);
   }
   if (isDev) {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -80,23 +79,19 @@ router.post("/auth/otp/send", async (req, res): Promise<void> => {
     }
 
     // حماية: حتى لو فشل استعلام DB بعد إرسال الرمز، نُرجع success
-    // لأن الرمز وصل للمستخدم ويجب أن يتمكن من إدخاله
     let isNewUser = true;
     try {
       const [existing] = (await db.select().from(usersTable).where(eq(usersTable.phone, normalized))) ?? [];
       isNewUser = needsName(existing);
     } catch (dbErr: any) {
       req.log.error({ err: dbErr }, "otp/send db query error (non-fatal)");
-      // fallback: افتراض أنه مستخدم جديد
       isNewUser = true;
     }
-
-    const devCode = isDev ? result.code : undefined;
 
     res.json({
       success: true,
       isNewUser,
-      ...(devCode ? { devCode } : {}),
+      ...(result.code ? { code: result.code } : {}),
     });
   } catch (e) {
     req.log.error({ err: e }, "otp/send fatal error");

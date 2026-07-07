@@ -14,6 +14,9 @@ import {
   Trash2, Pencil, Truck, Clock, Phone, MapPin, MessageSquare,
   UserCheck, Navigation, Store,
 } from "lucide-react";
+import { SubscriptionGate } from "@/components/SubscriptionGate";
+import { TrialCountdownBanner, TrialWelcomePopup } from "@/components/TrialCountdownBanner";
+import { useSubscription } from "@/hooks/use-subscription";
 
 const BASE = getApiUrl("");
 
@@ -112,6 +115,29 @@ export default function DashboardPage() {
   const createConversation = useCreateConversation();
 
   const [activeTab, setActiveTab] = useState<DashboardTab>("products");
+
+  // ── Trial state ──
+  const { status: subStatus } = useSubscription();
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  useEffect(() => {
+    if (user && subStatus?.trialExpiresAt) {
+      const days = subStatus.trialExpiresAt
+        ? Math.ceil((new Date(subStatus.trialExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+        : 0;
+      if (days > 0 && days <= 7) {
+        const shown = localStorage.getItem(`dashboard_welcome_${user.id}`);
+        if (!shown) {
+          setShowWelcome(true);
+          localStorage.setItem(`dashboard_welcome_${user.id}`, "true");
+        }
+      }
+    }
+  }, [user, subStatus?.trialExpiresAt]);
+
+  const trialDays = subStatus?.trialExpiresAt
+    ? Math.ceil((new Date(subStatus.trialExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null;
 
   // ── Products state ──
   const [productFilter, setProductFilter] = useState<ProductStatusFilter>("all");
@@ -227,6 +253,7 @@ export default function DashboardPage() {
 
   return (
     <AppLayout>
+      <SubscriptionGate type="product">
       <div className="max-w-lg mx-auto">
         {/* Header */}
         <div className="sticky top-0 z-30 px-5 pt-12 pb-4 bg-background/90 backdrop-blur-xl border-b border-white/5">
@@ -244,6 +271,23 @@ export default function DashboardPage() {
             </Link>
           </div>
         </div>
+
+        {/* Trial Countdown Banner */}
+        {trialDays && trialDays > 0 && (
+          <TrialCountdownBanner
+            trialExpiresAt={subStatus?.trialExpiresAt}
+            role="seller"
+          />
+        )}
+
+        {/* Welcome Popup */}
+        {showWelcome && trialDays && trialDays > 0 && (
+          <TrialWelcomePopup
+            role="seller"
+            daysLeft={trialDays}
+            onClose={() => setShowWelcome(false)}
+          />
+        )}
 
         {/* Main Tabs: Products | Orders */}
         <div className="px-5 mt-4 mb-4">
@@ -524,6 +568,7 @@ export default function DashboardPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      </SubscriptionGate>
     </AppLayout>
   );
 }

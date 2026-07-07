@@ -23,12 +23,16 @@ function initCloudinary() {
 
 initCloudinary(); // always configure Cloudinary (used by all upload routes)
 
-async function uploadToCloudinary(base64: string, folder: string): Promise<string> {
+async function uploadToCloudinary(base64: string, folder: string, resourceType: "image" | "video" | "auto" = "image"): Promise<string> {
   const result = await cloudinary.uploader.upload(base64, {
     folder: `gaytak/${folder}`,
-    resource_type: "image",
+    resource_type: resourceType,
   });
   return result.secure_url;
+}
+
+function isAudioContentType(contentType: string): boolean {
+  return contentType.startsWith("audio/") || contentType === "video/mp4" || contentType === "video/webm";
 }
 
 // ─── Replit Object Storage ─────────────────────────────────────────────────
@@ -69,10 +73,11 @@ router.post("/upload", authenticate, async (req: Request, res: Response): Promis
   }
   try {
     const cleanBase64 = base64.replace(/^data:[^;]+;base64,/, "");
+    const folder = filePath.split("/")[0] || "general";
+    const resourceType = isAudioContentType(contentType) ? "video" : "image";
 
-    // Always use Cloudinary for cross-platform compatibility
-    const url = await uploadToCloudinary(base64, filePath.split("/")[0] || "general");
-    console.log(`[Upload] ✅ Cloudinary: ${filePath}`);
+    const url = await uploadToCloudinary(base64, folder, resourceType);
+    console.log(`[Upload] ✅ Cloudinary (${resourceType}): ${filePath}`);
     res.json({ url, path: filePath });
   } catch (err: any) {
     console.error("[Upload] ❌", err.message);

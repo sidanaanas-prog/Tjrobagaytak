@@ -1,7 +1,11 @@
 const API_URL = process.env.NABDA_API_URL || "https://api.nabdaotp.com";
 const TOKEN = process.env.NABDA_TOKEN || "";
 
-export async function sendOtp(phone: string): Promise<{ success: boolean; error?: string }> {
+function generateCode(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+export async function sendOtp(phone: string): Promise<{ success: boolean; error?: string; code?: string }> {
   try {
     const res = await fetch(`${API_URL}/api/v1/messages/otp/send`, {
       method: "POST",
@@ -18,6 +22,28 @@ export async function sendOtp(phone: string): Promise<{ success: boolean; error?
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e?.message || "خطأ في الشبكة" };
+  }
+}
+
+// إعادة إرسال Nabda باستخدام رمز مُولَّد محلياً لعرضه في نافذة منبثقة
+export async function sendLocalOtp(phone: string): Promise<{ success: boolean; error?: string; code: string }> {
+  const code = generateCode();
+  try {
+    const res = await fetch(`${API_URL}/api/v1/messages/otp/send`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": TOKEN,
+      },
+      body: JSON.stringify({ phone, code }),
+    });
+    const data = await res.json() as any;
+    if (!res.ok) {
+      return { success: false, error: data?.message || data?.error || "فشل إرسال الرمز", code };
+    }
+    return { success: true, code };
+  } catch (e: any) {
+    return { success: false, error: e?.message || "خطأ في الشبكة", code };
   }
 }
 

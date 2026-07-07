@@ -89,3 +89,18 @@ export async function uploadChatImage(file: File, conversationId: string): Promi
 export async function uploadDriverDocument(file: File, userId: string, type: "license" | "id" | "vehicle"): Promise<string> {
   return uploadImageToFirebase(file, `drivers/${userId}/${type}_${Date.now()}.jpg`, 1200, 0.85);
 }
+
+export async function uploadChatVoice(file: File, conversationId: string): Promise<string> {
+  const base64 = await fileToBase64(file);
+  const token = localStorage.getItem("glow_token") || "";
+  const res = await fetch(`${BASE}/api/upload`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ base64, path: `chat/${conversationId}/${Date.now()}.webm`, contentType: file.type || "audio/webm" }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "فشل رفع التسجيل الصوتي" }));
+    throw new Error(err.error || "فشل رفع التسجيل الصوتي");
+  }
+  return (await res.json()).url as string;
+}

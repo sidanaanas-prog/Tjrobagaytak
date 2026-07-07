@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useListProducts, getListProductsQueryKey } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Link, useLocation } from "wouter";
 import { Loader2, Package, Plus, CheckCircle, XCircle, AlertCircle, Trash2, Pencil } from "lucide-react";
+import { SubscriptionGate } from "@/components/SubscriptionGate";
+import { TrialCountdownBanner, TrialWelcomePopup } from "@/components/TrialCountdownBanner";
+import { useSubscription } from "@/hooks/use-subscription";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { getMemToken } from "@/hooks/use-auth";
@@ -46,6 +49,22 @@ export default function MyListingsPage() {
   const [activeFilter, setActiveFilter] = useState<StatusFilter>("all");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const { status: subStatus } = useSubscription();
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  const trialDays = subStatus?.trialExpiresAt
+    ? Math.ceil((new Date(subStatus.trialExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  useEffect(() => {
+    if (user && trialDays && trialDays > 0 && trialDays <= 7) {
+      const shown = localStorage.getItem(`listings_welcome_${user.id}`);
+      if (!shown) {
+        setShowWelcome(true);
+        localStorage.setItem(`listings_welcome_${user.id}`, "true");
+      }
+    }
+  }, [user, trialDays]);
 
   const { data: productsData, isLoading, refetch } = useListProducts(
     { sellerId: user?.id, limit: 50 },
@@ -86,7 +105,23 @@ export default function MyListingsPage() {
 
   return (
     <AppLayout>
+      <SubscriptionGate type="product">
       <div className="flex flex-col">
+        {/* Trial Banner */}
+        {trialDays && trialDays > 0 && (
+          <TrialCountdownBanner
+            trialExpiresAt={subStatus?.trialExpiresAt}
+            role="seller"
+          />
+        )}
+        {/* Welcome Popup */}
+        {showWelcome && trialDays && trialDays > 0 && (
+          <TrialWelcomePopup
+            role="seller"
+            daysLeft={trialDays}
+            onClose={() => setShowWelcome(false)}
+          />
+        )}
         {/* Header */}
         <div className="sticky top-0 z-30 px-5 pt-12 pb-4 bg-background/90 backdrop-blur-xl border-b border-white/5">
           <div className="flex items-center justify-between">
@@ -266,6 +301,7 @@ export default function MyListingsPage() {
           )}
         </div>
       </div>
+      </SubscriptionGate>
     </AppLayout>
   );
 }
