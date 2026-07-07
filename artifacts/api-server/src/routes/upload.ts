@@ -72,11 +72,11 @@ router.post("/upload", authenticate, async (req: Request, res: Response): Promis
     return;
   }
   try {
-    const cleanBase64 = base64.replace(/^data:[^;]+;base64,/, "");
+    const cleanBase64 = base64.replace(/^data:.*?;base64,/, "");
     const folder = filePath.split("/")[0] || "general";
     const resourceType = isAudioContentType(contentType) ? "video" : "image";
 
-    const url = await uploadToCloudinary(base64, folder, resourceType);
+    const url = await uploadToCloudinary(cleanBase64, folder, resourceType);
     console.log(`[Upload] ✅ Cloudinary (${resourceType}): ${filePath}`);
     res.json({ url, path: filePath });
   } catch (err: any) {
