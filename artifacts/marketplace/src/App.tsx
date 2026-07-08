@@ -49,6 +49,7 @@ const queryClient = new QueryClient({
 });
 
 import { PinLockGuard } from "@/components/PinLockGuard";
+import { PinOnlyGuard } from "@/components/PinOnlyGuard";
 
 // Auth Guard wrapper
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -83,8 +84,8 @@ function RequireGuest({ children }: { children: React.ReactNode }) {
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={HomePage} />
-      
+      <Route path="/" component={() => <PinOnlyGuard><HomePage /></PinOnlyGuard>} />
+
       <Route path="/login">
         <RequireGuest><LoginPage /></RequireGuest>
       </Route>
@@ -92,10 +93,11 @@ function Router() {
         <RequireGuest><RegisterPage /></RequireGuest>
       </Route>
       
-      <Route path="/products" component={ProductsPage} />
-      <Route path="/sellers" component={SellersPage} />
-      <Route path="/products/:id" component={ProductDetailPage} />
-      <Route path="/seller/:id" component={SellerStorePage} />
+      <Route path="/products" component={() => <PinOnlyGuard><ProductsPage /></PinOnlyGuard>} />
+      <Route path="/sellers" component={() => <PinOnlyGuard><SellersPage /></PinOnlyGuard>} />
+      <Route path="/products/:id" component={() => <PinOnlyGuard><ProductDetailPage /></PinOnlyGuard>} />
+      <Route path="/seller/:id" component={() => <PinOnlyGuard><SellerStorePage /></PinOnlyGuard>} />
+      <Route path="/rides" component={() => <PinOnlyGuard><RidesPage /></PinOnlyGuard>} />
       
       <Route path="/sell">
         <RequireAuth><SellPage /></RequireAuth>
