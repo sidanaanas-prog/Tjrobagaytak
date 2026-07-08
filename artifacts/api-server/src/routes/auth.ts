@@ -138,4 +138,66 @@ router.get("/auth/me", authenticate, async (req, res): Promise<void> => {
   });
 });
 
+// ─── PIN Lock ───────────────────────────────────────────────────────
+
+const MAX_PIN_ATTEMPTS = 3;
+const pinAttempts = new Map<string, number>(); // userId → attempts
+
+router.post("/auth/pin/set", authenticate, async (req, res): Promise<void> => {
+  const { pin } = req.body;
+  if (!pin || !/^\d{4}$/.test(pin)) {
+    res.status(400).json({ error: "PIN must be 4 digits" });
+    return;
+  }
+  const hash = await bcrypt.hash(pin, 10);
+  await db.update(usersTable)
+    .set({ pinHash: hash })
+    .where(eq(usersTable.id, req.user!.id));
+  pinAttempts.delete(req.user!.id);
+  res.json({ ok: true });
+});
+
+router.post("/auth/pin/verify", authenticate, async (req, res): Promise<void> => {
+  const { pin } = req.body;
+  if (!pin || !/^\d{4}$/.test(pin)) {
+    res.status(400).json({ error: "PIN must be 4 digits" });
+    return;
+  }
+  const userId = req.user!.id;
+  const attempts = pinAttempts.get(userId) || 0;
+
+  const [user] = (await db.select({ pinHash: usersTable.pinHash }).from(usersTable).where(eq(usersTable.id, userId))) ?? [];
+
+  if (!user?.pinHash) {
+    res.status(400).json({ error: "No PIN set" });
+    return;
+  }
+
+  if (attempts >= MAX_PIN_ATTEMPTS) {
+    res.status(403).json({ error: "locked", message: "تم تجاوز الحد الأقصى. تواصل مع الدعم \u2706" });
+    return;
+  }
+
+  const ok = await bcrypt.compare(pin, user.pinHash);
+  if (!ok) {
+    pinAttempts.set(userId, attempts + 1);
+    res.status(401).json({ error: "wrong", remaining: MAX_PIN_ATTEMPTS - attempts - 1 });
+    return;
+  }
+
+  pinAttempts.delete(userId);
+  res.json({ ok: true });
+});
+
+router.get("/auth/pin/has-pin", authenticate, async (req, res): Promise<void> => {
+  const [user] = (await db.select({ pinHash: usersTable.pinHash }).from(usersTable).where(eq(usersTable.id, req.user!.id))) ?? [];
+  res.json({ hasPin: !!user?.pinHash });
+});
+
+router.post("/auth/pin/remove", authenticate, async (req, res): Promise<void> => {
+  await db.update(usersTable).set({ pinHash: null }).where(eq(usersTable.id, req.user!.id));
+  pinAttempts.delete(req.user!.id);
+  res.json({ ok: true });
+});
+
 export default router;

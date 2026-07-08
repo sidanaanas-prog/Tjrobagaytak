@@ -27,6 +27,8 @@ import WishlistPage from "@/pages/wishlist";
 import RidesPage from "@/pages/rides";
 import RoleSelectPage from "@/pages/role-select";
 import DriverRegisterPage from "@/pages/driver-register";
+import PinLockPage from "@/pages/pin-lock";
+import PinSetupPage from "@/pages/pin-setup";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,6 +48,8 @@ const queryClient = new QueryClient({
   },
 });
 
+import { PinLockGuard } from "@/components/PinLockGuard";
+
 // Auth Guard wrapper
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -57,8 +61,8 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   if (!user) {
     return <Redirect to="/login" />;
   }
-  
-  return <>{children}</>;
+
+  return <PinLockGuard>{children}</PinLockGuard>;
 }
 
 // Guest Guard wrapper (redirects to home if already logged in)
@@ -138,6 +142,8 @@ function Router() {
       <Route path="/role-select">
         <RequireAuth><RoleSelectPage /></RequireAuth>
       </Route>
+      <Route path="/pin-lock" component={PinLockPage} />
+      <Route path="/pin-setup" component={PinSetupPage} />
       <Route component={NotFound} />
     </Switch>
   );
