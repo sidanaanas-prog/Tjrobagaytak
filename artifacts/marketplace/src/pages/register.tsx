@@ -44,7 +44,8 @@ export default function RegisterPage() {
           title: "Registration successful!",
           description: "أهلاً بك في Gaytak.",
         });
-        setLocation("/");
+        // بعد إنشاء الحساب → إنشاء كود PIN أولاً
+        setLocation("/pin-setup");
       },
       onError: (error: any) => {
         toast({

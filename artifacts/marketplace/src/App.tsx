@@ -84,7 +84,7 @@ function RequireGuest({ children }: { children: React.ReactNode }) {
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={() => <PinOnlyGuard><HomePage /></PinOnlyGuard>} />
+      <Route path="/" component={HomePage} />
 
       <Route path="/login">
         <RequireGuest><LoginPage /></RequireGuest>
@@ -93,11 +93,10 @@ function Router() {
         <RequireGuest><RegisterPage /></RequireGuest>
       </Route>
       
-      <Route path="/products" component={() => <PinOnlyGuard><ProductsPage /></PinOnlyGuard>} />
-      <Route path="/sellers" component={() => <PinOnlyGuard><SellersPage /></PinOnlyGuard>} />
-      <Route path="/products/:id" component={() => <PinOnlyGuard><ProductDetailPage /></PinOnlyGuard>} />
-      <Route path="/seller/:id" component={() => <PinOnlyGuard><SellerStorePage /></PinOnlyGuard>} />
-      <Route path="/rides" component={() => <PinOnlyGuard><RidesPage /></PinOnlyGuard>} />
+      <Route path="/products" component={ProductsPage} />
+      <Route path="/sellers" component={SellersPage} />
+      <Route path="/products/:id" component={ProductDetailPage} />
+      <Route path="/seller/:id" component={SellerStorePage} />
       
       <Route path="/sell">
         <RequireAuth><SellPage /></RequireAuth>

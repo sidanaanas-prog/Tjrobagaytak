@@ -294,7 +294,8 @@ export default function LoginPage() {
       // فتح AudioContext لتفعيل صوت الإشعارات (مطلوب من Safari)
       unlockAudioContext();
       toast({ title: isNewUser ? "أهلاً بك في Gaytak 🎉" : "مرحباً بك مجدداً 👋" });
-      setLocation("/");
+      // بعد تسجيل الدخول → الصفحة الرئيسية مع حارس PIN
+      setLocation("/pin-setup");
     } catch (err: any) {
       toast({ variant: "destructive", title: "خطأ", description: err.message });
     } finally {
