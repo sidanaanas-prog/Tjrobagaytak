@@ -7,7 +7,7 @@ import { sendNotification } from "../lib/notifications";
 
 const router: IRouter = Router();
 
-/** IDs البائعين الذين لديهم اشتراك نشط أو دور admin أو مجاني */
+/** IDs البائعين الذين لديهم اشتراك نشط أو دور admin أو مجاني أو تجربة نشطة */
 async function getSubscribedSellerIds(): Promise<string[]> {
   const now = new Date();
   const rows = await db
@@ -20,7 +20,8 @@ async function getSubscribedSellerIds(): Promise<string[]> {
         and(
           eq(usersTable.isVerified, true),
           gt(usersTable.subscriptionExpiresAt, now)
-        )
+        ),
+        gt(usersTable.trialExpiresAt, now)
       )
     );
   return rows.map((r) => r.id);
@@ -215,12 +216,16 @@ router.get("/products/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  // تحقق من اشتراك البائع
+  // تحقق من اشتراك البائع (مدفوع أو مجاني أو تجربة نشطة)
   const [seller] = await db.select().from(usersTable).where(eq(usersTable.id, product.sellerId));
   const now = new Date();
+  const trialActive = seller?.trialExpiresAt != null && seller.trialExpiresAt > now;
+  const subscriptionActive = seller?.isVerified === true && seller?.subscriptionExpiresAt != null && seller.subscriptionExpiresAt > now;
   const sellerSubscribed =
     seller?.role === "admin" ||
-    (seller?.isVerified === true && seller?.subscriptionExpiresAt != null && seller.subscriptionExpiresAt > now);
+    seller?.isFree === true ||
+    trialActive ||
+    subscriptionActive;
   if (!sellerSubscribed) {
     res.status(404).json({ error: "Product not available" });
     return;
