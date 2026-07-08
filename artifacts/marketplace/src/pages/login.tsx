@@ -294,8 +294,16 @@ export default function LoginPage() {
       // فتح AudioContext لتفعيل صوت الإشعارات (مطلوب من Safari)
       unlockAudioContext();
       toast({ title: isNewUser ? "أهلاً بك في Gaytak 🎉" : "مرحباً بك مجدداً 👋" });
-      // بعد تسجيل الدخول → الصفحة الرئيسية مع حارس PIN
-      setLocation("/pin-setup");
+      // بعد تسجيل الدخول → فحص PIN: إذا عنده كود → lock، إذا لا → setup
+      const pinRes = await fetch(`${BASE}/api/auth/pin/has-pin`, {
+        headers: { Authorization: `Bearer ${data.token}` },
+      });
+      const pinData = await pinRes.json().catch(() => ({ hasPin: false }));
+      if (pinData.hasPin) {
+        setLocation("/pin-lock");
+      } else {
+        setLocation("/pin-setup");
+      }
     } catch (err: any) {
       toast({ variant: "destructive", title: "خطأ", description: err.message });
     } finally {
