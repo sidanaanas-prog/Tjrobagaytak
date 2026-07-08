@@ -1,0 +1,37 @@
+FROM node:24-alpine
+
+# Install pnpm
+RUN npm install -g pnpm
+
+WORKDIR /app
+
+# Copy workspace config
+COPY pnpm-workspace.yaml package.json tsconfig.base.json tsconfig.json ./
+COPY scripts/package.json ./scripts/
+COPY lib/db/package.json lib/db/drizzle.config.ts ./lib/db/
+COPY lib/api-zod/package.json ./lib/api-zod/
+COPY lib/api-spec/package.json ./lib/api-spec/
+COPY lib/api-client-react/package.json ./lib/api-client-react/
+COPY artifacts/api-server/package.json ./artifacts/api-server/
+
+# Install deps
+RUN pnpm install --frozen-lockfile
+
+# Copy source code
+COPY lib/db/src ./lib/db/src
+COPY lib/api-zod/src ./lib/api-zod/src
+COPY lib/api-spec ./lib/api-spec
+COPY lib/api-client-react/src ./lib/api-client-react/src
+COPY artifacts/api-server/src ./artifacts/api-server/src
+COPY artifacts/api-server/build.mjs ./artifacts/api-server/
+COPY artifacts/api-server/tsconfig.json ./artifacts/api-server/
+
+# Build libraries
+RUN pnpm run typecheck:libs || true
+
+# Build API server
+RUN pnpm --filter @workspace/api-server run build
+
+EXPOSE 8080
+
+CMD ["node", "--enable-source-maps", "./artifacts/api-server/dist/index.mjs"]
