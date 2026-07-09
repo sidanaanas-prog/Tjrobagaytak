@@ -103,6 +103,32 @@ router.get("/rides/driver", authenticate, async (req, res): Promise<void> => {
   }
 });
 
+// ── جلب تفاصيل رحلة واحدة ──────────────────────────────────────────────────
+router.get("/rides/:id", authenticate, async (req, res): Promise<void> => {
+  try {
+    const [ride] = (await db.select().from(ridesTable).where(eq(ridesTable.id, req.params.id as string))) ?? [];
+    if (!ride) { res.status(404).json({ error: "الرحلة غير موجودة" }); return; }
+
+    // fetch passenger info
+    const [passenger] = (await db.select({
+      id: usersTable.id, name: usersTable.name, phone: usersTable.phone, avatar: usersTable.avatar,
+    }).from(usersTable).where(eq(usersTable.id, ride.passengerId))) ?? [];
+
+    // fetch driver info if assigned
+    let driver = null;
+    if (ride.driverId) {
+      const [d] = (await db.select({
+        id: usersTable.id, name: usersTable.name, phone: usersTable.phone, avatar: usersTable.avatar,
+      }).from(usersTable).where(eq(usersTable.id, ride.driverId))) ?? [];
+      driver = d ?? null;
+    }
+
+    res.json({ ...ride, passenger: passenger ?? null, driver });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── الراكب: رحلاتي ──────────────────────────────────────────────────
 router.get("/rides/my", authenticate, async (req, res): Promise<void> => {
   try {

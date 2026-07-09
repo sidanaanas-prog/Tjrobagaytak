@@ -121,6 +121,10 @@ export function useNotificationHandlers() {
       (notification) => {
         const data = notification.request.content.data as any;
         console.log("[Notifications] received:", data);
+        // لو جاه طلب نقل جديد والتطبيق مفتوح — خزّن ويروح لشاشة السائق
+        if (data?.type === "new_ride" && data?.rideId) {
+          AsyncStorage.setItem("incoming_ride_id", data.rideId).catch(() => {});
+        }
       }
     );
 
@@ -132,7 +136,14 @@ export function useNotificationHandlers() {
 
         if (!data) return;
         if (data.type === "new_ride" && data.rideId) {
-          router.push("/ride-driver");
+          // خزّن rideId وافتح شاشة السائق مع طلب جديد
+          AsyncStorage.setItem("incoming_ride_id", data.rideId)
+            .then(() => {
+              router.push({ pathname: "/ride-driver", params: { incomingRideId: data.rideId } });
+            })
+            .catch(() => {
+              router.push({ pathname: "/ride-driver", params: { incomingRideId: data.rideId } });
+            });
         } else if (data.type === "message" && data.conversationId) {
           router.push(`/conversation/${data.conversationId}`);
         } else if (data.type === "product" && data.productId) {

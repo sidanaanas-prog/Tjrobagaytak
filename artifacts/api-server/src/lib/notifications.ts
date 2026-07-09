@@ -52,9 +52,12 @@ export async function sendNotification({
           channelId: isRideAlert ? "ride_alerts" : "default",
           priority: "high",
           sound: isRideAlert ? "alert.mp3" : "default",
+          // رن مثل المكالمة الواردة — يفتح التطبيق حتى لو مقفل/خارج التطبيق
+          fullScreenIntent: isRideAlert,
+          wakeScreen: isRideAlert,
         },
       },
-      apns: { payload: { aps: { sound: isRideAlert ? "alert.mp3" : "default", badge: 1 } } },
+      apns: { payload: { aps: { sound: isRideAlert ? "alert.mp3" : "default", badge: 1, "content-available": 1 } } },
       webpush: {
         headers: { Urgency: "high" },
         fcmOptions: { link: isRideAlert ? "/rides" : "/" },
@@ -110,6 +113,8 @@ export async function sendPushNotification({
           channelId: isRideAlert ? "ride_alerts" : "default",
           priority: "high" as const,
           sound: isRideAlert ? "alert.mp3" : "default",
+          fullScreenIntent: isRideAlert,
+          wakeScreen: isRideAlert,
         },
       },
       apns: {

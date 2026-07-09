@@ -1,7 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { Feather } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -16,6 +16,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { IncomingCallOverlay } from "@/components/IncomingCallOverlay";
 
 const DOMAIN = process.env.EXPO_PUBLIC_DOMAIN;
@@ -34,8 +35,38 @@ export default function RideDriverScreen() {
   const [showCallOverlay, setShowCallOverlay] = useState(false);
   const [subscription, setSubscription] = useState<any>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const params = useLocalSearchParams();
 
   const topPad = insets.top;
+
+  // فحص طلب نقل جديد ورد من الإشعار (من خارج التطبيق أو خلال النوم)
+  useEffect(() => {
+    const checkIncoming = async () => {
+      // من params (FCM fullScreenIntent أو نقر على الإشعار)
+      const rideIdFromParams = params?.incomingRideId as string | undefined;
+      // من AsyncStorage (إشعار وارد في الخلفية)
+      const rideIdFromStorage = await AsyncStorage.getItem("incoming_ride_id");
+      const incomingRideId = rideIdFromParams || rideIdFromStorage;
+
+      if (incomingRideId) {
+        // نمسح التخزين ونخزّن الطلب
+        await AsyncStorage.removeItem("incoming_ride_id");
+        try {
+          const res = await fetch(`https://${DOMAIN}/api/rides/${incomingRideId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const ride = await res.json();
+          if (ride && ride.status === "pending") {
+            setIncomingRide(ride);
+            setShowCallOverlay(true);
+          }
+        } catch (e) {
+          console.warn("[RideDriver] failed to fetch incoming ride:", e);
+        }
+      }
+    };
+    if (token) checkIncoming();
+  }, [token, params]);
 
   // Check subscription status
   useEffect(() => {
