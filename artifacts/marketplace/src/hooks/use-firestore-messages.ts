@@ -30,6 +30,7 @@ let _authReady: Promise<void> | null = null;
 function ensureFirebaseAuth(): Promise<void> {
   if (_authReady) return _authReady;
   _authReady = new Promise<void>((resolve) => {
+    if (!firebaseAuth) { resolve(); return; }
     if (firebaseAuth.currentUser) {
       resolve();
       return;
@@ -47,7 +48,7 @@ export function useFirestoreMessages(conversationId: string | undefined) {
   const unsubRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    if (!conversationId) {
+    if (!conversationId || !firestore) {
       setMessages([]);
       setLoading(false);
       return;
@@ -101,7 +102,7 @@ export function useFirestoreMessages(conversationId: string | undefined) {
       imageUrl?: string | null;
       replyTo?: FirestoreMessage["replyTo"];
     }) => {
-      if (!conversationId) return;
+      if (!conversationId || !firestore) return;
       await ensureFirebaseAuth();
       const msgsRef = collection(firestore, "conversations", conversationId, "messages");
       await addDoc(msgsRef, {

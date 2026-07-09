@@ -10,6 +10,8 @@ const isAndroidApp =
   typeof window !== "undefined" &&
   !!(window.Android?.getFCMToken || window.AppInterface?.getFCMToken || window.gaytakFCMToken || window.fcmToken);
 
+const hasFirebaseKey = !!import.meta.env.VITE_FIREBASE_API_KEY;
+
 const firebaseConfig = {
   apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
   projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
@@ -18,15 +20,22 @@ const firebaseConfig = {
   appId:             appId,
 };
 
-const app = getApps().length ? getApps()[0]! : initializeApp(firebaseConfig);
+let app: ReturnType<typeof initializeApp> | undefined;
+if (hasFirebaseKey) {
+  try {
+    app = getApps().length ? getApps()[0]! : initializeApp(firebaseConfig);
+  } catch (e) {
+    console.warn("[Firebase] init failed — notifications disabled", e);
+  }
+}
 
-export const firebaseAuth: Auth = getAuth(app);
-export const storage = getStorage(app);
-export const firestore = getFirestore(app);
+export const firebaseAuth: Auth | null = app ? getAuth(app) : null;
+export const storage = app ? getStorage(app) : null;
+export const firestore = app ? getFirestore(app) : null;
 
 let _messaging: Messaging | null = null;
 export function getFirebaseMessaging(): Messaging | null {
-  if (isAndroidApp) return null;
+  if (isAndroidApp || !app) return null;
   if (_messaging) return _messaging;
   try {
     _messaging = getMessaging(app);
