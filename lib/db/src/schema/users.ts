@@ -22,6 +22,7 @@ export const usersTable = pgTable("users", {
   subscriptionExpiresAt: timestamp("subscription_expires_at", { withTimezone: true }),
   isFree: boolean("is_free").notNull().default(false),
   trialExpiresAt: timestamp("trial_expires_at", { withTimezone: true }),
+  sellerIdDocument: text("seller_id_document"),
   pinHash: text("pin_hash"),
 });
 

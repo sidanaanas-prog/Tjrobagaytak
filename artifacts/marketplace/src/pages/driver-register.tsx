@@ -98,7 +98,7 @@ export default function DriverRegisterPage() {
       });
       const data = await res.json();
       if (data.success) {
-        toast({ title: "✅ تم التسجيل!", description: "وثائقك قيد المراجعة. سيتم تفعيل حسابك بعد التحقق." });
+        toast({ title: "✅ تم التسجيل!", description: "🎉 تم تفعيل التجربة المجانية 7 أيام! ابدأ باستقبال الطلبات." });
         navigate("/rides");
       } else {
         toast({ variant: "destructive", title: "خطأ", description: data.error || "فشل التسجيل" });

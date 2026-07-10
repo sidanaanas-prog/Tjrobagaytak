@@ -314,4 +314,40 @@ router.post("/subscriptions/trial", authenticate, async (req, res): Promise<void
   }
 });
 
+
+// —— البائع: رفع وثيقة هوية + تفعيل التجربة المجانية ——
+router.post("/seller/documents", authenticate, async (req, res): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+    const { idDocumentUrl } = req.body;
+    if (!idDocumentUrl) {
+      res.status(400).json({ error: "صورة بطاقة الهوية مطلوبة" });
+      return;
+    }
+
+    const now = new Date();
+    const trialExpiry = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    // حفظ الوثيقة وتفعيل التجربة
+    await db.update(usersTable)
+      .set({ sellerIdDocument: idDocumentUrl, trialExpiresAt: trialExpiry })
+      .where(eq(usersTable.id, userId));
+
+    await db.insert(activityTable).values({
+      id: randomUUID(),
+      type: "trial_activated",
+      description: "تم تفعيل التجربة المجانية (7 أيام) للبائع",
+      userId,
+      userName: "User",
+    });
+
+    res.json({
+      success: true,
+      message: "🎉 مبروك! تم تفعيل التجربة المجانية 7 أيام",
+      trialExpiresAt: trialExpiry.toISOString(),
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
 export default router;

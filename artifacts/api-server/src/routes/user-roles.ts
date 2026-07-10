@@ -1,12 +1,10 @@
 import { Router, type IRouter } from "express";
-import { db, userRolesTable, usersTable, driverProfilesTable } from "@workspace/db";
+import { db, userRolesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { authenticate } from "../lib/auth";
 
 const router: IRouter = Router();
-
-const DAYS7_MS = 7 * 24 * 60 * 60 * 1000;
 
 // ── أدواري ──────────────────────────────────────────────────
 router.get("/user/roles", authenticate, async (req, res): Promise<void> => {
@@ -39,49 +37,13 @@ router.post("/user/roles", authenticate, async (req, res): Promise<void> => {
     }
 
     await db.insert(userRolesTable).values({
-      id: randomUUID(),
-      userId,
-      role,
-      isActive: true,
-    });
+        id: randomUUID(),
+        userId,
+        role,
+        isActive: true,
+      });
 
-    // —— تفعيل التجربة المجانية 7 أيام عند اختيار بائع/سائق ——
-    const now = new Date();
-    const trialExpiry = new Date(now.getTime() + DAYS7_MS);
-
-    if (role === "seller") {
-      const [user] = (await db.select({ trialExpiresAt: usersTable.trialExpiresAt })
-        .from(usersTable).where(eq(usersTable.id, userId))) ?? [];
-      // نفعّل التجربة فقط إذا ما كانت مفعّلة من قبل
-      if (!user?.trialExpiresAt || new Date(user.trialExpiresAt) <= now) {
-        await db.update(usersTable)
-          .set({ trialExpiresAt: trialExpiry })
-          .where(eq(usersTable.id, userId));
-      }
-    }
-
-    if (role === "driver") {
-      const [profile] = (await db.select({ trialExpiresAt: driverProfilesTable.trialExpiresAt })
-        .from(driverProfilesTable).where(eq(driverProfilesTable.userId, userId))) ?? [];
-      // نفعّل التجربة فقط إذا ما كانت مفعّلة من قبل
-      if (!profile?.trialExpiresAt || new Date(profile.trialExpiresAt) <= now) {
-        // إذا ما كان موجود ملف السائق — ننشئه مع التجربة
-        if (!profile) {
-          await db.insert(driverProfilesTable).values({
-            id: randomUUID(),
-            userId,
-            trialExpiresAt: trialExpiry,
-            createdAt: now,
-          });
-        } else {
-          await db.update(driverProfilesTable)
-            .set({ trialExpiresAt: trialExpiry })
-            .where(eq(driverProfilesTable.userId, userId));
-        }
-      }
-    }
-
-    res.json({ success: true, trialExpiresAt: trialExpiry });
+      res.json({ success: true });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

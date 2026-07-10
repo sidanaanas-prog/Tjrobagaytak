@@ -553,6 +553,9 @@ router.post("/driver/profile", authenticate, async (req, res): Promise<void> => 
     const isFirstSubmit = !existing?.documentsSubmittedAt;
 
     if (existing) {
+      const hasDocsNow = !!(licenseImage || idCardImage || vehicleDocImage);
+      // تفعيل التجربة للمرة الأولى عند رفع الوثائق
+      const shouldActivateTrial = hasDocsNow && !existing.trialExpiresAt;
       await db.update(driverProfilesTable).set({
         vehicleType: vehicleType ?? existing.vehicleType,
         vehicleModel: vehicleModel ?? existing.vehicleModel,
@@ -561,12 +564,14 @@ router.post("/driver/profile", authenticate, async (req, res): Promise<void> => 
         licenseImage: licenseImage ?? existing.licenseImage,
         idCardImage: idCardImage ?? existing.idCardImage,
         vehicleDocImage: vehicleDocImage ?? existing.vehicleDocImage,
-        documentsSubmittedAt: (licenseImage || idCardImage || vehicleDocImage) ? now : existing.documentsSubmittedAt,
+        documentsSubmittedAt: hasDocsNow ? now : existing.documentsSubmittedAt,
         documentsStatus: isFirstSubmit ? "pending" : existing.documentsStatus,
+        trialExpiresAt: shouldActivateTrial ? new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) : existing.trialExpiresAt,
         updatedAt: now,
       }).where(eq(driverProfilesTable.userId, driverId));
     } else {
-      const trialExpiry = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days trial
+      const hasDocs = !!(licenseImage || idCardImage || vehicleDocImage);
+      const trialExpiry = hasDocs ? new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) : null;
       await db.insert(driverProfilesTable).values({
         id: randomUUID(),
         userId: driverId,
@@ -578,8 +583,8 @@ router.post("/driver/profile", authenticate, async (req, res): Promise<void> => 
         idCardImage: idCardImage ?? null,
         vehicleDocImage: vehicleDocImage ?? null,
         trialExpiresAt: trialExpiry,
-        documentsSubmittedAt: (licenseImage || idCardImage || vehicleDocImage) ? now : null,
-        documentsStatus: (licenseImage || idCardImage || vehicleDocImage) ? "pending" : null,
+        documentsSubmittedAt: hasDocs ? now : null,
+        documentsStatus: hasDocs ? "pending" : null,
         createdAt: now,
         updatedAt: now,
       });

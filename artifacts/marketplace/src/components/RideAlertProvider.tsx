@@ -141,6 +141,13 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
   const isSubscribed = subStatus?.isSubscribed ?? false;
   const isFree = subStatus?.isFree ?? false;
   const isDriverActive = isSubscribed || isFree;
+  
+  // Debug log for driver subscription status
+  useEffect(() => {
+    if (isDriver) {
+      console.log('[RideAlert] Driver status:', { isSubscribed, isFree, isDriverActive, trialExpiresAt: subStatus?.trialExpiresAt });
+    }
+  }, [isDriver, isSubscribed, isFree, isDriverActive, subStatus?.trialExpiresAt]);
 
   const stopSoundRef = useRef<(() => void) | null>(null);
   const prevRequestsRef = useRef<Ride[]>([]);

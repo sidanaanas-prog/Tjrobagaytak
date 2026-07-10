@@ -27,6 +27,7 @@ import WishlistPage from "@/pages/wishlist";
 import RidesPage from "@/pages/rides";
 import RoleSelectPage from "@/pages/role-select";
 import DriverRegisterPage from "@/pages/driver-register";
+import SellerVerifyPage from "@/pages/seller-verify";
 import PinLockPage from "@/pages/pin-lock";
 import PinSetupPage from "@/pages/pin-setup";
 
@@ -139,6 +140,9 @@ function Router() {
       <Route path="/rides" component={RidesPage} />
       <Route path="/driver-register">
         <RequireAuth><DriverRegisterPage /></RequireAuth>
+      </Route>
+      <Route path="/seller-verify">
+        <RequireAuth><SellerVerifyPage /></RequireAuth>
       </Route>
       <Route path="/role-select">
         <RequireAuth><RoleSelectPage /></RequireAuth>
