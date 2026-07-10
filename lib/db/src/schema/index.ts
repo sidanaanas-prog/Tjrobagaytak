@@ -26,3 +26,4 @@ export * from "./posts";
 export * from "./post_likes";
 export * from "./post_comments";
 export * from "./post_views";
+export * from "./wallets";

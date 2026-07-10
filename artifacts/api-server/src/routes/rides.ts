@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, ridesTable, driverProfilesTable, userRolesTable, usersTable, subscriptionsTable, conversationsTable, messagesTable } from "@workspace/db";
-import { eq, desc, and, or, isNull, sql, inArray } from "drizzle-orm";
+import { db, ridesTable, driverProfilesTable, userRolesTable, usersTable, subscriptionsTable, conversationsTable, messagesTable, walletsTable, walletTransactionsTable } from "@workspace/db";
+import { eq, desc, and, or, isNull, sql, inArray, gt } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { authenticate, requireAdmin } from "../lib/auth";
 import { notifyUsers } from "../lib/notifications";
@@ -685,6 +685,152 @@ router.patch("/admin/driver-subscriptions/:userId/approve", authenticate, requir
     }
 
     res.json({ success: true, expiresAt });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── السائق: تبليغ "الراكب لم يأتِ" ──────────────────────────────────────
+router.patch("/rides/:id/no-show", authenticate, async (req, res): Promise<void> => {
+  try {
+    const driverId = (req as any).user.id;
+    const [ride] = (await db.select().from(ridesTable).where(eq(ridesTable.id, req.params.id as string))) ?? [];
+    if (!ride) { res.status(404).json({ error: "الرحلة غير موجودة" }); return; }
+    if (ride.driverId !== driverId) { res.status(403).json({ error: "ليس رحلتك" }); return; }
+    if (ride.status !== "accepted" && ride.status !== "arrived") { res.status(400).json({ error: "لا يمكن تبليغ لم يأتِ الآن" }); return; }
+
+    const now = new Date();
+    await db.update(ridesTable).set({
+      riderNoShow: true, riderNoShowAt: now, status: "cancelled",
+      cancelledBy: driverId, cancelledAt: now, cancelReason: "rider_no_show", updatedAt: now,
+    }).where(eq(ridesTable.id, req.params.id as string));
+
+    // عقوبة: زيادة عداد no-show للراكب
+    const [passenger] = (await db.select({ noShowCount: usersTable.noShowCount }).from(usersTable).where(eq(usersTable.id, ride.passengerId))) ?? [];
+    const newCount = (passenger?.noShowCount ?? 0) + 1;
+    await db.update(usersTable).set({
+      noShowCount: newCount, noShowLastAt: now,
+      rideBannedUntil: newCount >= 3 ? new Date(now.getTime() + 24 * 60 * 60 * 1000) : null,
+    }).where(eq(usersTable.id, ride.passengerId));
+
+    await notifyUsers({
+      userIds: [ride.passengerId],
+      title: "⚠️ تبليغ: لم تأتِ",
+      body: `السائق بلغ أنك لم تأتِ. عدد تبليغاتك: ${newCount}. بعد 3 مرات = حظر 24س`,
+      data: { type: "rider_no_show", rideId: ride.id, noShowCount: newCount },
+    });
+
+    res.json({ success: true, noShowCount: newCount });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── السائق: إلغاء بدون خسارة (إذا الراكب لم يأتِ) ──────────────────────────
+router.patch("/rides/:id/cancel-safe", authenticate, async (req, res): Promise<void> => {
+  try {
+    const driverId = (req as any).user.id;
+    const [ride] = (await db.select().from(ridesTable).where(eq(ridesTable.id, req.params.id as string))) ?? [];
+    if (!ride) { res.status(404).json({ error: "الرحلة غير موجودة" }); return; }
+    if (ride.driverId !== driverId) { res.status(403).json({ error: "ليس رحلتك" }); return; }
+    if (ride.status === "completed" || ride.status === "picked_up") { res.status(400).json({ error: "الرحلة في تقدم مبكر" }); return; }
+
+    const now = new Date();
+    const isNoShow = ride.riderNoShow;
+    await db.update(ridesTable).set({
+      status: "cancelled", cancelledBy: driverId, cancelledAt: now,
+      cancelReason: isNoShow ? "rider_no_show_driver_cancel" : "driver_cancel", updatedAt: now,
+    }).where(eq(ridesTable.id, req.params.id as string));
+
+    await notifyUsers({
+      userIds: [ride.passengerId],
+      title: "❌ تم إلغاء الرحلة",
+      body: isNoShow ? "السائق ألغاها لأنك لم تأتِ" : "السائق ألغاها",
+      data: { type: "ride_cancelled", rideId: ride.id },
+    });
+
+    res.json({ success: true, noShow: isNoShow });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── السائق: تحديث موقعه على الرحلة المباشرة ──────────────────────────────
+router.patch("/rides/:id/location", authenticate, async (req, res): Promise<void> => {
+  try {
+    const driverId = (req as any).user.id;
+    const { lat, lng } = req.body;
+    const [ride] = (await db.select().from(ridesTable).where(eq(ridesTable.id, req.params.id as string))) ?? [];
+    if (!ride) { res.status(404).json({ error: "الرحلة غير موجودة" }); return; }
+    if (ride.driverId !== driverId) { res.status(403).json({ error: "ليس رحلتك" }); return; }
+
+    const now = new Date();
+    await db.update(ridesTable).set({
+      driverLat: lat ?? null, driverLng: lng ?? null,
+      driverLocationUpdatedAt: now, updatedAt: now,
+    }).where(eq(ridesTable.id, req.params.id as string));
+
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── تقدير السعر التلقائي ──────────────────────────────────────────────────
+router.post("/rides/estimate", authenticate, async (req, res): Promise<void> => {
+  try {
+    const { fromLat, fromLng, toLat, toLng, vehicleType } = req.body;
+    if (!fromLat || !fromLng || !toLat || !toLng) { res.status(400).json({ error: "إحداثيات GPS مطلوبة" }); return; }
+
+    // Haversine formula — حساب المسافة بين نقطتين
+    const R = 6371; // نسف الأرض بالكم
+    const toRad = (deg: number) => deg * Math.PI / 180;
+    const dLat = toRad(Number(toLat) - Number(fromLat));
+    const dLng = toRad(Number(toLng) - Number(fromLng));
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(Number(fromLat))) * Math.cos(toRad(Number(toLat))) * Math.sin(dLng / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+
+    // سعر الكيلومتر حسب نوع السيارة (بالدينار الجزايري)
+    const basePrices: Record<string, number> = { car: 50, ac: 80, suv: 100, van: 120, truck: 150 };
+    const perKm: Record<string, number> = { car: 25, ac: 35, suv: 40, van: 45, truck: 60 };
+    const vtype = vehicleType && basePrices[vehicleType] ? vehicleType : "car";
+    const estimatedPrice = Math.round(basePrices[vtype] + distance * perKm[vtype]);
+
+    // الوقت التقريبي (دقيقة بكم)
+    const avgSpeedKmH = vtype === "truck" ? 30 : 40;
+    const estimatedMinutes = Math.round((distance / avgSpeedKmH) * 60);
+
+    res.json({
+      distance: Math.round(distance * 10) / 10,
+      estimatedPrice,
+      estimatedMinutes,
+      currency: "DZD",
+      vehicleType: vtype,
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── الراكب: تفاصيل الرحلة مع موقع السائق ──────────────────────────────────
+router.get("/rides/:id/live", authenticate, async (req, res): Promise<void> => {
+  try {
+    const userId = (req as any).user.id;
+    const [ride] = (await db.select().from(ridesTable).where(eq(ridesTable.id, req.params.id as string))) ?? [];
+    if (!ride) { res.status(404).json({ error: "الرحلة غير موجودة" }); return; }
+    if (ride.passengerId !== userId && ride.driverId !== userId) { res.status(403).json({ error: "ليس من صلاحياتك" }); return; }
+
+    res.json({
+      id: ride.id,
+      status: ride.status,
+      driverLat: ride.driverLat,
+      driverLng: ride.driverLng,
+      driverLocationUpdatedAt: ride.driverLocationUpdatedAt,
+      fromLat: ride.fromLat, fromLng: ride.fromLng,
+      toLat: ride.toLat, toLng: ride.toLng,
+      fromAddress: ride.fromAddress, toAddress: ride.toAddress,
+    });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

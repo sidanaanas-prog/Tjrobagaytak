@@ -23,6 +23,7 @@ import flashSalesRouter from "./flash-sales";
 import subscriptionsRouter from "./subscriptions";
 import promotionsRouter from "./promotions";
 import ridesRouter from "./rides";
+import walletRouter from "./wallet";
 import userRolesRouter from "./user-roles";
 
 const router: IRouter = Router();
@@ -50,6 +51,7 @@ router.use(flashSalesRouter);
 router.use(subscriptionsRouter);
 router.use(promotionsRouter);
 router.use(ridesRouter);
+router.use(walletRouter);
 router.use(userRolesRouter);
 router.use(wasenderApiRouter);
 

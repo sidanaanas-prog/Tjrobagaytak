@@ -24,6 +24,11 @@ export const usersTable = pgTable("users", {
   trialExpiresAt: timestamp("trial_expires_at", { withTimezone: true }),
   sellerIdDocument: text("seller_id_document"),
   pinHash: text("pin_hash"),
+  // عداد تبليغ "لم يأتِ" كراكب (للعقوبات)
+  noShowCount: integer("no_show_count").notNull().default(0),
+  noShowLastAt: timestamp("no_show_last_at", { withTimezone: true }),
+  // حظر مؤقت الرحلات
+  rideBannedUntil: timestamp("ride_banned_until", { withTimezone: true }),
 });
 
 export const insertUserSchema = createInsertSchema(usersTable).omit({ createdAt: true });

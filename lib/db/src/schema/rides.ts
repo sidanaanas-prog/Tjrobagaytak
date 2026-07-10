@@ -24,10 +24,22 @@ export const ridesTable = pgTable("rides", {
   driverReview: text("driver_review"),
   cancelledBy: text("cancelled_by"),
   cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+  cancelReason: text("cancel_reason"),
   acceptedAt: timestamp("accepted_at", { withTimezone: true }),
   arrivedAt: timestamp("arrived_at", { withTimezone: true }),
   pickedUpAt: timestamp("picked_up_at", { withTimezone: true }),
   completedAt: timestamp("completed_at", { withTimezone: true }),
+  // تتبع موقع السائق مباشر
+  driverLat: numeric("driver_lat"),
+  driverLng: numeric("driver_lng"),
+  driverLocationUpdatedAt: timestamp("driver_location_updated_at", { withTimezone: true }),
+  // تبليغ الراكب لم يأتِ
+  riderNoShow: boolean("rider_no_show").default(false),
+  riderNoShowAt: timestamp("rider_no_show_at", { withTimezone: true }),
+  // دفع
+  paymentMethod: text("payment_method").default("cash"), // "cash" | "wallet"
+  estimatedPrice: numeric("estimated_price", { precision: 12, scale: 2 }),
+  actualPrice: numeric("actual_price", { precision: 12, scale: 2 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
