@@ -564,15 +564,33 @@ router.get("/admin/rides", authenticate, requireAdmin, async (_req, res): Promis
   const users = await db.select().from(usersTable).where(inArray(usersTable.id, userIds));
   const userMap = Object.fromEntries(users.map(u => [u.id, u]));
 
+  // fetch driver profiles for vehicle info
+  const driverIds = [...new Set(rides.map((r) => r.driverId).filter((id): id is string => id !== null))];
+  const driverProfiles = driverIds.length > 0
+    ? (await db.select({
+        userId: driverProfilesTable.userId,
+        vehicleType: driverProfilesTable.vehicleType,
+        vehicleModel: driverProfilesTable.vehicleModel,
+        vehiclePlate: driverProfilesTable.vehiclePlate,
+        vehicleColor: driverProfilesTable.vehicleColor,
+      }).from(driverProfilesTable).where(inArray(driverProfilesTable.userId, driverIds))) ?? []
+    : [];
+  const dProfMap = Object.fromEntries(driverProfiles.map((d) => [d.userId, d]));
+
   res.json(rides.map(r => {
     const passenger = userMap[r.passengerId];
     const driver = r.driverId ? userMap[r.driverId] : null;
+    const dProf = r.driverId ? dProfMap[r.driverId] : null;
     return {
       id: r.id,
       status: r.status,
       fromAddress: r.fromAddress,
       toAddress: r.toAddress,
       price: r.price,
+      vehicleType: r.vehicleType,
+      vehicleModel: dProf?.vehicleModel ?? null,
+      vehiclePlate: dProf?.vehiclePlate ?? null,
+      vehicleColor: dProf?.vehicleColor ?? null,
       passengerName: passenger?.name || "—",
       passengerPhone: passenger?.phone || null,
       driverName: driver?.name || null,
@@ -581,6 +599,8 @@ router.get("/admin/rides", authenticate, requireAdmin, async (_req, res): Promis
       driverRating: r.passengerRating,
       createdAt: r.createdAt.toISOString(),
       acceptedAt: r.acceptedAt?.toISOString() ?? null,
+      arrivedAt: (r as any).arrivedAt?.toISOString?.() ?? null,
+      pickedUpAt: r.pickedUpAt?.toISOString() ?? null,
       completedAt: r.completedAt?.toISOString() ?? null,
       cancelledAt: r.cancelledAt?.toISOString() ?? null,
     };

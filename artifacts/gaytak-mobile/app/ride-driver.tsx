@@ -22,6 +22,17 @@ import { IncomingCallOverlay } from "@/components/IncomingCallOverlay";
 const DOMAIN = process.env.EXPO_PUBLIC_DOMAIN;
 const { width, height } = Dimensions.get("window");
 
+function vTypeLabelMobile(t: string | undefined): string {
+  const map: Record<string, string> = {
+    car: "\ud83d\ude97 \u0639\u0627\u062f\u064a",
+    ac: "\u2744\ufe0f \u0645\u0643\u064a\u0641",
+    suv: "\ud83d\ude99 \u062f\u0641\u0639 \u0631\u0628\u0627\u0639\u064a",
+    van: "\ud83d\ude90 \u062d\u0627\u0641\u0644\u0629",
+    truck: "\ud83d\ude9a \u0634\u062d\u0646",
+  };
+  return map[t ?? "car"] ?? "\ud83d\ude97 \u0639\u0627\u062f\u064a";
+}
+
 export default function RideDriverScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -133,16 +144,54 @@ export default function RideDriverScreen() {
       if (data.success && data.conversationId) {
         setShowCallOverlay(false);
         setIncomingRide(null);
-        router.push(`/conversation/${data.conversationId}`);
-      } else {
+        // Reset pending so the accepted ride moves to active list
+        setPendingRides((prev) => prev.filter((r) => r.id !== rideId));
+        fetchRides();
+      } else if (data.alreadyTaken) {
         Alert.alert("❌ تم القبول من سائق آخر", "لم تفوت هنالك");
         setShowCallOverlay(false);
         setIncomingRide(null);
+        setPendingRides((prev) => prev.filter((r) => r.id !== rideId));
+      } else {
+        Alert.alert("خطأ", data.error || "تعذر قبول الرحلة");
       }
     } catch {
       Alert.alert("خطأ", "تعذر الاتصال بالخادم");
     }
     setLoading(false);
+  }
+
+  async function handleArrived(rideId: string) {
+    if (!token) return;
+    try {
+      await fetch(`https://${DOMAIN}/api/rides/${rideId}/arrived`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      fetchRides();
+    } catch {}
+  }
+
+  async function handlePickup(rideId: string) {
+    if (!token) return;
+    try {
+      await fetch(`https://${DOMAIN}/api/rides/${rideId}/pickup`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      fetchRides();
+    } catch {}
+  }
+
+  async function handleComplete(rideId: string) {
+    if (!token) return;
+    try {
+      await fetch(`https://${DOMAIN}/api/rides/${rideId}/complete`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      fetchRides();
+    } catch {}
   }
 
   function handleDismiss() {
@@ -261,6 +310,12 @@ export default function RideDriverScreen() {
                 {ride.fromAddress} → {ride.toAddress}
               </Text>
             </View>
+            <View style={styles.rideRow}>
+              <Feather name="users" size={12} color={colors.mutedForeground} />
+              <Text style={[styles.rideSubText, { color: colors.mutedForeground }]}>
+                {ride.passengerCount ?? 1} راكب · {vTypeLabelMobile(ride.vehicleType)}
+              </Text>
+            </View>
             <View style={styles.rideFooter}>
               <Text style={[styles.ridePrice, { color: colors.primary }]}>{ride.price} دج</Text>
               <TouchableOpacity
@@ -279,7 +334,7 @@ export default function RideDriverScreen() {
         ))
       )}
 
-      {/* Accepted Rides */}
+      {/* Accepted / Active Rides */}
       <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 24 }]}>
         رحلاتي الحالية
       </Text>
@@ -289,26 +344,66 @@ export default function RideDriverScreen() {
         </Text>
       ) : (
         acceptedRides.map((ride) => (
-          <TouchableOpacity
-            key={ride.id}
-            onPress={() => {
-              if (ride.conversationId) {
-                router.push(`/conversation/${ride.conversationId}`);
-              }
-            }}
-            style={[styles.rideCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-          >
+          <View key={ride.id} style={[styles.rideCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.rideRow}>
-              <Feather name="message-circle" size={14} color={colors.accent} />
+              <Feather name="navigation" size={14} color={colors.accent} />
               <Text style={[styles.rideText, { color: colors.text }]} numberOfLines={1}>
                 {ride.fromAddress} → {ride.toAddress}
               </Text>
             </View>
-            <View style={styles.rideFooter}>
-              <Text style={[styles.ridePrice, { color: colors.accent }]}>{ride.price} دج</Text>
-              <Text style={[styles.statusBadge, { color: colors.accent }]}>نشطة</Text>
+            <View style={styles.rideRow}>
+              <Feather name="user" size={12} color={colors.mutedForeground} />
+              <Text style={[styles.rideSubText, { color: colors.mutedForeground }]}>
+                {ride.passenger?.name ?? "راكب"} · {ride.price} دج
+              </Text>
             </View>
-          </TouchableOpacity>
+            {/* Active ride action buttons */}
+            {ride.status === "accepted" && (
+              <TouchableOpacity
+                onPress={() => handleArrived(ride.id)}
+                style={[styles.actionBtn, { backgroundColor: "#00AAFF" }]}
+              >
+                <Feather name="map-pin" size={16} color="#FFF" />
+                <Text style={styles.actionText}>📍 وصلت للموقع</Text>
+              </TouchableOpacity>
+            )}
+            {ride.status === "arrived" && (
+              <TouchableOpacity
+                onPress={() => handlePickup(ride.id)}
+                style={[styles.actionBtn, { backgroundColor: colors.primary }]}
+              >
+                <Feather name="check-circle" size={16} color="#FFF" />
+                <Text style={styles.actionText}>🚕 استلمت الراكب</Text>
+              </TouchableOpacity>
+            )}
+            {ride.status === "picked_up" && (
+              <TouchableOpacity
+                onPress={() => handleComplete(ride.id)}
+                style={[styles.actionBtn, { backgroundColor: "#00CC66" }]}
+              >
+                <Feather name="flag" size={16} color="#FFF" />
+                <Text style={styles.actionText}>✅ وصلت للوجهة</Text>
+              </TouchableOpacity>
+            )}
+            {ride.passenger?.phone && (
+              <TouchableOpacity
+                onPress={() => { /* call */ }}
+                style={[styles.actionBtnOutline, { borderColor: colors.border }]}
+              >
+                <Feather name="phone" size={14} color={colors.primary} />
+                <Text style={[styles.actionTextOutline, { color: colors.primary }]}>اتصل بالراكب</Text>
+              </TouchableOpacity>
+            )}
+            {ride.conversationId && (
+              <TouchableOpacity
+                onPress={() => router.push(`/conversation/${ride.conversationId}`)}
+                style={[styles.actionBtnOutline, { borderColor: colors.border }]}
+              >
+                <Feather name="message-circle" size={14} color={colors.accent} />
+                <Text style={[styles.actionTextOutline, { color: colors.accent }]}>محادثة</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         ))
       )}
 
@@ -375,7 +470,29 @@ const styles = StyleSheet.create({
   },
   rideRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   rideText: { flex: 1, fontSize: 13 },
+  rideSubText: { flex: 1, fontSize: 11 },
   rideFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 10 },
+  actionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 12,
+    paddingVertical: 12,
+    marginTop: 10,
+  },
+  actionBtnOutline: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    marginTop: 8,
+  },
+  actionText: { color: "#FFF", fontSize: 14, fontWeight: "700" },
+  actionTextOutline: { fontSize: 13, fontWeight: "600" },
   ridePrice: { fontSize: 15, fontWeight: "700" },
   acceptBtn: {
     borderRadius: 10,

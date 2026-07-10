@@ -55,7 +55,7 @@ router.post("/user/roles", authenticate, async (req, res): Promise<void> => {
       // نفعّل التجربة فقط إذا ما كانت مفعّلة من قبل
       if (!user?.trialExpiresAt || new Date(user.trialExpiresAt) <= now) {
         await db.update(usersTable)
-          .set({ trialExpiresAt: trialExpiry, updatedAt: now })
+          .set({ trialExpiresAt: trialExpiry })
           .where(eq(usersTable.id, userId));
       }
     }
@@ -72,11 +72,10 @@ router.post("/user/roles", authenticate, async (req, res): Promise<void> => {
             userId,
             trialExpiresAt: trialExpiry,
             createdAt: now,
-            updatedAt: now,
           });
         } else {
           await db.update(driverProfilesTable)
-            .set({ trialExpiresAt: trialExpiry, updatedAt: now })
+            .set({ trialExpiresAt: trialExpiry })
             .where(eq(driverProfilesTable.userId, userId));
         }
       }

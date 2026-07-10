@@ -16,6 +16,7 @@ export const ridesTable = pgTable("rides", {
   distance: numeric("distance"), // km
   notes: text("notes"),
   passengerCount: integer("passenger_count").default(1), // عدد الركاب
+  vehicleType: text("vehicle_type").default("car"), // "car" | "ac" | "suv" | "van" | "truck"
   rating: integer("rating"), // 1-5
   driverRating: integer("driver_rating"), // 1-5
   passengerRating: integer("passenger_rating"), // 1-5
@@ -24,6 +25,7 @@ export const ridesTable = pgTable("rides", {
   cancelledBy: text("cancelled_by"),
   cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
   acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+  arrivedAt: timestamp("arrived_at", { withTimezone: true }),
   pickedUpAt: timestamp("picked_up_at", { withTimezone: true }),
   completedAt: timestamp("completed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -36,7 +38,7 @@ export type InsertRide = typeof ridesTable.$inferInsert;
 export const driverProfilesTable = pgTable("driver_profiles", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }).unique(),
-  vehicleType: text("vehicle_type"), // "car" | "van" | "bike"
+  vehicleType: text("vehicle_type"), // "car" | "ac" | "suv" | "van" | "truck"
   vehicleModel: text("vehicle_model"),
   vehiclePlate: text("vehicle_plate"),
   vehicleColor: text("vehicle_color"),

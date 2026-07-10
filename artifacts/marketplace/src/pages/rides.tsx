@@ -18,11 +18,12 @@ const BASE = getApiUrl("");
 
 type Ride = {
   id: string;
-  status: "pending" | "accepted" | "picked_up" | "completed" | "cancelled";
+  status: "pending" | "accepted" | "arrived" | "picked_up" | "completed" | "cancelled";
   fromAddress: string;
   toAddress: string;
   price: string;
   createdAt: string;
+  vehicleType?: string;
   driver?: { id: string; name: string; phone: string | null; avatar: string | null };
   passenger?: { id: string; name: string; phone: string | null; avatar: string | null };
   acceptedAt?: string | null;
@@ -30,6 +31,7 @@ type Ride = {
   rating?: number;
   driverRating?: number;
   passengerCount?: number;
+  conversationId?: string;
 };
 
 function getRole(): string | null {
@@ -43,6 +45,7 @@ function PassengerRequest() {
   const [toAddress, setToAddress] = useState("");
   const [price, setPrice] = useState("");
   const [passengerCount, setPassengerCount] = useState("1");
+  const [vehicleType, setVehicleType] = useState("car");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [myRides, setMyRides] = useState<Ride[]>([]);
@@ -104,11 +107,11 @@ function PassengerRequest() {
       const res = await fetch(`${BASE}/api/rides`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ fromAddress, toAddress, price: Number(price), passengerCount: Number(passengerCount), notes }),
+        body: JSON.stringify({ fromAddress, toAddress, price: Number(price), passengerCount: Number(passengerCount), vehicleType, notes }),
       });
       if (res.ok) {
         toast({ title: "✅ تم!", description: "تم إرسال الطلب" });
-        setFromAddress(""); setToAddress(""); setPrice(""); setPassengerCount("1"); setNotes("");
+        setFromAddress(""); setToAddress(""); setPrice(""); setPassengerCount("1"); setVehicleType("car"); setNotes("");
         fetchMyRides();
       } else {
         const err = await res.json();
@@ -165,9 +168,18 @@ function PassengerRequest() {
   const statusConfig: Record<string, { color: string; label: string; icon: typeof CheckCircle }> = {
     pending: { color: "text-yellow-400", label: "يبحث عن سائق", icon: Clock },
     accepted: { color: "text-blue-400", label: "السائق في الطريق", icon: Navigation },
-    picked_up: { color: "text-purple-400", label: "استلمك", icon: Car },
+    arrived: { color: "text-cyan-400", label: "السائق وصل", icon: MapPin },
+    picked_up: { color: "text-purple-400", label: "في الرحلة", icon: Car },
     completed: { color: "text-green-400", label: "وصلت", icon: CheckCircle },
     cancelled: { color: "text-red-400", label: "ملغية", icon: XCircle },
+  };
+
+  const vehicleConfig: Record<string, { label: string; icon: string }> = {
+    car: { label: "🚗 عادي", icon: "car" },
+    ac: { label: "❄️ مكيف", icon: "wind" },
+    suv: { label: "🚙 دفع رباعي", icon: "truck" },
+    van: { label: "🚐 حافلة", icon: "minivan" },
+    truck: { label: "🚚 شحن", icon: "package" },
   };
 
   return (
@@ -267,6 +279,33 @@ function PassengerRequest() {
           </div>
         </div>
 
+        {/* نوع السيارة */}
+        <div>
+          <p className="text-xs text-muted-foreground mb-2 font-medium">نوع السيارة</p>
+          <div className="grid grid-cols-5 gap-2">
+            {([
+              { key: "car", label: "🚗", desc: "عادي" },
+              { key: "ac", label: "❄️", desc: "مكيف" },
+              { key: "suv", label: "🚙", desc: "دفع رباعي" },
+              { key: "van", label: "🚐", desc: "حافلة" },
+              { key: "truck", label: "🚚", desc: "شحن" },
+            ] as const).map((v) => (
+              <button
+                key={v.key}
+                onClick={() => setVehicleType(v.key)}
+                className={`flex flex-col items-center gap-1 py-2 rounded-xl border text-xs font-bold transition-all ${
+                  vehicleType === v.key
+                    ? "bg-primary/20 border-primary text-primary"
+                    : "bg-background border-border text-muted-foreground hover:border-primary/30"
+                }`}
+              >
+                <span className="text-lg">{v.label}</span>
+                <span>{v.desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* ملاحظات */}
         <textarea
           value={notes}
@@ -326,6 +365,11 @@ function PassengerRequest() {
                       {r.driver && (
                         <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                           <User className="w-3 h-3" /> {r.driver.name}
+                          {r.vehicleType && (
+                            <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded-full text-[10px] font-bold">
+                              {vehicleConfig[r.vehicleType]?.label ?? r.vehicleType}
+                            </span>
+                          )}
                           {r.driver.phone && (
                             <a href={`tel:${r.driver.phone}`} className="text-primary flex items-center gap-0.5">
                               <Phone className="w-3 h-3" /> اتصل

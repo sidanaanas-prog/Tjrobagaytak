@@ -53,8 +53,7 @@ export async function sendNotification({
           priority: "high",
           sound: isRideAlert ? "alert.mp3" : "default",
           // رن مثل المكالمة الواردة — يفتح التطبيق حتى لو مقفل/خارج التطبيق
-          fullScreenIntent: isRideAlert,
-          wakeScreen: isRideAlert,
+          ...(isRideAlert ? { fullScreenIntent: true, wakeScreen: true } : {}),
         },
       },
       apns: { payload: { aps: { sound: isRideAlert ? "alert.mp3" : "default", badge: 1, "content-available": 1 } } },

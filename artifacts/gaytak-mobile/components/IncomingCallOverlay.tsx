@@ -130,6 +130,12 @@ export function IncomingCallOverlay({ visible, ride, onAccept, onDismiss, loadin
                 {ride.price} دج
               </Text>
             </View>
+            <View style={styles.detailRow}>
+              <Feather name="users" size={14} color={colors.mutedForeground} />
+              <Text style={[styles.detailSubText, { color: colors.mutedForeground }]}>
+                {ride.passengerCount ?? 1} راكب · {vTypeLabel(ride.vehicleType)}
+              </Text>
+            </View>
           </View>
 
           {/* Countdown */}
@@ -171,6 +177,17 @@ export function IncomingCallOverlay({ visible, ride, onAccept, onDismiss, loadin
       </View>
     </Modal>
   );
+}
+
+function vTypeLabel(t: string | undefined): string {
+  const map: Record<string, string> = {
+    car: "\ud83d\ude97 \u0639\u0627\u062f\u064a",
+    ac: "\u2744\ufe0f \u0645\u0643\u064a\u0641",
+    suv: "\ud83d\ude99 \u062f\u0641\u0639 \u0631\u0628\u0627\u0639\u064a",
+    van: "\ud83d\ude90 \u062d\u0627\u0641\u0644\u0629",
+    truck: "\ud83d\ude9a \u0634\u062d\u0646",
+  };
+  return map[t ?? "car"] ?? "\ud83d\ude97 \u0639\u0627\u062f\u064a";
 }
 
 const styles = StyleSheet.create({
@@ -229,6 +246,10 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 14,
+    flex: 1,
+  },
+  detailSubText: {
+    fontSize: 12,
     flex: 1,
   },
   priceText: {

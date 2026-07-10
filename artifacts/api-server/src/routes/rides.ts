@@ -10,11 +10,12 @@ const router: IRouter = Router();
 // ── إنشاء طلب نقل (الراكب) ──────────────────────────────────────────────────
 router.post("/rides", authenticate, async (req, res): Promise<void> => {
   try {
-    const { fromAddress, toAddress, fromLat, fromLng, toLat, toLng, price, notes, passengerCount } = req.body;
+    const { fromAddress, toAddress, fromLat, fromLng, toLat, toLng, price, notes, passengerCount, vehicleType } = req.body;
     const passengerId = (req as any).user.id;
 
     const id = randomUUID();
     const now = new Date();
+    const vType = vehicleType && ["car","ac","suv","van","truck"].includes(vehicleType) ? vehicleType : "car";
 
     await db.insert(ridesTable).values({
       id,
@@ -29,38 +30,45 @@ router.post("/rides", authenticate, async (req, res): Promise<void> => {
       price: String(price),
       notes: notes ?? null,
       passengerCount: passengerCount ? Number(passengerCount) : 1,
+      vehicleType: vType,
       createdAt: now,
       updatedAt: now,
     });
 
     // إشعار السائقين المشتركين المتاحين أو المجانيين أو في التجربة
-    const drivers = (await db
-      .select({ userId: driverProfilesTable.userId })
-      .from(driverProfilesTable)
-      .where(and(
-        eq(driverProfilesTable.isOnline, true),
-        eq(driverProfilesTable.isAvailable, true),
-        or(
-          eq(driverProfilesTable.isFree, true),
-          and(
-            eq(driverProfilesTable.isSubscribed, true),
-            sql`${driverProfilesTable.subscriptionExpiresAt} > ${now}`,
-          ),
-          sql`${driverProfilesTable.trialExpiresAt} > ${now}`,
+    // فقط السائقين بنفس نوع السيارة يتلقون الطلب
+    const typeFilter = vType === "car" ? undefined : eq(driverProfilesTable.vehicleType, vType);
+    const conditions = [
+      eq(driverProfilesTable.isOnline, true),
+      eq(driverProfilesTable.isAvailable, true),
+      or(
+        eq(driverProfilesTable.isFree, true),
+        and(
+          eq(driverProfilesTable.isSubscribed, true),
+          sql`${driverProfilesTable.subscriptionExpiresAt} > ${now}`,
         ),
-      ))) ?? [];
+        sql`${driverProfilesTable.trialExpiresAt} > ${now}`,
+      ),
+    ];
+    if (typeFilter) conditions.push(typeFilter);
+
+    const drivers = (await db
+      .select({ userId: driverProfilesTable.userId, vehicleType: driverProfilesTable.vehicleType })
+      .from(driverProfilesTable)
+      .where(and(...conditions))) ?? [];
 
     if (drivers.length > 0) {
       await notifyUsers({
         userIds: drivers.map((d) => d.userId),
         title: "طلب نقل جديد! 🚕",
-        body: `${fromAddress} → ${toAddress}`,
+        body: `${fromAddress} → ${toAddress} | ${vTypeLabel(vType)}`,
         data: {
           type: "new_ride",
           rideId: id,
           _fromAddress: fromAddress,
           _toAddress: toAddress,
           _price: String(price),
+          _vehicleType: vType,
         },
       });
     }
@@ -71,6 +79,17 @@ router.post("/rides", authenticate, async (req, res): Promise<void> => {
   }
 });
 
+function vTypeLabel(t: string): string {
+  const map: Record<string, string> = {
+    car: "🚗 عادي",
+    ac: "❄️ مكيف",
+    suv: "🚙 دفع رباعي",
+    van: "🚐 حافلة",
+    truck: "🚚 شحن",
+  };
+  return map[t] ?? t;
+}
+
 // ── السائق: قائمة الطلبات القريبة ──────────────────────────────────────────────────
 router.get("/rides/driver", authenticate, async (req, res): Promise<void> => {
   try {
@@ -79,6 +98,9 @@ router.get("/rides/driver", authenticate, async (req, res): Promise<void> => {
 
     const conditions = [eq(ridesTable.status, status || "pending")];
     if (status === "accepted") {
+      // Return all active rides for this driver: accepted, arrived, picked_up
+      conditions.length = 0;
+      conditions.push(inArray(ridesTable.status, ["accepted", "arrived", "picked_up"]));
       conditions.push(eq(ridesTable.driverId, driverId));
     }
 
@@ -97,7 +119,24 @@ router.get("/rides/driver", authenticate, async (req, res): Promise<void> => {
       : [];
     const pMap = Object.fromEntries(passengers.map((p) => [p.id, p]));
 
-    res.json(rows.map((r) => ({ ...r, passenger: pMap[r.passengerId] ?? null })));
+    // fetch driver vehicle info for active rides
+    const driverIds = [...new Set(rows.map((r) => r.driverId).filter(Boolean))] as string[];
+    const driverProfiles = driverIds.length > 0
+      ? (await db.select({
+          userId: driverProfilesTable.userId,
+          vehicleType: driverProfilesTable.vehicleType,
+          vehicleModel: driverProfilesTable.vehicleModel,
+          vehiclePlate: driverProfilesTable.vehiclePlate,
+          vehicleColor: driverProfilesTable.vehicleColor,
+        }).from(driverProfilesTable).where(inArray(driverProfilesTable.userId, driverIds))) ?? []
+      : [];
+    const dProfMap = Object.fromEntries(driverProfiles.map((d) => [d.userId, d]));
+
+    res.json(rows.map((r) => ({
+      ...r,
+      passenger: pMap[r.passengerId] ?? null,
+      driverProfile: r.driverId ? (dProfMap[r.driverId] ?? null) : null,
+    })));
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -123,7 +162,19 @@ router.get("/rides/:id", authenticate, async (req, res): Promise<void> => {
       driver = d ?? null;
     }
 
-    res.json({ ...ride, passenger: passenger ?? null, driver });
+    // fetch driver vehicle info
+    let driverProfile = null;
+    if (ride.driverId) {
+      const [dp] = (await db.select({
+        vehicleType: driverProfilesTable.vehicleType,
+        vehicleModel: driverProfilesTable.vehicleModel,
+        vehiclePlate: driverProfilesTable.vehiclePlate,
+        vehicleColor: driverProfilesTable.vehicleColor,
+      }).from(driverProfilesTable).where(eq(driverProfilesTable.userId, ride.driverId))) ?? [];
+      driverProfile = dp ?? null;
+    }
+
+    res.json({ ...ride, passenger: passenger ?? null, driver, driverProfile });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -164,6 +215,8 @@ router.patch("/rides/:id/accept", authenticate, async (req, res): Promise<void> 
       subscriptionExpiresAt: driverProfilesTable.subscriptionExpiresAt,
       isFree: driverProfilesTable.isFree,
       isSubscribed: driverProfilesTable.isSubscribed,
+      vehicleType: driverProfilesTable.vehicleType,
+      vehicleModel: driverProfilesTable.vehicleModel,
     }).from(driverProfilesTable).where(eq(driverProfilesTable.userId, driverId))) ?? [];
 
     const now = new Date();
@@ -177,12 +230,38 @@ router.patch("/rides/:id/accept", authenticate, async (req, res): Promise<void> 
 
     const [ride] = (await db.select().from(ridesTable).where(eq(ridesTable.id, req.params.id as string))) ?? [];
     if (!ride) { res.status(404).json({ error: "الرحلة غير موجودة" }); return; }
-    if (ride.status !== "pending") { res.status(400).json({ error: "الرحلة تم قبولها" }); return; }
+    if (ride.status !== "pending") { res.status(409).json({ error: "الرحلة تم قبولها من سائق آخر", alreadyTaken: true }); return; }
 
+    // تأكيد مرة ثانية للحالة = pending قبل التحديث (race condition fix)
     const now2 = new Date();
     await db.update(ridesTable).set({
       driverId, status: "accepted", acceptedAt: now2, updatedAt: now2,
-    }).where(eq(ridesTable.id, req.params.id as string));
+    }).where(and(eq(ridesTable.id, req.params.id as string), eq(ridesTable.status, "pending")));
+
+    // التحقق من التحديث الفعلي
+    const [updatedRide] = (await db.select().from(ridesTable).where(eq(ridesTable.id, req.params.id as string))) ?? [];
+    if (updatedRide?.status !== "accepted" || updatedRide?.driverId !== driverId) {
+      res.status(409).json({ error: "الرحلة تم قبولها من سائق آخر", alreadyTaken: true });
+      return;
+    }
+
+    // إشعار بقية السائقين: "الرحلة تم قبولها"
+    const otherDrivers = (await db
+      .select({ userId: driverProfilesTable.userId })
+      .from(driverProfilesTable)
+      .where(and(
+        eq(driverProfilesTable.isOnline, true),
+        eq(driverProfilesTable.isAvailable, true),
+        sql`${driverProfilesTable.userId} != ${driverId}`,
+      ))) ?? [];
+    if (otherDrivers.length > 0) {
+      await notifyUsers({
+        userIds: otherDrivers.map((d) => d.userId),
+        title: "رحلة محجوزة ✔️",
+        body: "تم قبول الطلب من سائق آخر",
+        data: { type: "ride_taken", rideId: ride.id },
+      });
+    }
 
     // إنشاء/إيجاد محادثة بين السائق والراكب
     let conversationId: string;
@@ -224,7 +303,7 @@ router.patch("/rides/:id/accept", authenticate, async (req, res): Promise<void> 
       userIds: [ride.passengerId],
       title: "★ سائق مؤهل!",
       body: "سائق في الطريق إليك",
-      data: { type: "ride_accepted", rideId: ride.id, conversationId },
+      data: { type: "ride_accepted", rideId: ride.id, conversationId, ...(profile?.vehicleModel ? { driverName: `${profile.vehicleModel} (${vTypeLabel(profile.vehicleType ?? 'car')})` } : {}) },
     });
 
     // بيانات الراكب للسائق
@@ -236,11 +315,36 @@ router.patch("/rides/:id/accept", authenticate, async (req, res): Promise<void> 
   }
 });
 
+// ── السائق: وصول للموقع (قبل استلام الراكب) ─────────────────────────────
+router.patch("/rides/:id/arrived", authenticate, async (req, res): Promise<void> => {
+  try {
+    const driverId = (req as any).user.id;
+    const [ride] = (await db.select().from(ridesTable).where(eq(ridesTable.id, req.params.id as string))) ?? [];
+    if (!ride) { res.status(404).json({ error: "الرحلة غير موجودة" }); return; }
+    if (ride.driverId !== driverId) { res.status(403).json({ error: "ليس رحلتك" }); return; }
+
+    const now = new Date();
+    await db.update(ridesTable).set({ status: "arrived", arrivedAt: now, updatedAt: now }).where(eq(ridesTable.id, req.params.id as string));
+
+    await notifyUsers({
+      userIds: [ride.passengerId],
+      title: "📍 السائق وصل!",
+      body: "السائق وصل للموقع. انتظر بالباب الأمامي.",
+      data: { type: "ride_arrived", rideId: ride.id },
+    });
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── السائق: استلام الراكب ──────────────────────────────────────────────────
 router.patch("/rides/:id/pickup", authenticate, async (req, res): Promise<void> => {
   try {
+    const driverId = (req as any).user.id;
     const [ride] = (await db.select().from(ridesTable).where(eq(ridesTable.id, req.params.id as string))) ?? [];
     if (!ride) { res.status(404).json({ error: "الرحلة غير موجودة" }); return; }
+    if (ride.driverId !== driverId) { res.status(403).json({ error: "ليس رحلتك" }); return; }
 
     const now = new Date();
     await db.update(ridesTable).set({
@@ -250,7 +354,7 @@ router.patch("/rides/:id/pickup", authenticate, async (req, res): Promise<void> 
     await notifyUsers({
       userIds: [ride.passengerId],
       title: "🚕 السائق استلمك!",
-      body: "السائق وصل إليك",
+      body: "السائق وصل إليك واستلمك بالسيارة",
       data: { type: "ride_pickup", rideId: ride.id },
     });
 

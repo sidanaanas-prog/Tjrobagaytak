@@ -125,6 +125,10 @@ export function useNotificationHandlers() {
         if (data?.type === "new_ride" && data?.rideId) {
           AsyncStorage.setItem("incoming_ride_id", data.rideId).catch(() => {});
         }
+        // الرحلة تم قبولها من سائق آخر — امسح من الذاكرة
+        if (data?.type === "ride_taken" && data?.rideId) {
+          AsyncStorage.removeItem("incoming_ride_id").catch(() => {});
+        }
       }
     );
 
