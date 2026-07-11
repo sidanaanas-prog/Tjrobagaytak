@@ -90,3 +90,23 @@ ovcOycjzqBN78xxz52YszXKN
 VITE_FIREBASE_APP_ID = "1:47975948307:android:f5ad9b31f8a46d870d5fe6"
 ONESIGNAL_APP_ID = "44fc0800-399e-4d4f-bf67-9aeb178438b5"
 CLOUDINARY_CLOUD_NAME = "dxrjvuaok"
+
+[[ports]]
+localPort = 8080
+externalPort = 80
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
+
+[[ports]]
+localPort = 20130
+externalPort = 3001
+
+[[ports]]
+localPort = 20787
+externalPort = 3000
+
+[[ports]]
+localPort = 22389
+externalPort = 3002

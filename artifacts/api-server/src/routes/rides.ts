@@ -697,7 +697,7 @@ router.patch("/rides/:id/no-show", authenticate, async (req, res): Promise<void>
     const [ride] = (await db.select().from(ridesTable).where(eq(ridesTable.id, req.params.id as string))) ?? [];
     if (!ride) { res.status(404).json({ error: "الرحلة غير موجودة" }); return; }
     if (ride.driverId !== driverId) { res.status(403).json({ error: "ليس رحلتك" }); return; }
-    if (ride.status !== "accepted" && ride.status !== "arrived") { res.status(400).json({ error: "لا يمكن تبليغ لم يأتِ الآن" }); return; }
+    if (!["accepted", "arrived", "picked_up"].includes(ride.status)) { res.status(400).json({ error: "لا يمكن تبليغ لم يأتِ الآن — الرحلة يجب أن تكون مقبولة" }); return; }
 
     const now = new Date();
     await db.update(ridesTable).set({

@@ -524,26 +524,46 @@ function DriverDashboard() {
 
   const handleNoShow = async (id: string) => {
     const token = getMemToken();
-    const res = await fetch(`${BASE}/api/rides/${id}/no-show`, { method: "PATCH", headers: { Authorization: `Bearer ${token}` } });
-    const data = await res.json();
-    if (data.success) { toast({ title: "⚠️ تم التبليغ", description: `الراكب لم يأتِ. عدد تبليغاته: ${data.noShowCount}/3` }); }
+    try {
+      const res = await fetch(`${BASE}/api/rides/${id}/no-show`, { method: "PATCH", headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: "⚠️ تم التبليغ", description: `الراكب لم يأتِ. عدد تبليغاته: ${data.noShowCount}/3` });
+      } else {
+        toast({ variant: "destructive", title: "تعذر التبليغ", description: data.error ?? "حاول مجدداً" });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "خطأ", description: "تعذر الاتصال بالخادم" });
+    }
     fetchRequests();
   };
 
   // تتبع GPS للسائق مباشرة
   const trackingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startLocationTracking = (rideId: string) => {
+    if (!navigator.geolocation) {
+      toast({ variant: "destructive", title: "GPS غير مدعوم", description: "جهازك لا يدعم تحديد الموقع" });
+      return;
+    }
     if (trackingRef.current) clearInterval(trackingRef.current);
     setLocationTracking(true);
+    toast({ title: "📍 تتبع GPS مفعّل", description: "موقعك يُرسل للراكب كل 8 ثوانٍ" });
+
     const track = () => {
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           const token = getMemToken();
           await fetch(`${BASE}/api/rides/${rideId}/location`, {
-            method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
             body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
           });
-        }, () => {}, { enableHighAccuracy: true },
+        },
+        (err) => {
+          toast({ variant: "destructive", title: "GPS غير متاح", description: err.code === 1 ? "اسمح للتطبيق بالوصول للموقع" : "تعذر تحديد موقعك" });
+          stopLocationTracking();
+        },
+        { enableHighAccuracy: true, timeout: 10000 },
       );
     };
     track();
@@ -551,6 +571,7 @@ function DriverDashboard() {
   };
   const stopLocationTracking = () => {
     if (trackingRef.current) clearInterval(trackingRef.current);
+    trackingRef.current = null;
     setLocationTracking(false);
   };
 
@@ -678,7 +699,6 @@ function DriverDashboard() {
                   ) : r.status === "picked_up" ? (
                     <>
                       <button onClick={() => { handleComplete(r.id); stopLocationTracking(); }} className="flex-1 bg-green-500 text-white py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1"><CheckCircle className="w-3 h-3" /> انهاء الرحلة</button>
-                      <button onClick={() => handleNoShow(r.id)} className="px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 flex items-center gap-1 hover:bg-red-500/20"><AlertTriangle className="w-3 h-3" /> لم يأتِ</button>
                     </>
                   ) : null}
                 </div>
