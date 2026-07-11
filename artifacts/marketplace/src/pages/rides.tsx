@@ -9,7 +9,7 @@ import { DriverSubscriptionGate } from "@/components/DriverSubscriptionGate";
 import { useDriverSubscription } from "@/hooks/use-driver-subscription";
 import { TrialCountdownBanner, TrialWelcomePopup } from "@/components/TrialCountdownBanner";
 import {
-  Car, MapPin, Clock, Star, CheckCircle, XCircle, Phone, MessageSquare,
+  Car, MapPin, Clock, Star, CheckCircle, XCircle, Phone,
   ChevronLeft, Loader2, Navigation, User, Circle, Flag, AlertTriangle,
   Plus, Trash2, TrendingUp, Shield, Gift, Wallet, CreditCard, Coins,
   LocateFixed, Siren, ChevronRight, RotateCw,
@@ -85,6 +85,8 @@ function PassengerRequest() {
   const [isEstimating, setIsEstimating] = useState(false);
   const [estimate, setEstimate] = useState<{ distance: number; estimatedPrice: number; estimatedMinutes: number } | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
+  const [newlyAcceptedRide, setNewlyAcceptedRide] = useState<Ride | null>(null);
+  const prevMyRidesRef = useRef<Ride[]>([]);
   const [, navigate] = useLocation();
 
   const fetchMyRides = useCallback(async () => {
@@ -92,7 +94,15 @@ function PassengerRequest() {
     try {
       const res = await fetch(`${BASE}/api/rides/my`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      setMyRides(Array.isArray(data) ? data : []);
+      const fresh: Ride[] = Array.isArray(data) ? data : [];
+      // كشف انتقال الرحلة من pending → accepted
+      const justAccepted = fresh.find((r) =>
+        r.status === "accepted" &&
+        prevMyRidesRef.current.some((p) => p.id === r.id && p.status === "pending"),
+      );
+      if (justAccepted) setNewlyAcceptedRide(justAccepted);
+      prevMyRidesRef.current = fresh;
+      setMyRides(fresh);
     } catch {}
     setLoading(false);
   }, []);
@@ -349,6 +359,47 @@ function PassengerRequest() {
           {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Car className="w-5 h-5" /><span>اطلب الآن — السائق يرد عليك!</span></>}
         </button>
       </div>
+
+      {/* ✅ إصلاح 1: بانر "قُبلت كورستك!" — يظهر فوراً عند قبول سائق */}
+      <AnimatePresence>
+        {newlyAcceptedRide && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => setNewlyAcceptedRide(null)}
+          >
+            <motion.div
+              initial={{ y: 40 }}
+              animate={{ y: 0 }}
+              className="bg-card border-2 border-green-500/40 rounded-2xl p-6 w-full max-w-sm shadow-2xl shadow-green-500/20"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-center space-y-3">
+                <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto">
+                  <CheckCircle className="w-8 h-8 text-green-400" />
+                </div>
+                <h2 className="text-xl font-black text-green-400">✅ قُبلت كورستك!</h2>
+                <p className="text-sm text-muted-foreground">السائق في طريقه إليك</p>
+                {newlyAcceptedRide.driver && (
+                  <div className="bg-muted/50 rounded-xl p-3 text-right space-y-1.5">
+                    <p className="text-sm font-bold flex items-center gap-2"><User className="w-4 h-4 text-primary" />{newlyAcceptedRide.driver.name}</p>
+                    {newlyAcceptedRide.driver.phone && (
+                      <a href={`tel:${newlyAcceptedRide.driver.phone}`} className="flex items-center gap-2 text-green-400 font-bold text-sm hover:underline">
+                        <Phone className="w-4 h-4" /> {newlyAcceptedRide.driver.phone}
+                      </a>
+                    )}
+                  </div>
+                )}
+                <button onClick={() => setNewlyAcceptedRide(null)} className="w-full bg-green-500 text-white py-3 rounded-xl font-bold text-sm">
+                  حسناً، شكراً!
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* بانر البحث الفوري — يظهر مباشرة بعد الإرسال قبل تحديث القائمة */}
       {justSubmittedId && !pendingRide && (
