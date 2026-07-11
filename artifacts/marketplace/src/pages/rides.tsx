@@ -113,8 +113,18 @@ function PassengerRequest() {
 
   const SEARCH_DURATION = 30; // 30 ثانية للبحث عن سائق
   const pendingRide = myRides.find((r) => r.status === "pending");
-  // activeSearchId = معرّف الرحلة قيد البحث (سواء جاءت من myRides أو من الإرسال الفوري)
-  const activeSearchId = pendingRide?.id ?? justSubmittedId;
+
+  // الرحلة المُرسلة — نتحقق من حالتها الفعلية في القائمة
+  const submittedRide = justSubmittedId ? myRides.find((r) => r.id === justSubmittedId) : null;
+  // نعتبر البحث جارياً فقط إذا: الرحلة المُرسلة لم تُقبل/تُلغَ بعد
+  const isStillSearching = justSubmittedId && (
+    !submittedRide || // لم تظهر بعد في القائمة (أول 2 ثانية)
+    submittedRide.status === "pending" // لا تزال قيد الانتظار
+  );
+
+  // activeSearchId = معرّف الرحلة قيد البحث
+  const activeSearchId = pendingRide?.id ?? (isStillSearching ? justSubmittedId : null);
+
   // نظّف justSubmittedId حين تُقبل الرحلة أو تنتهي
   useEffect(() => {
     if (!justSubmittedId) return;
@@ -421,8 +431,8 @@ function PassengerRequest() {
         )}
       </AnimatePresence>
 
-      {/* بانر البحث الفوري — يظهر مباشرة بعد الإرسال قبل تحديث القائمة */}
-      {justSubmittedId && !pendingRide && (
+      {/* بانر البحث الفوري — يظهر فقط إذا كانت الرحلة لا تزال pending أو لم تظهر بعد */}
+      {isStillSearching && !pendingRide && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
