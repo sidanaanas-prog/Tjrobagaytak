@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { useAuth, getMemToken } from "@/hooks/use-auth";
 import { AppLayout } from "@/components/AppLayout";
 import { useToast } from "@/hooks/use-toast";
@@ -14,6 +14,8 @@ import {
   Plus, Trash2, TrendingUp, Shield, Gift, Wallet, CreditCard, Coins,
   LocateFixed, Siren, ChevronRight, RotateCw,
 } from "lucide-react";
+
+const RideMap = lazy(() => import("@/components/RideMap"));
 
 const BASE = getApiUrl("");
 
@@ -36,8 +38,12 @@ type Ride = {
   paymentMethod?: string;
   estimatedPrice?: string;
   actualPrice?: string;
-  driverLat?: number;
-  driverLng?: number;
+  driverLat?: number | null;
+  driverLng?: number | null;
+  fromLat?: number | null;
+  fromLng?: number | null;
+  toLat?: number | null;
+  toLng?: number | null;
 };
 
 function getRole(): string | null { return localStorage.getItem("gaytak_active_role"); }
@@ -421,6 +427,25 @@ function PassengerRequest() {
                       <button onClick={() => handleCancel(r.id)} className="w-full text-xs text-red-400 py-1.5 border border-red-400/20 rounded-lg hover:bg-red-400/10 transition-colors"><XCircle className="w-3 h-3 inline mr-1" /> إلغاء</button>
                     </div>
                   )}
+                  {/* خريطة تتبع السائق — للراكب */}
+                  {(r.status === "accepted" || r.status === "arrived" || r.status === "picked_up") && (
+                    <div className="mt-2">
+                      <Suspense fallback={<div className="h-[240px] rounded-xl bg-muted flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}>
+                        <RideMap
+                          rideId={r.id}
+                          fromLat={r.fromLat}
+                          fromLng={r.fromLng}
+                          toLat={r.toLat}
+                          toLng={r.toLng}
+                          fromAddress={r.fromAddress}
+                          toAddress={r.toAddress}
+                          initialDriverLat={r.driverLat}
+                          initialDriverLng={r.driverLng}
+                          isDriver={false}
+                        />
+                      </Suspense>
+                    </div>
+                  )}
                   {/* زر SOS */}
                   {r.status === "picked_up" && (
                     <button className="w-full mt-2 bg-red-500/15 border border-red-500/25 text-red-400 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5">
@@ -453,7 +478,6 @@ function DriverDashboard() {
   const [online, setOnline] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const { status: subStatus } = useDriverSubscription();
-  const [locationTracking, setLocationTracking] = useState(false);
   const [_, setLocation] = useLocation();
 
   const driverTrialDays = subStatus?.trialExpiresAt ? Math.max(0, Math.ceil((new Date(subStatus.trialExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : null;
@@ -538,42 +562,6 @@ function DriverDashboard() {
     fetchRequests();
   };
 
-  // تتبع GPS للسائق مباشرة
-  const trackingRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startLocationTracking = (rideId: string) => {
-    if (!navigator.geolocation) {
-      toast({ variant: "destructive", title: "GPS غير مدعوم", description: "جهازك لا يدعم تحديد الموقع" });
-      return;
-    }
-    if (trackingRef.current) clearInterval(trackingRef.current);
-    setLocationTracking(true);
-    toast({ title: "📍 تتبع GPS مفعّل", description: "موقعك يُرسل للراكب كل 8 ثوانٍ" });
-
-    const track = () => {
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          const token = getMemToken();
-          await fetch(`${BASE}/api/rides/${rideId}/location`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-          });
-        },
-        (err) => {
-          toast({ variant: "destructive", title: "GPS غير متاح", description: err.code === 1 ? "اسمح للتطبيق بالوصول للموقع" : "تعذر تحديد موقعك" });
-          stopLocationTracking();
-        },
-        { enableHighAccuracy: true, timeout: 10000 },
-      );
-    };
-    track();
-    trackingRef.current = setInterval(track, 8000);
-  };
-  const stopLocationTracking = () => {
-    if (trackingRef.current) clearInterval(trackingRef.current);
-    trackingRef.current = null;
-    setLocationTracking(false);
-  };
 
   return (
     <div className="space-y-6 pb-4">
@@ -690,18 +678,32 @@ function DriverDashboard() {
                     </>
                   ) : r.status === "accepted" ? (
                     <>
-                      <button onClick={() => { handlePickup(r.id); stopLocationTracking(); }} className="flex-1 bg-blue-500 text-white py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1"><Navigation className="w-3 h-3" /> استلام الراكب</button>
-                      <button onClick={() => startLocationTracking(r.id)} className={`px-3 py-2 rounded-lg text-xs flex items-center gap-1 ${locationTracking ? "bg-green-500/20 text-green-400 border border-green-500/30" : "border hover:bg-muted"}`}>
-                        {locationTracking ? <><LocateFixed className="w-3 h-3 animate-pulse" /> تتبع</> : <><LocateFixed className="w-3 h-3" /> تتبع GPS</>}
-                      </button>
+                      <button onClick={() => handlePickup(r.id)} className="flex-1 bg-blue-500 text-white py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1"><Navigation className="w-3 h-3" /> استلام الراكب</button>
                       <button onClick={() => handleNoShow(r.id)} className="px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 flex items-center gap-1 hover:bg-red-500/20"><AlertTriangle className="w-3 h-3" /> لم يأتِ</button>
                     </>
                   ) : r.status === "picked_up" ? (
                     <>
-                      <button onClick={() => { handleComplete(r.id); stopLocationTracking(); }} className="flex-1 bg-green-500 text-white py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1"><CheckCircle className="w-3 h-3" /> انهاء الرحلة</button>
+                      <button onClick={() => handleComplete(r.id)} className="flex-1 bg-green-500 text-white py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1"><CheckCircle className="w-3 h-3" /> انهاء الرحلة</button>
                     </>
                   ) : null}
                 </div>
+                {/* خريطة تتبع موقع الراكب — للسائق (تُرسل موقعه تلقائياً) */}
+                {(r.status === "accepted" || r.status === "picked_up") && (
+                  <div className="mt-3">
+                    <Suspense fallback={<div className="h-[240px] rounded-xl bg-muted flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}>
+                      <RideMap
+                        rideId={r.id}
+                        fromLat={r.fromLat}
+                        fromLng={r.fromLng}
+                        toLat={r.toLat}
+                        toLng={r.toLng}
+                        fromAddress={r.fromAddress}
+                        toAddress={r.toAddress}
+                        isDriver={true}
+                      />
+                    </Suspense>
+                  </div>
+                )}
               </motion.div>
             ))}
           </div>
