@@ -43,6 +43,8 @@ export const foodOrdersTable = pgTable("food_orders", {
   userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   restaurantId: text("restaurant_id").notNull().references(() => restaurantsTable.id),
   driverId: text("driver_id").references(() => usersTable.id, { onDelete: "set null" }),
+  driverName: text("driver_name"),
+  driverPhone: text("driver_phone"),
   status: text("status").notNull().default("pending"),
   deliveryAddress: text("delivery_address").notNull(),
   notes: text("notes"),
@@ -55,6 +57,16 @@ export const foodOrdersTable = pgTable("food_orders", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const restaurantDriversTable = pgTable("restaurant_drivers", {
+  id: text("id").primaryKey(),
+  restaurantId: text("restaurant_id").notNull().references(() => restaurantsTable.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  phone: text("phone").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type Restaurant = typeof restaurantsTable.$inferSelect;
 export type MenuItem = typeof menuItemsTable.$inferSelect;
 export type FoodOrder = typeof foodOrdersTable.$inferSelect;
+export type RestaurantDriver = typeof restaurantDriversTable.$inferSelect;

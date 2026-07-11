@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, restaurantsTable, menuItemsTable, foodOrdersTable, usersTable } from "@workspace/db";
+import { db, restaurantsTable, menuItemsTable, foodOrdersTable, usersTable, restaurantDriversTable } from "@workspace/db";
 import { eq, desc, and, inArray, ilike, or } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { authenticate, requireAdmin } from "../lib/auth";
@@ -303,6 +303,121 @@ router.patch("/food-orders/:id/status", authenticate, async (req, res): Promise<
 
     await db.update(foodOrdersTable).set({ status, updatedAt: new Date() }).where(eq(foodOrdersTable.id, req.params.id));
     res.json({ message: "تم التحديث" });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── قائمة سائقي مطعمي ───────────────────────────────────────────────────
+router.get("/restaurants/my/drivers", authenticate, async (req, res): Promise<void> => {
+  try {
+    const userId = (req as any).user.id;
+    const [restaurant] = (await db.select().from(restaurantsTable).where(eq(restaurantsTable.ownerId, userId))) ?? [];
+    if (!restaurant) { res.status(404).json({ error: "لا تملك مطعماً" }); return; }
+
+    const drivers = (await db
+      .select()
+      .from(restaurantDriversTable)
+      .where(eq(restaurantDriversTable.restaurantId, restaurant.id))
+      .orderBy(restaurantDriversTable.createdAt)) ?? [];
+
+    res.json(drivers);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── إضافة سائق ──────────────────────────────────────────────────────────
+router.post("/restaurants/my/drivers", authenticate, async (req, res): Promise<void> => {
+  try {
+    const userId = (req as any).user.id;
+    const [restaurant] = (await db.select().from(restaurantsTable).where(eq(restaurantsTable.ownerId, userId))) ?? [];
+    if (!restaurant) { res.status(404).json({ error: "لا تملك مطعماً" }); return; }
+
+    const { name, phone } = req.body;
+    if (!name || !phone) { res.status(400).json({ error: "الاسم والهاتف مطلوبان" }); return; }
+
+    const id = randomUUID().slice(0, 8);
+    await db.insert(restaurantDriversTable).values({
+      id,
+      restaurantId: restaurant.id,
+      name,
+      phone,
+    });
+
+    res.json({ id, message: "تمت إضافة السائق" });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── تفعيل / تعطيل سائق ──────────────────────────────────────────────────
+router.patch("/restaurants/my/drivers/:driverId", authenticate, async (req, res): Promise<void> => {
+  try {
+    const userId = (req as any).user.id;
+    const [restaurant] = (await db.select().from(restaurantsTable).where(eq(restaurantsTable.ownerId, userId))) ?? [];
+    if (!restaurant) { res.status(404).json({ error: "لا تملك مطعماً" }); return; }
+
+    const { name, phone, isActive } = req.body;
+    await db.update(restaurantDriversTable).set({
+      ...(name !== undefined && { name }),
+      ...(phone !== undefined && { phone }),
+      ...(isActive !== undefined && { isActive }),
+    }).where(and(
+      eq(restaurantDriversTable.id, req.params.driverId),
+      eq(restaurantDriversTable.restaurantId, restaurant.id)
+    ));
+
+    res.json({ message: "تم التحديث" });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── حذف سائق ────────────────────────────────────────────────────────────
+router.delete("/restaurants/my/drivers/:driverId", authenticate, async (req, res): Promise<void> => {
+  try {
+    const userId = (req as any).user.id;
+    const [restaurant] = (await db.select().from(restaurantsTable).where(eq(restaurantsTable.ownerId, userId))) ?? [];
+    if (!restaurant) { res.status(404).json({ error: "لا تملك مطعماً" }); return; }
+
+    await db.delete(restaurantDriversTable).where(and(
+      eq(restaurantDriversTable.id, req.params.driverId),
+      eq(restaurantDriversTable.restaurantId, restaurant.id)
+    ));
+
+    res.json({ message: "تم الحذف" });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── تعيين سائق لطلب ─────────────────────────────────────────────────────
+router.post("/food-orders/:id/assign-driver", authenticate, async (req, res): Promise<void> => {
+  try {
+    const userId = (req as any).user.id;
+    const { driverId } = req.body;
+    if (!driverId) { res.status(400).json({ error: "driverId مطلوب" }); return; }
+
+    const [order] = (await db.select().from(foodOrdersTable).where(eq(foodOrdersTable.id, req.params.id))) ?? [];
+    if (!order) { res.status(404).json({ error: "الطلب غير موجود" }); return; }
+
+    const [restaurant] = (await db.select().from(restaurantsTable).where(eq(restaurantsTable.id, order.restaurantId))) ?? [];
+    if (!restaurant || restaurant.ownerId !== userId) { res.status(403).json({ error: "غير مصرح" }); return; }
+
+    const [driver] = (await db.select().from(restaurantDriversTable).where(
+      and(eq(restaurantDriversTable.id, driverId), eq(restaurantDriversTable.restaurantId, restaurant.id))
+    )) ?? [];
+    if (!driver) { res.status(404).json({ error: "السائق غير موجود" }); return; }
+
+    await db.update(foodOrdersTable).set({
+      driverName: driver.name,
+      driverPhone: driver.phone,
+      status: "picked_up",
+      updatedAt: new Date(),
+    }).where(eq(foodOrdersTable.id, req.params.id));
+
+    res.json({ message: "تم تعيين السائق وتحديث الحالة إلى 'مع المندوب'" });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

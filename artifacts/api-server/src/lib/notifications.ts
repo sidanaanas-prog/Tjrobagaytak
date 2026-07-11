@@ -19,6 +19,26 @@ function getApp(): admin.app.App {
   });
 }
 
+// رموز الخطأ التي تعني أن الـ token منتهي أو غير صالح → نحذفه من DB
+const STALE_TOKEN_CODES = new Set([
+  "messaging/registration-token-not-registered",
+  "messaging/invalid-registration-token",
+  "messaging/invalid-argument",      // token مرتبط بـ app-id مختلف أو منتهي
+  "messaging/unregistered",
+]);
+
+async function cleanBadToken(token: string) {
+  await db.delete(pushTokensTable).where(eq(pushTokensTable.token, token)).catch(() => {});
+  await db.update(usersTable).set({ pushToken: null }).where(eq(usersTable.pushToken, token)).catch(() => {});
+}
+
+// بناء رابط مطلق من الدومين المتاح
+function absoluteLink(path: string): string {
+  const domains = (process.env.REPLIT_DOMAINS ?? "").split(",").map((d) => d.trim()).filter(Boolean);
+  const base = domains[0] ? `https://${domains[0]}` : "";
+  return base ? `${base}${path}` : "";   // string فارغ → لا نُرسل fcmOptions
+}
+
 // ── إرسال لرمز واحد ───────────────────────────────────────────────────────
 export async function sendNotification({
   fcmToken,
@@ -35,6 +55,8 @@ export async function sendNotification({
   try {
     getApp();
     const isRideAlert = data?.type === "new_ride" || data?.type === "price_update";
+    const link = absoluteLink(isRideAlert ? "/rides" : "/");
+
     await admin.messaging().send({
       token: fcmToken,
       notification: { title, body },
@@ -52,25 +74,20 @@ export async function sendNotification({
           channelId: isRideAlert ? "ride_alerts" : "default",
           priority: "high",
           sound: isRideAlert ? "alert.mp3" : "default",
-          // رن مثل المكالمة الواردة — يفتح التطبيق حتى لو مقفل/خارج التطبيق
           ...(isRideAlert ? { fullScreenIntent: true, wakeScreen: true } : {}),
         },
       },
       apns: { payload: { aps: { sound: isRideAlert ? "alert.mp3" : "default", badge: 1, "content-available": 1 } } },
       webpush: {
         headers: { Urgency: "high" },
-        fcmOptions: { link: isRideAlert ? "/rides" : "/" },
+        ...(link ? { fcmOptions: { link } } : {}),
       },
     });
   } catch (err: any) {
     const code: string = err?.code ?? "";
     console.error("[FCM] sendNotification error:", code, err?.message ?? err);
-    if (
-      code === "messaging/registration-token-not-registered" ||
-      code === "messaging/invalid-registration-token"
-    ) {
-      await db.delete(pushTokensTable).where(eq(pushTokensTable.token, fcmToken)).catch(() => {});
-      await db.update(usersTable).set({ pushToken: null }).where(eq(usersTable.pushToken, fcmToken)).catch(() => {});
+    if (STALE_TOKEN_CODES.has(code)) {
+      await cleanBadToken(fcmToken);
     }
   }
 }
@@ -93,6 +110,7 @@ export async function sendPushNotification({
   getApp();
 
   const isRideAlert = data?.type === "new_ride" || data?.type === "price_update";
+  const link = absoluteLink(isRideAlert ? "/rides" : "/");
 
   const results = await admin.messaging().sendEach(
     clean.map((token) => ({
@@ -127,29 +145,30 @@ export async function sendPushNotification({
       },
       webpush: {
         headers: { Urgency: "high" },
-        fcmOptions: { link: isRideAlert ? "/rides" : "/" },
+        ...(link ? { fcmOptions: { link } } : {}),
       },
     }))
   );
 
+  const badTokens: string[] = [];
   for (let i = 0; i < results.responses.length; i++) {
     const r = results.responses[i];
     if (!r.success) {
       const code: string = r.error?.code ?? "";
-      console.warn("[FCM] فشل الإرسال للـ token:", clean[i]?.slice(0, 20), code);
-      if (
-        code === "messaging/registration-token-not-registered" ||
-        code === "messaging/invalid-registration-token"
-      ) {
-        const bad = clean[i]!;
-        await db.delete(pushTokensTable).where(eq(pushTokensTable.token, bad)).catch(() => {});
-        await db.update(usersTable).set({ pushToken: null }).where(eq(usersTable.pushToken, bad)).catch(() => {});
+      console.warn("[FCM] فشل للـ token:", clean[i]?.slice(0, 20), "| code:", code);
+      if (STALE_TOKEN_CODES.has(code)) {
+        badTokens.push(clean[i]!);
       }
     }
   }
 
+  // تنظيف الـ tokens الفاسدة دفعة واحدة
+  for (const bad of badTokens) {
+    await cleanBadToken(bad).catch(() => {});
+  }
+
   if (results.failureCount > 0) {
-    console.warn(`[FCM] ${results.failureCount} فشل من أصل ${clean.length}`);
+    console.warn(`[FCM] ${results.failureCount} فشل من أصل ${clean.length} | تم حذف ${badTokens.length} token فاسد`);
   }
 }
 
