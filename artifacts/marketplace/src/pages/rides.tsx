@@ -99,7 +99,7 @@ function PassengerRequest() {
 
   useEffect(() => { fetchMyRides(); const iv = setInterval(fetchMyRides, 5000); return () => clearInterval(iv); }, [fetchMyRides]);
 
-  const SEARCH_DURATION = 180; // 3 دقائق للبحث عن سائق
+  const SEARCH_DURATION = 30; // 30 ثانية للبحث عن سائق
   const pendingRide = myRides.find((r) => r.status === "pending");
   // activeSearchId = معرّف الرحلة قيد البحث (سواء جاءت من myRides أو من الإرسال الفوري)
   const activeSearchId = pendingRide?.id ?? justSubmittedId;
@@ -160,6 +160,18 @@ function PassengerRequest() {
   const handleSubmit = async () => {
     if (!fromAddress || !toAddress || !price) {
       toast({ title: "المرجو", description: "املأ المكان والسعر", variant: "destructive" }); return;
+    }
+    // ✅ إصلاح 2: تحقق من رصيد المحفظة قبل الإرسال
+    if (paymentMethod === "wallet") {
+      const balance = Number(user?.walletBalance ?? 0);
+      if (balance < Number(price)) {
+        toast({
+          variant: "destructive",
+          title: "رصيد غير كافٍ",
+          description: `رصيدك ${balance.toLocaleString("ar-DZ")} دج والكورسة ${Number(price).toLocaleString("ar-DZ")} دج. اشحن المحفظة أو اختر الدفع نقداً`,
+        });
+        return;
+      }
     }
     setSubmitting(true);
     const token = getMemToken();
@@ -352,7 +364,7 @@ function PassengerRequest() {
           {pendingCountdown !== null && (
             <>
               <div className="text-3xl font-mono font-black text-primary">
-                {Math.floor(pendingCountdown / 60)}:{String(pendingCountdown % 60).padStart(2, "0")}
+                {String(pendingCountdown).padStart(2, "0")} ث
               </div>
               <div className="w-full bg-primary/10 rounded-full h-2">
                 <div className="bg-primary h-2 rounded-full transition-all" style={{ width: `${(pendingCountdown / SEARCH_DURATION) * 100}%` }} />
@@ -405,7 +417,7 @@ function PassengerRequest() {
                         <div className="bg-primary/10 border border-primary/20 rounded-lg p-2.5 text-center">
                           <div className="flex items-center justify-center gap-2 text-primary"><Clock className="w-4 h-4 animate-pulse" /><span className="text-sm font-bold">جاري البحث...</span></div>
                           <div className="text-2xl font-mono font-bold text-primary mt-1">
-                            {Math.floor(pendingCountdown / 60)}:{String(pendingCountdown % 60).padStart(2, "0")}
+                            {String(pendingCountdown).padStart(2, "0")} ث
                           </div>
                           <div className="w-full bg-primary/10 rounded-full h-1.5 mt-2">
                             <div className="bg-primary h-1.5 rounded-full transition-all" style={{ width: `${(pendingCountdown / SEARCH_DURATION) * 100}%` }} />
@@ -414,17 +426,29 @@ function PassengerRequest() {
                       )}
                       {showPriceTip && r.id === activeSearchId && (
                         <div className="bg-yellow-500/10 border border-yellow-500/25 rounded-lg p-3 space-y-2">
-                          <div className="flex items-center gap-2 text-yellow-400"><TrendingUp className="w-4 h-4" /><span className="text-sm font-bold">لم يتم إيجاد سائق</span></div>
+                          <div className="flex items-center gap-2 text-yellow-400"><TrendingUp className="w-4 h-4" /><span className="text-sm font-bold">لم يتم إيجاد سائق — أعد المحاولة أو زِد السعر</span></div>
                           {editingPrice === r.id ? (
                             <div className="flex gap-2">
                               <input type="number" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} placeholder="السعر الجديد" className="flex-1 bg-background border rounded-lg px-3 py-2 text-sm text-foreground" />
                               <button onClick={() => handleChangePrice(r.id)} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-bold">تحديث</button>
                               <button onClick={() => { setEditingPrice(null); setNewPrice(""); }} className="border border-border px-3 py-2 rounded-lg text-sm text-muted-foreground">إلغاء</button>
                             </div>
-                          ) : <button onClick={() => { setEditingPrice(r.id); setNewPrice(r.price); }} className="w-full bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 text-yellow-400 py-2 rounded-lg text-sm font-bold transition-colors"><TrendingUp className="w-4 h-4 inline mr-1" /> زِد السعر</button>}
+                          ) : (
+                            <div className="flex gap-2">
+                              <button onClick={() => setCountdownTrigger(Date.now())} className="flex-1 bg-primary/20 hover:bg-primary/30 border border-primary/30 text-primary py-2 rounded-lg text-sm font-bold transition-colors">🔄 أعد البحث</button>
+                              <button onClick={() => { setEditingPrice(r.id); setNewPrice(r.price); }} className="flex-1 bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 text-yellow-400 py-2 rounded-lg text-sm font-bold transition-colors"><TrendingUp className="w-4 h-4 inline mr-1" /> زِد السعر</button>
+                            </div>
+                          )}
                         </div>
                       )}
-                      <button onClick={() => handleCancel(r.id)} className="w-full text-xs text-red-400 py-1.5 border border-red-400/20 rounded-lg hover:bg-red-400/10 transition-colors"><XCircle className="w-3 h-3 inline mr-1" /> إلغاء</button>
+                      {/* ✅ إصلاح 1: زر الإلغاء دائماً مرئي */}
+                      <button onClick={() => handleCancel(r.id)} className="w-full text-xs text-red-400 py-2 border border-red-400/20 rounded-lg hover:bg-red-400/10 transition-colors flex items-center justify-center gap-1"><XCircle className="w-3.5 h-3.5" /> إلغاء الطلب</button>
+                    </div>
+                  )}
+                  {/* ✅ إصلاح 1: إلغاء متاح حتى بعد قبول السائق */}
+                  {r.status === "accepted" && (
+                    <div className="mt-2">
+                      <button onClick={() => handleCancel(r.id)} className="w-full text-xs text-red-400 py-1.5 border border-red-400/20 rounded-lg hover:bg-red-400/10 transition-colors flex items-center justify-center gap-1"><XCircle className="w-3 h-3" /> إلغاء الرحلة</button>
                     </div>
                   )}
                   {/* خريطة تتبع السائق — للراكب */}
@@ -524,7 +548,10 @@ function DriverDashboard() {
     const res = await fetch(`${BASE}/api/rides/${id}/accept`, { method: "PATCH", headers: { Authorization: `Bearer ${token}` } });
     const data = await res.json();
     fetchRequests();
-    if (res.ok && data.success && data.conversationId) setLocation(`/chat/${data.conversationId}`);
+    // ✅ إصلاح 4: لا redirect للدردشة — رقم الراكب يظهر مباشرة في البطاقة
+    if (!res.ok || !data.success) {
+      toast({ variant: "destructive", title: "تعذر القبول", description: "قُبلت الكورسة من سائق آخر" });
+    }
     return res.ok && data.success;
   };
 
@@ -658,15 +685,26 @@ function DriverDashboard() {
                 <div className="flex items-start gap-2 mb-2">
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center"><User className="w-4 h-4 text-primary" /></div>
                   <div className="flex-1">
-                    <p className="text-sm font-bold">{r.passenger?.name ?? "راكب"}</p>
-                    <p className="text-xs text-muted-foreground"><span className="text-green-400">{r.fromAddress}</span> → <span className="text-red-400">{r.toAddress}</span></p>
-                    <p className="text-xs text-primary font-bold mt-1">{r.price} دج</p>
-                    {r.paymentMethod === "wallet" && <p className="text-[10px] text-primary/70 flex items-center gap-0.5"><Wallet className="w-2.5 h-2.5" /> دفع عبر المحفظة</p>}
-                    {r.status === "accepted" && r.passenger && (
-                      <div className="flex items-center gap-2 mt-2 text-xs">
-                        {r.passenger.phone && <a href={`tel:${r.passenger.phone}`} className="text-green-400 flex items-center gap-1 hover:underline"><Phone className="w-3 h-3" /> {r.passenger.phone}</a>}
-                        <Link href={`/chat/${r.passenger.id}`}><span className="text-primary flex items-center gap-1 hover:underline"><MessageSquare className="w-3 h-3" /> محادثة</span></Link>
-                      </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-bold">{r.passenger?.name ?? "راكب"}</p>
+                      {/* ✅ إصلاح 5: نوع السيارة في طلب السائق */}
+                      {r.vehicleType && <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full font-bold">{r.vehicleType === "car" ? "🚗 عادي" : r.vehicleType === "ac" ? "❄️ مكيف" : r.vehicleType === "suv" ? "🚙 دفع رباعي" : r.vehicleType === "van" ? "🚐 حافلة" : r.vehicleType === "truck" ? "🚚 شحن" : r.vehicleType}</span>}
+                      {r.passengerCount && r.passengerCount > 1 && <span className="text-[10px] bg-blue-500/15 text-blue-400 px-1.5 py-0.5 rounded-full">{r.passengerCount} ركاب</span>}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5"><span className="text-green-400">{r.fromAddress}</span> → <span className="text-red-400">{r.toAddress}</span></p>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <p className="text-xs text-primary font-bold">{r.price} دج</p>
+                      {r.paymentMethod === "wallet" && <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full flex items-center gap-0.5"><Wallet className="w-2.5 h-2.5" /> محفظة</span>}
+                    </div>
+                    {/* ✅ إصلاح 4: رقم الراكب بارز جداً بعد القبول */}
+                    {r.status === "accepted" && r.passenger?.phone && (
+                      <a href={`tel:${r.passenger.phone}`} className="mt-2 flex items-center gap-2 bg-green-500/15 border border-green-500/25 text-green-400 px-3 py-2 rounded-lg hover:bg-green-500/25 transition-colors w-full">
+                        <Phone className="w-4 h-4 shrink-0" />
+                        <div>
+                          <p className="text-[10px] font-medium opacity-70">اتصل بالراكب</p>
+                          <p className="text-sm font-bold">{r.passenger.phone}</p>
+                        </div>
+                      </a>
                     )}
                   </div>
                 </div>
