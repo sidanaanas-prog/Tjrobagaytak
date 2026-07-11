@@ -89,40 +89,38 @@ function PassengerRequest() {
   const prevMyRidesRef = useRef<Ride[]>([]);
   const [, navigate] = useLocation();
 
-  const [ridesLoaded, setRidesLoaded] = useState(false);
-
   const fetchMyRides = useCallback(async () => {
     const token = getMemToken(); if (!token) return;
     try {
       const res = await fetch(`${BASE}/api/rides/my?_t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
-      if (!res.ok) return; // ✅ لا تحذف myRides عند خطأ (401, 500)
       const data = await res.json();
       const fresh: Ride[] = Array.isArray(data) ? data : [];
-      setRidesLoaded(true);
-      // كشف انتقال الرحلة من pending → accepted
+      // كشف انتقال pending → accepted لعرض popup القبول
       const justAccepted = fresh.find((r) =>
         r.status === "accepted" &&
         prevMyRidesRef.current.some((p) => p.id === r.id && p.status === "pending"),
       );
-      if (justAccepted) {
-        setNewlyAcceptedRide(justAccepted);
-        setJustSubmittedId(null); // ✅ أوقف "جاري البحث" فوراً عند القبول
-        setPendingCountdown(null);
-      }
+      if (justAccepted) setNewlyAcceptedRide(justAccepted);
       prevMyRidesRef.current = fresh;
       setMyRides(fresh);
     } catch {}
     setLoading(false);
   }, []);
 
-  const SEARCH_DURATION = 30; // 30 ثانية للبحث عن سائق
+  const SEARCH_DURATION = 30;
+  // pendingRide: المصدر الوحيد للحقيقة — مُحدَّث مباشرة من DB عبر الـ polling
   const pendingRide = myRides.find((r) => r.status === "pending");
 
-  // activeSearchId للـ polling السريع (2s أثناء البحث)
-  const activeSearchId = pendingRide?.id ?? (justSubmittedId ?? null);
+  // polling: 2 ثانية إذا كان هناك طلب pending أو تم الإرسال مؤخراً، وإلا 5 ثوانٍ
+  const isSearching = !!pendingRide || !!justSubmittedId;
+  useEffect(() => {
+    fetchMyRides();
+    const iv = setInterval(fetchMyRides, isSearching ? 2000 : 5000);
+    return () => clearInterval(iv);
+  }, [fetchMyRides, isSearching]);
 
-  // ✅ العد التنازلي يعتمد فقط على pendingRide الفعلية من DB
-  // عند قبول السائق → pendingRide يختفي → يتوقف العد فوراً (cleanup)
+  // العد التنازلي يعتمد فقط على pendingRide
+  // pendingRide يختفي عند قبول السائق → يتوقف العد فوراً تلقائياً
   useEffect(() => {
     if (!pendingRide) {
       setPendingCountdown(null);
@@ -140,21 +138,11 @@ function PassengerRequest() {
     return () => clearInterval(iv);
   }, [pendingRide?.id, countdownTrigger]);
 
-  // polling: كل 2 ثانية أثناء البحث عن سائق، كل 5 ثوانٍ في الحالة العادية
+  // نظّف justSubmittedId بعد ظهور الرحلة في القائمة (بأي حالة)
   useEffect(() => {
-    fetchMyRides();
-    const intervalMs = activeSearchId ? 2000 : 5000;
-    const iv = setInterval(fetchMyRides, intervalMs);
-    return () => clearInterval(iv);
-  }, [fetchMyRides, activeSearchId]);
-
-  // نظّف justSubmittedId حين تُقبل الرحلة أو تُلغى أو تظهر في القائمة
-  useEffect(() => {
-    if (!justSubmittedId) return;
-    const found = myRides.find((r) => r.id === justSubmittedId);
-    if (found && found.status !== "pending") setJustSubmittedId(null);
-    if (!found && ridesLoaded) setJustSubmittedId(null);
-  }, [myRides, justSubmittedId, ridesLoaded]);
+    if (!justSubmittedId || !myRides.length) return;
+    setJustSubmittedId(null);
+  }, [myRides]);
 
   // استمع لإشعار Firebase "ride_accepted" → جلب فوري بدون انتظار الـ polling
   useEffect(() => {
@@ -504,7 +492,7 @@ function PassengerRequest() {
                   </div>
                   {r.status === "pending" && (
                     <div className="space-y-2">
-                      {pendingCountdown !== null && r.id === activeSearchId && (
+                      {pendingCountdown !== null && r.id === pendingRide?.id && (
                         <div className="bg-primary/10 border border-primary/20 rounded-lg p-2.5 text-center">
                           <div className="flex items-center justify-center gap-2 text-primary"><Clock className="w-4 h-4 animate-pulse" /><span className="text-sm font-bold">جاري البحث...</span></div>
                           <div className="text-2xl font-mono font-bold text-primary mt-1">
@@ -515,7 +503,7 @@ function PassengerRequest() {
                           </div>
                         </div>
                       )}
-                      {showPriceTip && r.id === activeSearchId && (
+                      {showPriceTip && r.id === pendingRide?.id && (
                         <div className="bg-yellow-500/10 border border-yellow-500/25 rounded-lg p-3 space-y-2">
                           <div className="flex items-center gap-2 text-yellow-400"><TrendingUp className="w-4 h-4" /><span className="text-sm font-bold">لم يتم إيجاد سائق — أعد المحاولة أو زِد السعر</span></div>
                           {editingPrice === r.id ? (
