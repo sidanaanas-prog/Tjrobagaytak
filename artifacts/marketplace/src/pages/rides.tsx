@@ -436,27 +436,32 @@ function PassengerRequest() {
         )}
       </AnimatePresence>
 
-      {/* بانر البحث الفوري — يظهر فقط في الثانيتين الأولى بعد الإرسال قبل ظهور الرحلة */}
+      {/* بانر انتظار قصير — يظهر لثوانٍ بعد الإرسال قبل أن تظهر الرحلة في القائمة */}
       {justSubmittedId && !pendingRide && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-primary/10 border border-primary/20 rounded-2xl p-4 text-center space-y-3"
-        >
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+          className="bg-primary/10 border border-primary/20 rounded-2xl p-4 text-center">
+          <div className="flex items-center justify-center gap-2 text-primary">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span className="font-bold">جاري إرسال الطلب...</span>
+          </div>
+        </motion.div>
+      )}
+
+      {/* بانر البحث الرئيسي — يعتمد على pendingRide الفعلية من DB */}
+      {pendingRide && pendingCountdown !== null && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+          className="bg-primary/10 border border-primary/20 rounded-2xl p-4 text-center space-y-3">
           <div className="flex items-center justify-center gap-2 text-primary">
             <Loader2 className="w-5 h-5 animate-spin" />
             <span className="font-bold">جاري البحث عن سائق قريب...</span>
           </div>
-          {pendingCountdown !== null && (
-            <>
-              <div className="text-3xl font-mono font-black text-primary">
-                {String(pendingCountdown).padStart(2, "0")} ث
-              </div>
-              <div className="w-full bg-primary/10 rounded-full h-2">
-                <div className="bg-primary h-2 rounded-full transition-all" style={{ width: `${(pendingCountdown / SEARCH_DURATION) * 100}%` }} />
-              </div>
-            </>
-          )}
+          <div className="text-3xl font-mono font-black text-primary">
+            {String(pendingCountdown).padStart(2, "0")} ث
+          </div>
+          <div className="w-full bg-primary/10 rounded-full h-2">
+            <div className="bg-primary h-2 rounded-full transition-all"
+              style={{ width: `${(pendingCountdown / SEARCH_DURATION) * 100}%` }} />
+          </div>
         </motion.div>
       )}
 
