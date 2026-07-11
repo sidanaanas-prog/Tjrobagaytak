@@ -217,7 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     listenForegroundMessages((title, body, data) => {
       toast({ title, description: body });
       // إذا كان إشعار رحلة جديدة أو تحديث سعر → إطلاق حدث لإظهار نافذة السباق
-      if (data?.type === "new_ride" || data?.type === "price_update") {
+      if (data?.type === "new_ride" || data?.type === "price_update" || data?.type === "ride_accepted") {
         window.dispatchEvent(new CustomEvent("ride_notification", { detail: data }));
       }
     });

@@ -111,8 +111,6 @@ function PassengerRequest() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchMyRides(); const iv = setInterval(fetchMyRides, 5000); return () => clearInterval(iv); }, [fetchMyRides]);
-
   const SEARCH_DURATION = 30; // 30 ثانية للبحث عن سائق
   const pendingRide = myRides.find((r) => r.status === "pending");
   // activeSearchId = معرّف الرحلة قيد البحث (سواء جاءت من myRides أو من الإرسال الفوري)
@@ -134,6 +132,24 @@ function PassengerRequest() {
     }, 1000);
     return () => clearInterval(iv);
   }, [activeSearchId, countdownTrigger]);
+
+  // polling: كل 2 ثانية أثناء البحث عن سائق، كل 5 ثوانٍ في الحالة العادية
+  useEffect(() => {
+    fetchMyRides();
+    const intervalMs = activeSearchId ? 2000 : 5000;
+    const iv = setInterval(fetchMyRides, intervalMs);
+    return () => clearInterval(iv);
+  }, [fetchMyRides, activeSearchId]);
+
+  // استمع لإشعار Firebase "ride_accepted" → جلب فوري بدون انتظار الـ polling
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.type === "ride_accepted") fetchMyRides();
+    };
+    window.addEventListener("ride_notification", handler);
+    return () => window.removeEventListener("ride_notification", handler);
+  }, [fetchMyRides]);
 
   // تقدير السعر التلقائي
   async function estimatePrice() {
