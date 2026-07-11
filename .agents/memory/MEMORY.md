@@ -6,3 +6,5 @@
 - [Admin panel API URL routing](admin-panel-api-url.md) — getApiUrl() يجب أن يُرجع path مباشرة (لا BASE_URL) وإلا تصير الـ URLs خاطئة على Replit deployment
 - [api-zod types dir conflict](api-zod-types-dir.md) — lib/api-zod/src/generated/ لا تصدّر من ./generated/types (مجلد وليس ملف)، فقط export * من ./generated/api
 - [OpenAPI codegen + originalPrice](openapi-originalPrice.md) — أي حقل nullable جديد يحتاج إضافة في 3 schemas: Product + CreateProductInput + UpdateProductInput، ثم pnpm codegen ثم typecheck:libs لتحديث dist
+- [User type extra fields](user-type-fields.md) — لإضافة حقول جديدة للـ User (walletBalance, noShowCount...) يجب تعديل lib/api-client-react/src/generated/api.schemas.ts مباشرة ثم إعادة build الليب
+- [Admin HMR hook crash fix](admin-hmr-hook.md) — useAdminAuth يُسبب crash عند HMR إذا رمى error — الحل: إرجاع fallback بدل throw عند context = null

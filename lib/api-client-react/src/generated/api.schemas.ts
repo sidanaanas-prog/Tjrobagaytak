@@ -50,6 +50,10 @@ export interface User {
   subscriptionExpiresAt?: string | null;
   trialExpiresAt?: string | null;
   phone?: string | null;
+  walletBalance?: number | null;
+  noShowCount?: number;
+  rideBannedUntil?: string | null;
+  lastSeenAt?: string | null;
 }
 
 export interface AuthResponse {
