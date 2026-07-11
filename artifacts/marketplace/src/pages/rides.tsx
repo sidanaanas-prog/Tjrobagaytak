@@ -100,7 +100,11 @@ function PassengerRequest() {
         r.status === "accepted" &&
         prevMyRidesRef.current.some((p) => p.id === r.id && p.status === "pending"),
       );
-      if (justAccepted) setNewlyAcceptedRide(justAccepted);
+      if (justAccepted) {
+        setNewlyAcceptedRide(justAccepted);
+        setJustSubmittedId(null); // ✅ أوقف "جاري البحث" فوراً عند القبول
+        setPendingCountdown(null);
+      }
       prevMyRidesRef.current = fresh;
       setMyRides(fresh);
     } catch {}
@@ -163,7 +167,7 @@ function PassengerRequest() {
         setGpsLoading(false);
       },
       () => { toast({ title: "GPS غير متاح", description: "تأكد من تفعيل GPS", variant: "destructive" }); setGpsLoading(false); },
-      { enableHighAccuracy: true },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 },
     );
   }
 

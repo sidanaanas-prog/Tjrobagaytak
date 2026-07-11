@@ -3,7 +3,7 @@ import { useAuth, getMemToken } from "@/hooks/use-auth";
 import { useDriverSubscription } from "@/hooks/use-driver-subscription";
 import { getApiUrl } from "@/lib/api-url";
 import { motion } from "framer-motion";
-import { useLocation } from "wouter";
+
 import { useToast } from "@/hooks/use-toast";
 import {
   Car, MapPin, CheckCircle, XCircle, Loader2, DollarSign,
@@ -126,7 +126,7 @@ function getRole(): string | null {
 export function RideAlertProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [, setLocation] = useLocation();
+
   const { status: subStatus } = useDriverSubscription();
 
   const [alertState, setAlertState] = useState<RideAlertState>({
@@ -168,13 +168,9 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
     });
     const data = await res.json();
 
-    if (res.ok && data.success && data.conversationId) {
-      setLocation(`/chat/${data.conversationId}`);
-    }
-
     handleDismiss();
     return res.ok && data.success;
-  }, [setLocation, handleDismiss]);
+  }, [handleDismiss]);
 
   // جلب الطلبات
   const fetchRequests = useCallback(async () => {
