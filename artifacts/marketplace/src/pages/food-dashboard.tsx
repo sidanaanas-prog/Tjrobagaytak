@@ -1,14 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight, ChefHat, Clock, CheckCircle2, XCircle, Loader2,
   Settings, PackageCheck, Bike, ShoppingBag, Bell, ToggleLeft, ToggleRight,
-  DollarSign, Save, RefreshCw
+  DollarSign, Save, RefreshCw, CreditCard, Crown, Camera, X,
+  Banknote, CalendarDays, CheckCircle,
 } from "lucide-react";
 import { getApiUrl } from "@/lib/api-url";
 import { getMemToken } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { compressImage } from "@/lib/compress-image";
 
 const BASE = getApiUrl("");
 
@@ -36,7 +38,16 @@ type Restaurant = {
   estimatedDeliveryMinutes: number;
   category: string;
   address: string;
+  isSubscribed?: boolean;
+  subscriptionPlan?: string | null;
+  subscriptionExpiresAt?: string | null;
 };
+
+const PLANS = [
+  { key: "1month",   label: "شهر واحد",   months: 1,  price: 2000  },
+  { key: "6months",  label: "6 أشهر",     months: 6,  price: 5000  },
+  { key: "12months", label: "12 شهر",     months: 12, price: 10000 },
+];
 
 const STATUS_STEPS = [
   { value: "pending",    label: "قيد الانتظار",   color: "text-yellow-400",  bg: "bg-yellow-400/10 border-yellow-400/30",  icon: Clock },
@@ -102,98 +113,331 @@ function OrderCard({ order, onUpdate }: { order: Order; onUpdate: () => void }) 
       <div className="flex items-start justify-between gap-2 mb-3">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-white font-bold text-sm">طلب #{order.id}</span>
+            <span className="text-white font-bold text-sm">طلب #{order.id.slice(0, 8)}</span>
             <span className={`flex items-center gap-1 text-xs font-semibold ${status.color}`}>
               <StatusIcon className="w-3.5 h-3.5" />
               {status.label}
             </span>
           </div>
-          {order.user && (
-            <p className="text-xs text-white/50 mt-0.5">
-              {order.user.name} {order.user.phone && `• ${order.user.phone}`}
-            </p>
-          )}
+          <p className="text-xs text-white/40 mt-0.5">
+            {order.user?.name ?? "مستخدم"} · {order.user?.phone ?? ""}
+          </p>
         </div>
         <div className="text-right">
           <p className="text-white font-black text-sm">{Number(order.totalPrice).toFixed(0)} دج</p>
-          <p className="text-xs text-white/40">
-            {order.paymentMethod === "cash" ? "💵 كاش" : "💳 محفظة"}
-          </p>
+          <p className="text-[11px] text-white/30">{order.paymentMethod === "cash" ? "نقدي" : "بطاقة"}</p>
         </div>
       </div>
 
-      {/* Items */}
-      <div className="space-y-0.5 mb-3">
-        {parsedItems.map((it: any, i: number) => (
-          <div key={i} className="flex justify-between text-xs text-white/60">
-            <span>{it.name} × {it.quantity}</span>
-            <span>{(Number(it.price) * Number(it.quantity)).toFixed(0)} دج</span>
-          </div>
-        ))}
-      </div>
+      <p className="text-xs text-white/50 mb-2">📍 {order.deliveryAddress}</p>
 
-      {order.deliveryAddress && (
-        <p className="text-xs text-white/40 mb-3 flex items-start gap-1">
-          <span>📍</span><span>{order.deliveryAddress}</span>
-        </p>
+      {parsedItems.length > 0 && (
+        <div className="bg-black/20 rounded-xl p-2.5 mb-3 space-y-1">
+          {parsedItems.map((item: any, i: number) => (
+            <div key={i} className="flex justify-between text-xs text-white/70">
+              <span>{item.name} × {item.quantity}</span>
+              <span>{(Number(item.price) * item.quantity).toFixed(0)} دج</span>
+            </div>
+          ))}
+        </div>
       )}
+
       {order.notes && (
-        <p className="text-xs text-white/40 mb-3">📝 {order.notes}</p>
+        <p className="text-xs text-yellow-300/70 mb-3">💬 {order.notes}</p>
       )}
 
-      <div className="text-[10px] text-white/20 mb-3">
-        {new Date(order.createdAt).toLocaleString("ar-DZ", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-      </div>
-
-      {/* Actions */}
-      {order.status !== "delivered" && order.status !== "cancelled" && (
-        <div className="flex gap-2">
-          {nextStatus && (
-            <motion.button
-              whileTap={{ scale: 0.96 }}
-              onClick={() => updateStatus(nextStatus)}
-              disabled={loading}
-              className="flex-1 py-2.5 rounded-xl bg-primary text-white text-xs font-bold shadow-[0_0_12px_rgba(168,85,247,0.4)] disabled:opacity-50"
-            >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : (NEXT_LABEL[order.status] ?? "تحديث")}
-            </motion.button>
-          )}
-          <motion.button
-            whileTap={{ scale: 0.96 }}
+      <div className="flex gap-2 flex-wrap">
+        {nextStatus && (
+          <button
+            onClick={() => updateStatus(nextStatus)}
+            disabled={loading}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-primary/20 border border-primary/40 text-primary text-xs font-bold disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+            {NEXT_LABEL[order.status]}
+          </button>
+        )}
+        {!["delivered", "cancelled"].includes(order.status) && (
+          <button
             onClick={() => updateStatus("cancelled")}
             disabled={loading}
-            className="px-3 py-2.5 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold disabled:opacity-50"
+            className="px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold disabled:opacity-50"
           >
             إلغاء
-          </motion.button>
-        </div>
-      )}
+          </button>
+        )}
+      </div>
     </motion.div>
   );
 }
 
-export default function FoodDashboardPage() {
+// ── تاب الاشتراك ──────────────────────────────────────────────────────────
+function SubscriptionTab({ restaurant }: { restaurant: Restaurant }) {
+  const { toast } = useToast();
+  const token = getMemToken();
+
+  const [selectedPlan, setSelectedPlan] = useState("6months");
+  const [payMethod, setPayMethod] = useState<"ccp" | "cash">("ccp");
+  const [proofImg, setProofImg]   = useState<string | null>(null);
+  const [idImg, setIdImg]         = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted]   = useState(false);
+  const [pendingSub, setPendingSub] = useState<any>(null);
+  const proofRef = useRef<HTMLInputElement>(null);
+  const idRef    = useRef<HTMLInputElement>(null);
+
+  // جلب حالة الاشتراك الحالي
+  useEffect(() => {
+    const fetchSub = async () => {
+      try {
+        const res = await fetch(`${BASE}/api/subscriptions/restaurant/${restaurant.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setPendingSub(data.latestRequest ?? null);
+        }
+      } catch {}
+    };
+    fetchSub();
+  }, [restaurant.id, submitted]);
+
+  const pickImage = async (setter: (v: string) => void, ref: React.RefObject<HTMLInputElement | null>) => {
+    ref.current?.click();
+  };
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>, setter: (v: string) => void) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const compressed = await compressImage(file);
+    setter(compressed);
+    e.target.value = "";
+  };
+
+  const submit = async () => {
+    if (payMethod === "ccp" && !proofImg) { toast({ title: "⚠️ الرجاء إرفاق وصل الدفع", variant: "destructive" }); return; }
+    if (!idImg) { toast({ title: "⚠️ الرجاء إرفاق صورة الهوية/الوثيقة", variant: "destructive" }); return; }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${BASE}/api/subscriptions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          type: "restaurant",
+          restaurantId: restaurant.id,
+          plan: selectedPlan,
+          paymentMethod: payMethod,
+          paymentProofUrl: proofImg,
+          idDocumentUrl: idImg,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "فشل الإرسال");
+      toast({ title: "✅ تم إرسال طلب الاشتراك بنجاح! سيتم مراجعته قريباً" });
+      setSubmitted(true);
+      setProofImg(null);
+      setIdImg(null);
+    } catch (e: any) {
+      toast({ title: "خطأ", description: e.message, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const plan = PLANS.find((p) => p.key === selectedPlan) ?? PLANS[1];
+  const isSubscribed = restaurant.isSubscribed;
+  const expDate = restaurant.subscriptionExpiresAt
+    ? new Date(restaurant.subscriptionExpiresAt).toLocaleDateString("ar-DZ")
+    : null;
+  const isExpired = restaurant.subscriptionExpiresAt
+    ? new Date(restaurant.subscriptionExpiresAt) < new Date()
+    : false;
+
+  return (
+    <div className="space-y-4 mt-2" dir="rtl">
+
+      {/* حالة الاشتراك الحالي */}
+      {isSubscribed && !isExpired ? (
+        <div className="rounded-2xl bg-yellow-500/10 border border-yellow-500/25 p-4 flex items-center gap-3">
+          <Crown className="w-8 h-8 text-yellow-400 shrink-0" />
+          <div>
+            <p className="text-yellow-300 font-bold text-sm">مشترك ✅</p>
+            <p className="text-yellow-400/70 text-xs mt-0.5">
+              ينتهي الاشتراك: {expDate}
+            </p>
+          </div>
+        </div>
+      ) : isSubscribed && isExpired ? (
+        <div className="rounded-2xl bg-red-500/10 border border-red-500/25 p-4">
+          <p className="text-red-400 font-bold text-sm">انتهى اشتراكك</p>
+          <p className="text-red-400/60 text-xs mt-0.5">جدِّد الاشتراك ليستمر مطعمك</p>
+        </div>
+      ) : null}
+
+      {/* طلب معلّق */}
+      {pendingSub && pendingSub.status === "pending" && (
+        <div className="rounded-2xl bg-blue-500/10 border border-blue-500/25 p-4">
+          <p className="text-blue-400 font-bold text-sm">⏳ طلب اشتراك قيد المراجعة</p>
+          <p className="text-blue-400/60 text-xs mt-1">
+            الخطة: {PLANS.find(p => p.key === pendingSub.plan)?.label ?? pendingSub.plan} —
+            المبلغ: {Number(pendingSub.price).toLocaleString()} دج
+          </p>
+        </div>
+      )}
+
+      {/* باقات الاشتراك */}
+      <div>
+        <p className="text-white/60 text-xs font-semibold mb-2 flex items-center gap-1.5">
+          <Crown className="w-3.5 h-3.5 text-yellow-400" /> اختر الباقة
+        </p>
+        <div className="space-y-2">
+          {PLANS.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => setSelectedPlan(p.key)}
+              className={`w-full rounded-2xl border p-3.5 text-right transition-all ${
+                selectedPlan === p.key
+                  ? "bg-primary/15 border-primary text-white"
+                  : "bg-white/5 border-white/10 text-white/60 hover:border-white/20"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-bold text-sm">{p.label}</p>
+                  <p className="text-xs opacity-60 mt-0.5">{p.months} شهر اشتراك كامل</p>
+                </div>
+                <div className="text-right">
+                  <p className={`font-black text-lg ${selectedPlan === p.key ? "text-primary" : ""}`}>
+                    {p.price.toLocaleString()}
+                  </p>
+                  <p className="text-[11px] opacity-50">دج</p>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* طريقة الدفع */}
+      <div>
+        <p className="text-white/60 text-xs font-semibold mb-2 flex items-center gap-1.5">
+          <CreditCard className="w-3.5 h-3.5" /> طريقة الدفع
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {([["ccp", "CCP / تحويل", CreditCard], ["cash", "دفع نقدي", Banknote]] as const).map(([v, l, Icon]) => (
+            <button
+              key={v}
+              onClick={() => setPayMethod(v)}
+              className={`flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-semibold transition-all ${
+                payMethod === v
+                  ? "bg-primary/15 border-primary text-primary"
+                  : "bg-white/5 border-white/10 text-white/50"
+              }`}
+            >
+              <Icon className="w-4 h-4" /> {l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* رفع الصور */}
+      <div className="space-y-3">
+        {payMethod === "ccp" && (
+          <div>
+            <p className="text-white/60 text-xs font-semibold mb-1.5">وصل الدفع (CCP)</p>
+            <input ref={proofRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFile(e, setProofImg)} />
+            {proofImg ? (
+              <div className="relative">
+                <img src={proofImg} alt="وصل" className="w-full rounded-xl max-h-40 object-cover" />
+                <button onClick={() => setProofImg(null)} className="absolute top-2 left-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center">
+                  <X className="w-4 h-4 text-white" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => pickImage(setProofImg, proofRef)}
+                className="w-full py-3 rounded-xl border border-dashed border-white/20 text-white/40 text-xs flex items-center justify-center gap-2 hover:border-primary/50 hover:text-primary transition-colors"
+              >
+                <Camera className="w-4 h-4" /> ارفع صورة الوصل
+              </button>
+            )}
+          </div>
+        )}
+
+        <div>
+          <p className="text-white/60 text-xs font-semibold mb-1.5">
+            {payMethod === "ccp" ? "بطاقة الهوية الوطنية" : "وثيقة التسجيل / الهوية"}
+          </p>
+          <input ref={idRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFile(e, setIdImg)} />
+          {idImg ? (
+            <div className="relative">
+              <img src={idImg} alt="هوية" className="w-full rounded-xl max-h-40 object-cover" />
+              <button onClick={() => setIdImg(null)} className="absolute top-2 left-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center">
+                <X className="w-4 h-4 text-white" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => pickImage(setIdImg, idRef)}
+              className="w-full py-3 rounded-xl border border-dashed border-white/20 text-white/40 text-xs flex items-center justify-center gap-2 hover:border-primary/50 hover:text-primary transition-colors"
+            >
+              <Camera className="w-4 h-4" /> ارفع صورة الهوية
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ملخص + زر الإرسال */}
+      <div className="rounded-2xl bg-white/5 border border-white/10 p-4 space-y-2 text-xs text-white/50">
+        <div className="flex justify-between"><span>الباقة</span><span className="text-white">{plan.label}</span></div>
+        <div className="flex justify-between"><span>المدة</span><span className="text-white">{plan.months} شهر</span></div>
+        <div className="flex justify-between font-bold text-sm"><span className="text-white/70">الإجمالي</span><span className="text-primary">{plan.price.toLocaleString()} دج</span></div>
+      </div>
+
+      <motion.button
+        whileTap={{ scale: 0.97 }}
+        onClick={submit}
+        disabled={submitting || (pendingSub?.status === "pending")}
+        className="w-full py-3.5 rounded-2xl bg-primary font-bold text-white text-sm shadow-[0_0_20px_rgba(168,85,247,0.4)] disabled:opacity-50 flex items-center justify-center gap-2"
+      >
+        {submitting
+          ? <><Loader2 className="w-4 h-4 animate-spin" /> جاري الإرسال...</>
+          : pendingSub?.status === "pending"
+          ? <><CheckCircle className="w-4 h-4" /> طلبك قيد المراجعة</>
+          : <><CreditCard className="w-4 h-4" /> إرسال طلب الاشتراك</>
+        }
+      </motion.button>
+
+      <p className="text-center text-xs text-white/20">
+        سيتم مراجعة طلبك وتفعيل الاشتراك خلال 24 ساعة
+      </p>
+    </div>
+  );
+}
+
+// ── الصفحة الرئيسية ────────────────────────────────────────────────────────
+export default function FoodDashboard() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const [tab, setTab] = useState<"orders" | "settings">("orders");
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
-  const [loading, setLoading] = useState(true);
+  const token = getMemToken();
+
+  const [tab, setTab] = useState<"orders" | "settings" | "subscription">("orders");
+  const [orders, setOrders]         = useState<Order[]>([]);
+  const [restaurant, setRestaurant] = useState<Restaurant | null | undefined>(undefined);
+  const [loading, setLoading]       = useState(true);
   const [filterStatus, setFilterStatus] = useState("active");
 
-  // Settings state
-  const [deliveryFee, setDeliveryFee] = useState("");
-  const [minOrder, setMinOrder] = useState("");
-  const [estTime, setEstTime] = useState("");
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen]       = useState(true);
+  const [deliveryFee, setDeliveryFee] = useState("0");
+  const [minOrder, setMinOrder]   = useState("0");
+  const [estTime, setEstTime]     = useState("30");
   const [savingSettings, setSavingSettings] = useState(false);
-
-  const token = getMemToken();
 
   const fetchData = async () => {
     try {
       const [ordersRes, profileRes] = await Promise.all([
-        fetch(`${BASE}/api/food-orders/restaurant`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${BASE}/api/restaurants/my/orders`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${BASE}/api/restaurants/my/profile`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       if (ordersRes.ok) {
@@ -207,6 +451,8 @@ export default function FoodDashboardPage() {
         setMinOrder(data.minOrder ?? "0");
         setEstTime(String(data.estimatedDeliveryMinutes ?? 30));
         setIsOpen(data.isOpen ?? true);
+      } else {
+        setRestaurant(null);
       }
     } catch {}
     setLoading(false);
@@ -242,8 +488,8 @@ export default function FoodDashboardPage() {
   };
 
   const filteredOrders = orders.filter((o) => {
-    if (filterStatus === "active") return !["delivered", "cancelled"].includes(o.status);
-    if (filterStatus === "done") return o.status === "delivered";
+    if (filterStatus === "active")    return !["delivered", "cancelled"].includes(o.status);
+    if (filterStatus === "done")      return o.status === "delivered";
     if (filterStatus === "cancelled") return o.status === "cancelled";
     return true;
   });
@@ -270,9 +516,7 @@ export default function FoodDashboardPage() {
         >
           تسجيل مطعم
         </button>
-        {restaurant === null && (
-          <button onClick={() => navigate("/food")} className="text-white/30 text-sm mt-2">العودة</button>
-        )}
+        <button onClick={() => navigate("/food")} className="text-white/30 text-sm mt-2">العودة</button>
       </div>
     );
   }
@@ -295,13 +539,13 @@ export default function FoodDashboardPage() {
                 <span className={`text-xs ${isOpen ? "text-green-400" : "text-red-400"}`}>
                   {isOpen ? "• مفتوح" : "• مغلق"}
                 </span>
+                {restaurant.isSubscribed && (
+                  <span className="text-xs text-yellow-400">• <Crown className="w-3 h-3 inline" /></span>
+                )}
               </div>
             </div>
           </div>
-          <button
-            onClick={fetchData}
-            className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center"
-          >
+          <button onClick={fetchData} className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center">
             <RefreshCw className="w-4 h-4 text-white/50" />
           </button>
         </div>
@@ -309,13 +553,14 @@ export default function FoodDashboardPage() {
         {/* Tabs */}
         <div className="flex gap-1">
           {[
-            { v: "orders", l: "الطلبات", icon: ShoppingBag },
-            { v: "settings", l: "الإعدادات", icon: Settings },
+            { v: "orders",       l: "الطلبات",    icon: ShoppingBag },
+            { v: "settings",     l: "الإعدادات",  icon: Settings },
+            { v: "subscription", l: "الاشتراك",   icon: Crown },
           ].map(({ v, l, icon: Icon }) => (
             <button
               key={v}
               onClick={() => setTab(v as any)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-all border-b-2 ${
+              className={`flex-1 flex items-center justify-center gap-1 py-2.5 text-xs font-semibold transition-all border-b-2 ${
                 tab === v ? "border-primary text-primary" : "border-transparent text-white/40"
               }`}
             >
@@ -336,13 +581,12 @@ export default function FoodDashboardPage() {
         {/* ── ORDERS TAB ── */}
         {tab === "orders" && (
           <div>
-            {/* Filter */}
             <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-none">
               {[
-                { v: "active", l: "جارية" },
-                { v: "done", l: "مكتملة" },
+                { v: "active",    l: "جارية" },
+                { v: "done",      l: "مكتملة" },
                 { v: "cancelled", l: "ملغاة" },
-                { v: "all", l: "الكل" },
+                { v: "all",       l: "الكل" },
               ].map(({ v, l }) => (
                 <button
                   key={v}
@@ -353,8 +597,7 @@ export default function FoodDashboardPage() {
                       : "bg-white/5 text-white/50 border border-white/10"
                   }`}
                 >
-                  {l}
-                  {v === "active" && activeCount > 0 && ` (${activeCount})`}
+                  {l}{v === "active" && activeCount > 0 && ` (${activeCount})`}
                 </button>
               ))}
             </div>
@@ -382,7 +625,6 @@ export default function FoodDashboardPage() {
         {/* ── SETTINGS TAB ── */}
         {tab === "settings" && (
           <div className="space-y-4 mt-2">
-            {/* فتح / إغلاق المطعم */}
             <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -400,7 +642,6 @@ export default function FoodDashboardPage() {
               </div>
             </div>
 
-            {/* رسوم التوصيل */}
             <div className="rounded-2xl bg-white/5 border border-white/10 p-4 space-y-4">
               <div className="flex items-center gap-2 mb-1">
                 <DollarSign className="w-4 h-4 text-primary" />
@@ -460,8 +701,7 @@ export default function FoodDashboardPage() {
             <div className="rounded-2xl bg-white/5 border border-white/10 p-4 space-y-2">
               <p className="text-xs text-white/40 font-semibold mb-2">معلومات المطعم</p>
               <div className="flex justify-between text-xs">
-                <span className="text-white/40">الفئة</span>
-                <span className="text-white">{restaurant.category}</span>
+                <span className="text-white/40">الفئة</span><span className="text-white">{restaurant.category}</span>
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-white/40">العنوان</span>
@@ -476,6 +716,10 @@ export default function FoodDashboardPage() {
             </div>
           </div>
         )}
+
+        {/* ── SUBSCRIPTION TAB ── */}
+        {tab === "subscription" && <SubscriptionTab restaurant={restaurant} />}
+
       </div>
     </div>
   );

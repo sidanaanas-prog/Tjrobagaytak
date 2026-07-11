@@ -54,8 +54,8 @@ router.get("/subscriptions/my", authenticate, async (req, res): Promise<void> =>
 router.post("/subscriptions", authenticate, async (req, res): Promise<void> => {
   try {
     const userId = req.user!.id;
-    const { plan, paymentMethod, paymentProofUrl, idDocumentUrl, notes, type } = req.body;
-    const subType = type === "driver" ? "driver" : "seller";
+    const { plan, paymentMethod, paymentProofUrl, idDocumentUrl, notes, type, restaurantId } = req.body;
+    const subType = type === "driver" ? "driver" : type === "restaurant" ? "restaurant" : "seller";
 
     if (!plan || !PLANS[plan as keyof typeof PLANS]) {
       res.status(400).json({ error: "الخطة غير صالحة" });
@@ -91,21 +91,33 @@ router.post("/subscriptions", authenticate, async (req, res): Promise<void> => {
 
     const planInfo = PLANS[plan as keyof typeof PLANS];
     const id = randomUUID();
-
-    // استخدام raw SQL للـ INSERT لتجنب مشاكل db.insert() مع Neon HTTP driver
     const now = new Date().toISOString();
+
+    // جلب اسم المطعم إذا كان النوع restaurant
+    let restName: string | null = null;
+    if (subType === "restaurant" && restaurantId) {
+      const restResult = await db.execute(sql`SELECT "name" FROM "restaurants" WHERE "id" = ${restaurantId} AND "owner_id" = ${userId} LIMIT 1`);
+      const rests = (restResult.rows ?? restResult ?? []) as any[];
+      restName = rests[0]?.name ?? null;
+      if (!restName) { res.status(403).json({ error: "المطعم غير موجود أو لا تملكه" }); return; }
+    }
+
     await db.execute(sql`
-      INSERT INTO "subscriptions" ("id", "user_id", "type", "plan", "payment_method", "status", "price", "payment_proof_url", "id_document_url", "notes", "created_at")
-      VALUES (${id}, ${userId}, ${subType}, ${plan}, ${paymentMethod}, 'pending', ${String(planInfo.price)}, ${paymentProofUrl ?? null}, ${idDocumentUrl ?? null}, ${notes ?? null}, ${now})
+      INSERT INTO "subscriptions" ("id", "user_id", "type", "restaurant_id", "restaurant_name", "plan", "payment_method", "status", "price", "payment_proof_url", "id_document_url", "notes", "created_at")
+      VALUES (${id}, ${userId}, ${subType}, ${restaurantId ?? null}, ${restName}, ${plan}, ${paymentMethod}, 'pending', ${String(planInfo.price)}, ${paymentProofUrl ?? null}, ${idDocumentUrl ?? null}, ${notes ?? null}, ${now})
     `);
 
     const userResult = await db.execute(sql`SELECT "name" FROM "users" WHERE "id" = ${userId} LIMIT 1`);
     const users = (userResult.rows ?? userResult ?? []) as any[];
     const user = users[0] ?? { name: null };
 
+    const actDesc = subType === "restaurant"
+      ? `طلب اشتراك مطعم (${restName ?? ""}) — ${planInfo.label} — ${paymentMethod === "ccp" ? "CCP" : "نقدي"}`
+      : `طلب اشتراك جديد (${planInfo.label}) — ${paymentMethod === "ccp" ? "CCP" : "نقدي"} — ${user?.name ?? "مستخدم"}`;
+
     await db.execute(sql`
       INSERT INTO "activity" ("id", "type", "description", "user_id", "user_name", "created_at")
-      VALUES (${randomUUID()}, 'subscription_request', ${`طلب اشتراك جديد (${planInfo.label}) — ${paymentMethod === "ccp" ? "CCP" : "نقدي"} — ${user?.name ?? "مستخدم"}`}, ${userId}, ${user?.name ?? "مستخدم"}, ${now})
+      VALUES (${randomUUID()}, 'subscription_request', ${actDesc}, ${userId}, ${user?.name ?? "مستخدم"}, ${now})
     `);
 
     try {
@@ -113,16 +125,54 @@ router.post("/subscriptions", authenticate, async (req, res): Promise<void> => {
         .from(usersTable)
         .where(eq(usersTable.email, "admin@gaytak.com"))) ?? [];
       if (admin?.id) {
+        const notifBody = subType === "restaurant"
+          ? `مطعم "${restName}" يطلب الاشتراك (${planInfo.label}) — ${paymentMethod === "ccp" ? "دفع CCP" : "دفع نقدي"}`
+          : `${user?.name ?? "مستخدم"} يطلب الاشتراك (${planInfo.label}) — ${paymentMethod === "ccp" ? "دفع CCP" : "دفع نقدي"}`;
         await notifyUsers({
           userIds: [admin.id],
-          title: "طلب اشتراك جديد 💳",
-          body: `${user?.name ?? "مستخدم"} يطلب الاشتراك (${planInfo.label}) — ${paymentMethod === "ccp" ? "دفع CCP" : "دفع نقدي"}`,
+          title: subType === "restaurant" ? "طلب اشتراك مطعم 🍽️" : "طلب اشتراك جديد 💳",
+          body: notifBody,
           data: { type: "subscription_request", subscriptionId: id },
         });
       }
     } catch {}
 
     res.json({ success: true, id, status: "pending" });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── حالة اشتراك مطعم معين ─────────────────────────────────────────────────
+router.get("/subscriptions/restaurant/:restaurantId", authenticate, async (req, res): Promise<void> => {
+  try {
+    const { restaurantId } = req.params;
+    const userId = req.user!.id;
+
+    // التحقق من أن المستخدم هو مالك المطعم
+    const restResult = await db.execute(sql`
+      SELECT "id", "name", "is_subscribed", "subscription_plan", "subscription_expires_at"
+      FROM "restaurants" WHERE "id" = ${restaurantId} AND "owner_id" = ${userId} LIMIT 1
+    `);
+    const rests = (restResult.rows ?? restResult ?? []) as any[];
+    const rest = rests[0];
+    if (!rest) { res.status(403).json({ error: "المطعم غير موجود" }); return; }
+
+    // آخر طلب اشتراك لهذا المطعم
+    const subResult = await db.execute(sql`
+      SELECT * FROM "subscriptions"
+      WHERE "restaurant_id" = ${restaurantId} AND "user_id" = ${userId}
+      ORDER BY "created_at" DESC LIMIT 1
+    `);
+    const subs = (subResult.rows ?? subResult ?? []) as any[];
+    const latest = subs[0] ?? null;
+
+    res.json({
+      isSubscribed: rest.is_subscribed ?? false,
+      subscriptionPlan: rest.subscription_plan ?? "free",
+      subscriptionExpiresAt: rest.subscription_expires_at ?? null,
+      latestRequest: latest,
+    });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -186,8 +236,22 @@ router.patch("/admin/subscriptions/:id/approve", authenticate, requireAdmin, asy
       .set({ status: "approved", reviewedAt: new Date(), reviewedBy: adminId, expiresAt })
       .where(eq(subscriptionsTable.id, subId));
 
-    // إذا كان اشتراك بائع (شحص) فقط حدّث usersTable
-    if (sub.type !== "driver") {
+    // تحديث حسب نوع الاشتراك
+    if (sub.type === "restaurant") {
+      // تفعيل اشتراك المطعم مباشرةً
+      const rawSub = sub as any;
+      if (rawSub.restaurant_id) {
+        await db.execute(sql`
+          UPDATE "restaurants"
+          SET "is_subscribed" = true,
+              "subscription_plan" = ${sub.plan},
+              "subscription_expires_at" = ${expiresAt.toISOString()},
+              "updated_at" = ${new Date().toISOString()}
+          WHERE "id" = ${rawSub.restaurant_id}
+        `);
+      }
+    } else if (sub.type !== "driver") {
+      // بائع عادي
       await db.update(usersTable)
         .set({ isVerified: true, subscriptionExpiresAt: expiresAt })
         .where(eq(usersTable.id, sub.userId));
@@ -231,10 +295,14 @@ router.patch("/admin/subscriptions/:id/approve", authenticate, requireAdmin, asy
     try {
       const [user] = (await db.select({ name: usersTable.name })
         .from(usersTable).where(eq(usersTable.id, sub.userId))) ?? [];
+      const rawSub = sub as any;
+      const notifBody = sub.type === "restaurant"
+        ? `مبروك! اشتراك مطعم "${rawSub.restaurant_name ?? ""}" تم قبوله — المطعم الآن مشترك ✅`
+        : `مبروك ${user?.name ?? ""}! اشتراكك تم قبوله — شارة التوثيق ✅ ستظهر على جميع منتجاتك ومحتواك. ابدأ البيع الآن!`;
       await notifyUsers({
         userIds: [sub.userId],
-        title: "🎉 تهانينا! حسابك موثّق الآن",
-        body: `مبروك ${user?.name ?? ""}! اشتراكك تم قبوله — شارة التوثيق ✅ ستظهر على جميع منتجاتك ومحتواك. ابدأ البيع الآن!`,
+        title: sub.type === "restaurant" ? "🎉 تم قبول اشتراك مطعمك!" : "🎉 تهانينا! حسابك موثّق الآن",
+        body: notifBody,
         data: { type: "subscription_approved" },
       });
     } catch {}
