@@ -118,29 +118,19 @@ function PassengerRequest() {
   const SEARCH_DURATION = 30; // 30 ثانية للبحث عن سائق
   const pendingRide = myRides.find((r) => r.status === "pending");
 
-  // الرحلة المُرسلة — نتحقق من حالتها الفعلية في القائمة
-  const submittedRide = justSubmittedId ? myRides.find((r) => r.id === justSubmittedId) : null;
-  // نعتبر البحث جارياً فقط إذا:
-  // - البيانات لم تُحمَّل بعد (ridesLoaded=false) ولم تظهر الرحلة → ربما لازالت تُجلب
-  // - أو الرحلة ظهرت وحالتها "pending"
-  // إذا حُمِّلت البيانات ولم تجد الرحلة → توقف البحث (رحلة منتهية أو خطأ)
-  const isStillSearching = justSubmittedId && (
-    (!ridesLoaded && !submittedRide) || // لم تُحمَّل البيانات بعد (أول ثانيتين)
-    submittedRide?.status === "pending" // لا تزال قيد الانتظار
-  );
+  // activeSearchId للـ polling السريع (2s أثناء البحث)
+  const activeSearchId = pendingRide?.id ?? (justSubmittedId ?? null);
 
-  // activeSearchId = معرّف الرحلة قيد البحث
-  const activeSearchId = pendingRide?.id ?? (isStillSearching ? justSubmittedId : null);
-
-  // نظّف justSubmittedId حين تُقبل الرحلة أو تنتهي
+  // ✅ العد التنازلي يعتمد فقط على pendingRide الفعلية من DB
+  // عند قبول السائق → pendingRide يختفي → يتوقف العد فوراً (cleanup)
   useEffect(() => {
-    if (!justSubmittedId) return;
-    const found = myRides.find((r) => r.id === justSubmittedId);
-    if (found && found.status !== "pending") setJustSubmittedId(null);
-  }, [myRides, justSubmittedId]);
-  useEffect(() => {
-    if (!activeSearchId) { setPendingCountdown(null); setShowPriceTip(false); return; }
-    setPendingCountdown(SEARCH_DURATION); setShowPriceTip(false);
+    if (!pendingRide) {
+      setPendingCountdown(null);
+      setShowPriceTip(false);
+      return;
+    }
+    setPendingCountdown(SEARCH_DURATION);
+    setShowPriceTip(false);
     const iv = setInterval(() => {
       setPendingCountdown((c) => {
         if (c === null || c <= 1) { setShowPriceTip(true); return null; }
@@ -148,7 +138,7 @@ function PassengerRequest() {
       });
     }, 1000);
     return () => clearInterval(iv);
-  }, [activeSearchId, countdownTrigger]);
+  }, [pendingRide?.id, countdownTrigger]);
 
   // polling: كل 2 ثانية أثناء البحث عن سائق، كل 5 ثوانٍ في الحالة العادية
   useEffect(() => {
@@ -157,6 +147,14 @@ function PassengerRequest() {
     const iv = setInterval(fetchMyRides, intervalMs);
     return () => clearInterval(iv);
   }, [fetchMyRides, activeSearchId]);
+
+  // نظّف justSubmittedId حين تُقبل الرحلة أو تُلغى أو تظهر في القائمة
+  useEffect(() => {
+    if (!justSubmittedId) return;
+    const found = myRides.find((r) => r.id === justSubmittedId);
+    if (found && found.status !== "pending") setJustSubmittedId(null);
+    if (!found && ridesLoaded) setJustSubmittedId(null);
+  }, [myRides, justSubmittedId, ridesLoaded]);
 
   // استمع لإشعار Firebase "ride_accepted" → جلب فوري بدون انتظار الـ polling
   useEffect(() => {
@@ -438,8 +436,8 @@ function PassengerRequest() {
         )}
       </AnimatePresence>
 
-      {/* بانر البحث الفوري — يظهر فقط إذا كانت الرحلة لا تزال pending أو لم تظهر بعد */}
-      {isStillSearching && !pendingRide && (
+      {/* بانر البحث الفوري — يظهر فقط في الثانيتين الأولى بعد الإرسال قبل ظهور الرحلة */}
+      {justSubmittedId && !pendingRide && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
