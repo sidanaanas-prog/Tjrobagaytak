@@ -108,27 +108,25 @@ function PassengerRequest() {
   }, []);
 
   const SEARCH_DURATION = 30;
-  // pendingRide: المصدر الوحيد للحقيقة — مُحدَّث مباشرة من DB عبر الـ polling
   const pendingRide = myRides.find((r) => r.status === "pending");
 
-  // polling: 2 ثانية إذا كان هناك طلب pending أو تم الإرسال مؤخراً، وإلا 5 ثوانٍ
-  const isSearching = !!pendingRide || !!justSubmittedId;
-  useEffect(() => {
-    fetchMyRides();
-    const iv = setInterval(fetchMyRides, isSearching ? 2000 : 5000);
-    return () => clearInterval(iv);
-  }, [fetchMyRides, isSearching]);
+  // الرحلة المُرسلة — نتحقق من حالتها في القائمة
+  const submittedRide = justSubmittedId ? myRides.find((r) => r.id === justSubmittedId) : null;
 
-  // العد التنازلي يعتمد فقط على pendingRide
-  // pendingRide يختفي عند قبول السائق → يتوقف العد فوراً تلقائياً
+  // البحث جارٍ إذا: الرحلة pending في القائمة، أو لم تظهر بعد في القائمة (أول 2 ثانية)
+  // يتوقف حين تُقبل أو تُلغى (status != pending)
+  const isStillSearching = !!justSubmittedId && (
+    !submittedRide ||                        // لم تظهر بعد في القائمة
+    submittedRide.status === "pending"       // لا تزال قيد الانتظار
+  );
+
+  // activeSearchId: معرّف الرحلة قيد البحث — يصبح null فور قبولها
+  const activeSearchId = pendingRide?.id ?? (isStillSearching ? justSubmittedId : null);
+
+  // العد التنازلي — يعتمد على activeSearchId الذي يصبح null عند القبول
   useEffect(() => {
-    if (!pendingRide) {
-      setPendingCountdown(null);
-      setShowPriceTip(false);
-      return;
-    }
-    setPendingCountdown(SEARCH_DURATION);
-    setShowPriceTip(false);
+    if (!activeSearchId) { setPendingCountdown(null); setShowPriceTip(false); return; }
+    setPendingCountdown(SEARCH_DURATION); setShowPriceTip(false);
     const iv = setInterval(() => {
       setPendingCountdown((c) => {
         if (c === null || c <= 1) { setShowPriceTip(true); return null; }
@@ -136,13 +134,21 @@ function PassengerRequest() {
       });
     }, 1000);
     return () => clearInterval(iv);
-  }, [pendingRide?.id, countdownTrigger]);
+  }, [activeSearchId, countdownTrigger]);
 
-  // نظّف justSubmittedId بعد ظهور الرحلة في القائمة (بأي حالة)
+  // polling: 2 ثانية أثناء البحث، 5 ثوانٍ في الحالة العادية
   useEffect(() => {
-    if (!justSubmittedId || !myRides.length) return;
-    setJustSubmittedId(null);
-  }, [myRides]);
+    fetchMyRides();
+    const iv = setInterval(fetchMyRides, activeSearchId ? 2000 : 5000);
+    return () => clearInterval(iv);
+  }, [fetchMyRides, activeSearchId]);
+
+  // نظّف justSubmittedId حين تُقبل الرحلة أو تُلغى
+  useEffect(() => {
+    if (!justSubmittedId) return;
+    const found = myRides.find((r) => r.id === justSubmittedId);
+    if (found && found.status !== "pending") setJustSubmittedId(null);
+  }, [myRides, justSubmittedId]);
 
   // استمع لإشعار Firebase "ride_accepted" → جلب فوري بدون انتظار الـ polling
   useEffect(() => {
@@ -424,32 +430,25 @@ function PassengerRequest() {
         )}
       </AnimatePresence>
 
-      {/* بانر انتظار قصير — يظهر لثوانٍ بعد الإرسال قبل أن تظهر الرحلة في القائمة */}
-      {justSubmittedId && !pendingRide && (
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-          className="bg-primary/10 border border-primary/20 rounded-2xl p-4 text-center">
-          <div className="flex items-center justify-center gap-2 text-primary">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span className="font-bold">جاري إرسال الطلب...</span>
-          </div>
-        </motion.div>
-      )}
-
-      {/* بانر البحث الرئيسي — يعتمد على pendingRide الفعلية من DB */}
-      {pendingRide && pendingCountdown !== null && (
+      {/* بانر البحث — يظهر طالما activeSearchId موجود، يختفي فور القبول */}
+      {activeSearchId && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
           className="bg-primary/10 border border-primary/20 rounded-2xl p-4 text-center space-y-3">
           <div className="flex items-center justify-center gap-2 text-primary">
             <Loader2 className="w-5 h-5 animate-spin" />
             <span className="font-bold">جاري البحث عن سائق قريب...</span>
           </div>
-          <div className="text-3xl font-mono font-black text-primary">
-            {String(pendingCountdown).padStart(2, "0")} ث
-          </div>
-          <div className="w-full bg-primary/10 rounded-full h-2">
-            <div className="bg-primary h-2 rounded-full transition-all"
-              style={{ width: `${(pendingCountdown / SEARCH_DURATION) * 100}%` }} />
-          </div>
+          {pendingCountdown !== null && (
+            <>
+              <div className="text-3xl font-mono font-black text-primary">
+                {String(pendingCountdown).padStart(2, "0")} ث
+              </div>
+              <div className="w-full bg-primary/10 rounded-full h-2">
+                <div className="bg-primary h-2 rounded-full transition-all"
+                  style={{ width: `${(pendingCountdown / SEARCH_DURATION) * 100}%` }} />
+              </div>
+            </>
+          )}
         </motion.div>
       )}
 
@@ -492,7 +491,7 @@ function PassengerRequest() {
                   </div>
                   {r.status === "pending" && (
                     <div className="space-y-2">
-                      {pendingCountdown !== null && r.id === pendingRide?.id && (
+                      {pendingCountdown !== null && r.id === activeSearchId && (
                         <div className="bg-primary/10 border border-primary/20 rounded-lg p-2.5 text-center">
                           <div className="flex items-center justify-center gap-2 text-primary"><Clock className="w-4 h-4 animate-pulse" /><span className="text-sm font-bold">جاري البحث...</span></div>
                           <div className="text-2xl font-mono font-bold text-primary mt-1">
@@ -503,7 +502,7 @@ function PassengerRequest() {
                           </div>
                         </div>
                       )}
-                      {showPriceTip && r.id === pendingRide?.id && (
+                      {showPriceTip && r.id === activeSearchId && (
                         <div className="bg-yellow-500/10 border border-yellow-500/25 rounded-lg p-3 space-y-2">
                           <div className="flex items-center gap-2 text-yellow-400"><TrendingUp className="w-4 h-4" /><span className="text-sm font-bold">لم يتم إيجاد سائق — أعد المحاولة أو زِد السعر</span></div>
                           {editingPrice === r.id ? (
