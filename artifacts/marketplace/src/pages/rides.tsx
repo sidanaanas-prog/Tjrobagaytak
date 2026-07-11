@@ -74,6 +74,8 @@ function PassengerRequest() {
   const [editingPrice, setEditingPrice] = useState<string | null>(null);
   const [newPrice, setNewPrice] = useState("");
   const [countdownTrigger, setCountdownTrigger] = useState(0);
+  // معرّف الرحلة المرسلة مؤخراً — يمنع العداد من الاختفاء قبل تحديث قائمة رحلاتي
+  const [justSubmittedId, setJustSubmittedId] = useState<string | null>(null);
   const [isEstimating, setIsEstimating] = useState(false);
   const [estimate, setEstimate] = useState<{ distance: number; estimatedPrice: number; estimatedMinutes: number } | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
@@ -91,15 +93,27 @@ function PassengerRequest() {
 
   useEffect(() => { fetchMyRides(); const iv = setInterval(fetchMyRides, 5000); return () => clearInterval(iv); }, [fetchMyRides]);
 
+  const SEARCH_DURATION = 180; // 3 دقائق للبحث عن سائق
   const pendingRide = myRides.find((r) => r.status === "pending");
+  // activeSearchId = معرّف الرحلة قيد البحث (سواء جاءت من myRides أو من الإرسال الفوري)
+  const activeSearchId = pendingRide?.id ?? justSubmittedId;
+  // نظّف justSubmittedId حين تُقبل الرحلة أو تنتهي
   useEffect(() => {
-    if (!pendingRide) { setPendingCountdown(null); setShowPriceTip(false); return; }
-    setPendingCountdown(30); setShowPriceTip(false);
+    if (!justSubmittedId) return;
+    const found = myRides.find((r) => r.id === justSubmittedId);
+    if (found && found.status !== "pending") setJustSubmittedId(null);
+  }, [myRides, justSubmittedId]);
+  useEffect(() => {
+    if (!activeSearchId) { setPendingCountdown(null); setShowPriceTip(false); return; }
+    setPendingCountdown(SEARCH_DURATION); setShowPriceTip(false);
     const iv = setInterval(() => {
-      setPendingCountdown((c) => { if (c === null || c <= 1) { setShowPriceTip(true); return null; } return c - 1; });
+      setPendingCountdown((c) => {
+        if (c === null || c <= 1) { setShowPriceTip(true); return null; }
+        return c - 1;
+      });
     }, 1000);
     return () => clearInterval(iv);
-  }, [pendingRide?.id, countdownTrigger]);
+  }, [activeSearchId, countdownTrigger]);
 
   // تقدير السعر التلقائي
   async function estimatePrice() {
@@ -154,8 +168,11 @@ function PassengerRequest() {
         }),
       });
       const data = await res.json();
-      if (data.id) { toast({ title: "✅ تم الطلب!", description: "بحث عن سائق قريب..." }); fetchMyRides(); }
-      else toast({ title: "خطأ", description: data.error, variant: "destructive" });
+      if (data.id) {
+        toast({ title: "✅ تم الطلب!", description: "جاري البحث عن سائق..." });
+        setJustSubmittedId(data.id); // يُطلق العداد فوراً
+        fetchMyRides();
+      } else toast({ title: "خطأ", description: data.error, variant: "destructive" });
     } catch { toast({ title: "خطأ", description: "تعذر الاتصال", variant: "destructive" }); }
     setSubmitting(false);
   };
@@ -315,6 +332,30 @@ function PassengerRequest() {
         </button>
       </div>
 
+      {/* بانر البحث الفوري — يظهر مباشرة بعد الإرسال قبل تحديث القائمة */}
+      {justSubmittedId && !pendingRide && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-primary/10 border border-primary/20 rounded-2xl p-4 text-center space-y-3"
+        >
+          <div className="flex items-center justify-center gap-2 text-primary">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span className="font-bold">جاري البحث عن سائق قريب...</span>
+          </div>
+          {pendingCountdown !== null && (
+            <>
+              <div className="text-3xl font-mono font-black text-primary">
+                {Math.floor(pendingCountdown / 60)}:{String(pendingCountdown % 60).padStart(2, "0")}
+              </div>
+              <div className="w-full bg-primary/10 rounded-full h-2">
+                <div className="bg-primary h-2 rounded-full transition-all" style={{ width: `${(pendingCountdown / SEARCH_DURATION) * 100}%` }} />
+              </div>
+            </>
+          )}
+        </motion.div>
+      )}
+
       {/* رحلاتي */}
       <div>
         <h3 className="font-bold text-sm mb-3 flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /> رحلاتي</h3>
@@ -354,14 +395,18 @@ function PassengerRequest() {
                   </div>
                   {r.status === "pending" && (
                     <div className="space-y-2">
-                      {pendingCountdown !== null && r.id === pendingRide?.id && (
+                      {pendingCountdown !== null && r.id === activeSearchId && (
                         <div className="bg-primary/10 border border-primary/20 rounded-lg p-2.5 text-center">
                           <div className="flex items-center justify-center gap-2 text-primary"><Clock className="w-4 h-4 animate-pulse" /><span className="text-sm font-bold">جاري البحث...</span></div>
-                          <div className="text-2xl font-mono font-bold text-primary mt-1">{pendingCountdown}s</div>
-                          <div className="w-full bg-primary/10 rounded-full h-1.5 mt-2"><div className="bg-primary h-1.5 rounded-full transition-all" style={{ width: `${(pendingCountdown / 30) * 100}%` }} /></div>
+                          <div className="text-2xl font-mono font-bold text-primary mt-1">
+                            {Math.floor(pendingCountdown / 60)}:{String(pendingCountdown % 60).padStart(2, "0")}
+                          </div>
+                          <div className="w-full bg-primary/10 rounded-full h-1.5 mt-2">
+                            <div className="bg-primary h-1.5 rounded-full transition-all" style={{ width: `${(pendingCountdown / SEARCH_DURATION) * 100}%` }} />
+                          </div>
                         </div>
                       )}
-                      {showPriceTip && r.id === pendingRide?.id && (
+                      {showPriceTip && r.id === activeSearchId && (
                         <div className="bg-yellow-500/10 border border-yellow-500/25 rounded-lg p-3 space-y-2">
                           <div className="flex items-center gap-2 text-yellow-400"><TrendingUp className="w-4 h-4" /><span className="text-sm font-bold">لم يتم إيجاد سائق</span></div>
                           {editingPrice === r.id ? (
