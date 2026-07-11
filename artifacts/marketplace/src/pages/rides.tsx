@@ -94,8 +94,8 @@ function PassengerRequest() {
     const token = getMemToken(); if (!token) return;
     try {
       const res = await fetch(`${BASE}/api/rides/my?_t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
-      // لا تُحدِّث الحالة إذا فشل الطلب (401/500) — احتفظ بآخر بيانات صحيحة
-      if (!res.ok) { setLoading(false); return; }
+      // إذا فشل الطلب (401/500) — لا تُحدِّث الحالة، أبق الـ spinner للمحاولة التالية
+      if (!res.ok) return;
       const data = await res.json();
       const fresh: Ride[] = Array.isArray(data) ? data : [];
       // كشف انتقال pending → accepted لعرض popup القبول
@@ -107,8 +107,8 @@ function PassengerRequest() {
       prevMyRidesRef.current = fresh;
       setMyRides(fresh);
       setRidesLoadedOnce(true);
-    } catch {}
-    setLoading(false);
+      setLoading(false); // أخفِ الـ spinner فقط عند النجاح
+    } catch { setLoading(false); }
   }, []);
 
   const SEARCH_DURATION = 30;

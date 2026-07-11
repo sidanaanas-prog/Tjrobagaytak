@@ -142,6 +142,31 @@ router.get("/rides/driver", authenticate, async (req, res): Promise<void> => {
   }
 });
 
+// ── الراكب: رحلاتي — يجب أن يكون قبل /rides/:id لأن Express يُطابق بالترتيب
+router.get("/rides/my", authenticate, async (req, res): Promise<void> => {
+  try {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    const passengerId = (req as any).user.id;
+    const rows = (await db
+      .select()
+      .from(ridesTable)
+      .where(eq(ridesTable.passengerId, passengerId))
+      .orderBy(desc(ridesTable.createdAt))) ?? [];
+
+    const driverIds = [...new Set(rows.filter((r) => r.driverId).map((r) => r.driverId))].filter(Boolean) as string[];
+    const drivers = driverIds.length > 0
+      ? (await db.select({
+          id: usersTable.id, name: usersTable.name, phone: usersTable.phone, avatar: usersTable.avatar,
+        }).from(usersTable).where(inArray(usersTable.id, driverIds))) ?? []
+      : [];
+    const dMap = Object.fromEntries(drivers.map((d) => [d.id, d]));
+
+    res.json(rows.map((r) => ({ ...r, driver: r.driverId ? (dMap[r.driverId] ?? null) : null })));
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── جلب تفاصيل رحلة واحدة ──────────────────────────────────────────────────
 router.get("/rides/:id", authenticate, async (req, res): Promise<void> => {
   try {
@@ -175,31 +200,6 @@ router.get("/rides/:id", authenticate, async (req, res): Promise<void> => {
     }
 
     res.json({ ...ride, passenger: passenger ?? null, driver, driverProfile });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// ── الراكب: رحلاتي ──────────────────────────────────────────────────
-router.get("/rides/my", authenticate, async (req, res): Promise<void> => {
-  try {
-    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-    const passengerId = (req as any).user.id;
-    const rows = (await db
-      .select()
-      .from(ridesTable)
-      .where(eq(ridesTable.passengerId, passengerId))
-      .orderBy(desc(ridesTable.createdAt))) ?? [];
-
-    const driverIds = [...new Set(rows.filter((r) => r.driverId).map((r) => r.driverId))].filter(Boolean) as string[];
-    const drivers = driverIds.length > 0
-      ? (await db.select({
-          id: usersTable.id, name: usersTable.name, phone: usersTable.phone, avatar: usersTable.avatar,
-        }).from(usersTable).where(inArray(usersTable.id, driverIds))) ?? []
-      : [];
-    const dMap = Object.fromEntries(drivers.map((d) => [d.id, d]));
-
-    res.json(rows.map((r) => ({ ...r, driver: r.driverId ? (dMap[r.driverId] ?? null) : null })));
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
