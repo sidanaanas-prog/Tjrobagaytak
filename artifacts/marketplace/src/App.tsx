@@ -30,6 +30,7 @@ import DriverRegisterPage from "@/pages/driver-register";
 import SellerVerifyPage from "@/pages/seller-verify";
 import PinLockPage from "@/pages/pin-lock";
 import PinSetupPage from "@/pages/pin-setup";
+import WalletPage from "@/pages/wallet";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -146,6 +147,9 @@ function Router() {
       </Route>
       <Route path="/role-select">
         <RequireAuth><RoleSelectPage /></RequireAuth>
+      </Route>
+      <Route path="/wallet">
+        <RequireAuth><WalletPage /></RequireAuth>
       </Route>
       <Route path="/pin-lock" component={PinLockPage} />
       <Route path="/pin-setup" component={PinSetupPage} />

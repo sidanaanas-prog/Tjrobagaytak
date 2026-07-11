@@ -122,6 +122,8 @@ router.get("/auth/me", authenticate, async (req, res): Promise<void> => {
     res.status(404).json({ error: "User not found" });
     return;
   }
+  // جلب رصيد المحفظة
+  const [wallet] = (await db.select({ balance: walletsTable.balance }).from(walletsTable).where(eq(walletsTable.userId, user.id))) ?? [];
   res.json({
     id: user.id,
     name: user.name,
@@ -135,6 +137,9 @@ router.get("/auth/me", authenticate, async (req, res): Promise<void> => {
     trialExpiresAt: user.trialExpiresAt ? user.trialExpiresAt.toISOString() : null,
     lastSeenAt: user.lastSeenAt ? user.lastSeenAt.toISOString() : null,
     createdAt: user.createdAt.toISOString(),
+    walletBalance: wallet?.balance ? Number(wallet.balance) : null,
+    noShowCount: user.noShowCount ?? 0,
+    rideBannedUntil: user.rideBannedUntil ? user.rideBannedUntil.toISOString() : null,
   });
 });
 

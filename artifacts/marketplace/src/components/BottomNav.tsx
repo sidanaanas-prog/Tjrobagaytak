@@ -1,6 +1,6 @@
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { Home, Search, Plus, MessageCircle, User, Package, Store, Car, ShoppingBag } from "lucide-react";
+import { Home, Search, Plus, MessageCircle, User, Package, Store, Car, ShoppingBag, Wallet } from "lucide-react";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { useListConversations, getListConversationsQueryKey } from "@workspace/api-client-react";
@@ -27,6 +27,7 @@ const ALL_TABS: NavTab[] = [
   { href: "/products", icon: Search, label: "استكشف", auth: false, roles: ["seller", "shopper", null] },
   { href: "/sell", icon: Plus, label: "بيع", auth: true, isSell: true, roles: ["seller"] },
   { href: "/rides", icon: Car, label: "كورسا", auth: false, roles: ["driver", "passenger", null] },
+  { href: "/wallet", icon: Wallet, label: "محفظتي", auth: true },
   { href: "/chat", icon: MessageCircle, label: "محادثات", auth: true, isChat: true },
   { href: "/dashboard", icon: Store, label: "أعمالي", auth: true, isOrders: true, roles: ["seller"] },
   { href: "/profile", icon: User, label: "حسابي", auth: true },
