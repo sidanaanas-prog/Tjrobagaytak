@@ -19,6 +19,7 @@ import FlashSales from "@/pages/flash-sales";
 import Subscriptions from "@/pages/subscriptions";
 import DriverSubscriptions from "@/pages/driver-subscriptions";
 import Rides from "@/pages/rides-admin";
+import RestaurantsAdmin from "@/pages/restaurants-admin";
 import Promotions from "@/pages/promotions";
 import { AdminAuthProvider } from "@/hooks/use-admin-auth";
 import { Layout } from "@/components/layout";
@@ -60,6 +61,7 @@ function Router() {
       <Route path="/subscriptions" component={() => <ProtectedRoute component={Subscriptions} />} />
       <Route path="/driver-subscriptions" component={() => <ProtectedRoute component={DriverSubscriptions} />} />
       <Route path="/rides" component={() => <ProtectedRoute component={Rides} />} />
+      <Route path="/restaurants" component={() => <ProtectedRoute component={RestaurantsAdmin} />} />
       <Route path="/promotions" component={() => <ProtectedRoute component={Promotions} />} />
       <Route component={NotFound} />
     </Switch>

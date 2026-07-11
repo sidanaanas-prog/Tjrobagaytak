@@ -31,6 +31,10 @@ import SellerVerifyPage from "@/pages/seller-verify";
 import PinLockPage from "@/pages/pin-lock";
 import PinSetupPage from "@/pages/pin-setup";
 import WalletPage from "@/pages/wallet";
+import FoodPage from "@/pages/food";
+import FoodDetailPage from "@/pages/food-detail";
+import FoodOrdersPage from "@/pages/food-orders";
+import FoodRegisterPage from "@/pages/food-register";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -153,6 +157,14 @@ function Router() {
       </Route>
       <Route path="/pin-lock" component={PinLockPage} />
       <Route path="/pin-setup" component={PinSetupPage} />
+      <Route path="/food" component={FoodPage} />
+      <Route path="/food/orders">
+        <RequireAuth><FoodOrdersPage /></RequireAuth>
+      </Route>
+      <Route path="/food/register">
+        <RequireAuth><FoodRegisterPage /></RequireAuth>
+      </Route>
+      <Route path="/food/:id" component={FoodDetailPage} />
       <Route component={NotFound} />
     </Switch>
   );
