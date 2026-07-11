@@ -61,7 +61,7 @@ function CheckoutSheet({
   const handleOrder = async () => {
     if (!address.trim()) { toast({ title: "أدخل عنوان التوصيل", variant: "destructive" }); return; }
     const minOrder = Number(restaurant.minOrder ?? 0);
-    if (itemTotal < minOrder) { toast({ title: `الحد الأدنى للطلب ${minOrder} ر.س`, variant: "destructive" }); return; }
+    if (itemTotal < minOrder) { toast({ title: `الحد الأدنى للطلب ${minOrder} دج`, variant: "destructive" }); return; }
 
     setLoading(true);
     try {
@@ -107,21 +107,21 @@ function CheckoutSheet({
         {cart.map((it) => (
           <div key={it.id} className="flex items-center justify-between text-sm">
             <span className="text-white/80">{it.name} × {it.quantity}</span>
-            <span className="text-white font-semibold">{(Number(it.price) * it.quantity).toFixed(1)} ر.س</span>
+            <span className="text-white font-semibold">{(Number(it.price) * it.quantity).toFixed(1)} دج</span>
           </div>
         ))}
       </div>
 
       <div className="border-t border-white/10 pt-3 mb-4 space-y-1.5 text-sm">
         <div className="flex justify-between text-white/60">
-          <span>المجموع</span><span>{itemTotal.toFixed(1)} ر.س</span>
+          <span>المجموع</span><span>{itemTotal.toFixed(1)} دج</span>
         </div>
         <div className="flex justify-between text-white/60">
           <span>رسوم التوصيل</span>
-          <span>{deliveryFee === 0 ? "مجاني 🎉" : `${deliveryFee} ر.س`}</span>
+          <span>{deliveryFee === 0 ? "مجاني 🎉" : `${deliveryFee} دج`}</span>
         </div>
         <div className="flex justify-between text-white font-bold text-base">
-          <span>الإجمالي</span><span>{total.toFixed(1)} ر.س</span>
+          <span>الإجمالي</span><span>{total.toFixed(1)} دج</span>
         </div>
       </div>
 
@@ -165,7 +165,7 @@ function CheckoutSheet({
         disabled={loading}
         className="w-full py-3.5 rounded-2xl bg-primary font-bold text-white text-sm shadow-[0_0_20px_rgba(168,85,247,0.5)] disabled:opacity-50"
       >
-        {loading ? "جاري الإرسال..." : `تأكيد الطلب • ${total.toFixed(1)} ر.س`}
+        {loading ? "جاري الإرسال..." : `تأكيد الطلب • ${total.toFixed(1)} دج`}
       </motion.button>
     </motion.div>
   );
@@ -322,7 +322,7 @@ export default function FoodDetailPage() {
           </div>
           <div className="flex items-center gap-1">
             <MapPin className="w-3.5 h-3.5" />
-            <span>{Number(restaurant.deliveryFee) === 0 ? "توصيل مجاني" : `${restaurant.deliveryFee} ر.س`}</span>
+            <span>{Number(restaurant.deliveryFee) === 0 ? "توصيل مجاني" : `${restaurant.deliveryFee} دج`}</span>
           </div>
         </div>
 
@@ -368,7 +368,7 @@ export default function FoodDetailPage() {
                           <p className="text-xs text-white/40 mt-0.5 line-clamp-2">{item.description}</p>
                         )}
                         <div className="flex items-center justify-between mt-2">
-                          <span className="text-primary font-bold text-sm">{item.price} ر.س</span>
+                          <span className="text-primary font-bold text-sm">{item.price} دج</span>
                           {restaurant.isOpen ? (
                             <div className="flex items-center gap-2">
                               {qty > 0 ? (
@@ -419,7 +419,7 @@ export default function FoodDetailPage() {
                 </div>
                 <span className="text-white font-bold text-sm">عرض السلة</span>
               </div>
-              <span className="text-white font-black">{cartTotal.toFixed(1)} ر.س</span>
+              <span className="text-white font-black">{cartTotal.toFixed(1)} دج</span>
             </motion.button>
           </motion.div>
         )}

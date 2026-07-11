@@ -35,6 +35,7 @@ import FoodPage from "@/pages/food";
 import FoodDetailPage from "@/pages/food-detail";
 import FoodOrdersPage from "@/pages/food-orders";
 import FoodRegisterPage from "@/pages/food-register";
+import FoodDashboardPage from "@/pages/food-dashboard";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -163,6 +164,9 @@ function Router() {
       </Route>
       <Route path="/food/register">
         <RequireAuth><FoodRegisterPage /></RequireAuth>
+      </Route>
+      <Route path="/food/dashboard">
+        <RequireAuth><FoodDashboardPage /></RequireAuth>
       </Route>
       <Route path="/food/:id" component={FoodDetailPage} />
       <Route component={NotFound} />

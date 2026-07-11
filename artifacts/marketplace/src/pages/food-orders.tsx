@@ -115,7 +115,7 @@ export default function FoodOrdersPage() {
                     {parsedItems.map((it: any, i: number) => (
                       <div key={i} className="flex justify-between text-xs text-white/60">
                         <span>{it.name} × {it.quantity}</span>
-                        <span>{(Number(it.price) * Number(it.quantity)).toFixed(1)} ر.س</span>
+                        <span>{(Number(it.price) * Number(it.quantity)).toFixed(1)} دج</span>
                       </div>
                     ))}
                   </div>
@@ -124,7 +124,7 @@ export default function FoodOrdersPage() {
                     <div className="text-xs text-white/40">
                       {new Date(order.createdAt).toLocaleDateString("ar-SA", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </div>
-                    <div className="text-sm font-black text-white">{Number(order.totalPrice).toFixed(1)} ر.س</div>
+                    <div className="text-sm font-black text-white">{Number(order.totalPrice).toFixed(1)} دج</div>
                   </div>
 
                   {order.deliveryAddress && (

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Star, Clock, ChefHat, MapPin, Flame, ChevronRight } from "lucide-react";
+import { Search, Star, Clock, ChefHat, MapPin, Flame, ChevronRight, LayoutDashboard } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { getApiUrl } from "@/lib/api-url";
 
@@ -90,10 +90,10 @@ function RestaurantCard({ r }: { r: Restaurant }) {
             </div>
             <div className="flex items-center gap-1">
               <MapPin className="w-3 h-3" />
-              <span>{Number(r.deliveryFee) === 0 ? "توصيل مجاني" : `${r.deliveryFee} ر.س`}</span>
+              <span>{Number(r.deliveryFee) === 0 ? "توصيل مجاني" : `${r.deliveryFee} دج`}</span>
             </div>
             {Number(r.minOrder) > 0 && (
-              <span>حد أدنى {r.minOrder} ر.س</span>
+              <span>حد أدنى {r.minOrder} دج</span>
             )}
           </div>
         </div>
@@ -134,14 +134,25 @@ export default function FoodPage() {
                 🍽️ <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">مطاعم</span>
               </h1>
             </div>
-            <Link href="/food/orders">
-              <motion.button
-                whileTap={{ scale: 0.9 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/15 border border-primary/30 text-primary text-xs font-semibold"
-              >
-                طلباتي <ChevronRight className="w-3.5 h-3.5" />
-              </motion.button>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link href="/food/dashboard">
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center"
+                  title="لوحة مطعمي"
+                >
+                  <LayoutDashboard className="w-4 h-4 text-white/50" />
+                </motion.button>
+              </Link>
+              <Link href="/food/orders">
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/15 border border-primary/30 text-primary text-xs font-semibold"
+                >
+                  طلباتي <ChevronRight className="w-3.5 h-3.5" />
+                </motion.button>
+              </Link>
+            </div>
           </div>
 
           {/* Search */}
