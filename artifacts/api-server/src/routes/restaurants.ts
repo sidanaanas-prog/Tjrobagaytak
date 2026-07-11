@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, restaurantsTable, menuItemsTable, foodOrdersTable, usersTable, restaurantDriversTable } from "@workspace/db";
-import { eq, desc, and, inArray, ilike, or } from "drizzle-orm";
+import { eq, desc, and, inArray, ilike, or, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { authenticate, requireAdmin } from "../lib/auth";
 
@@ -425,10 +425,40 @@ router.post("/food-orders/:id/assign-driver", authenticate, async (req, res): Pr
 
 // ─── ADMIN ────────────────────────────────────────────────────────────────
 
-// قائمة كل المطاعم (أدمن)
+// قائمة كل المطاعم مع معلومات المالك وعدد الطلبات (أدمن)
 router.get("/admin/restaurants", authenticate, requireAdmin, async (req, res): Promise<void> => {
   try {
-    const rows = (await db.select().from(restaurantsTable).orderBy(desc(restaurantsTable.createdAt))) ?? [];
+    const rows = (await db
+      .select({
+        id: restaurantsTable.id,
+        name: restaurantsTable.name,
+        description: restaurantsTable.description,
+        logo: restaurantsTable.logo,
+        category: restaurantsTable.category,
+        address: restaurantsTable.address,
+        phone: restaurantsTable.phone,
+        isOpen: restaurantsTable.isOpen,
+        status: restaurantsTable.status,
+        deliveryFee: restaurantsTable.deliveryFee,
+        minOrder: restaurantsTable.minOrder,
+        estimatedDeliveryMinutes: restaurantsTable.estimatedDeliveryMinutes,
+        rating: restaurantsTable.rating,
+        ratingCount: restaurantsTable.ratingCount,
+        isFeatured: restaurantsTable.isFeatured,
+        isSubscribed: restaurantsTable.isSubscribed,
+        subscriptionPlan: restaurantsTable.subscriptionPlan,
+        subscriptionExpiresAt: restaurantsTable.subscriptionExpiresAt,
+        createdAt: restaurantsTable.createdAt,
+        ownerId: restaurantsTable.ownerId,
+        ownerName: usersTable.name,
+        ownerPhone: usersTable.phone,
+        ownerEmail: usersTable.email,
+        orderCount: sql<number>`(SELECT COUNT(*) FROM food_orders WHERE food_orders.restaurant_id = ${restaurantsTable.id})`,
+        menuCount: sql<number>`(SELECT COUNT(*) FROM menu_items WHERE menu_items.restaurant_id = ${restaurantsTable.id})`,
+      })
+      .from(restaurantsTable)
+      .leftJoin(usersTable, eq(usersTable.id, restaurantsTable.ownerId))
+      .orderBy(desc(restaurantsTable.createdAt))) ?? [];
     res.json(rows);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -440,7 +470,6 @@ router.patch("/admin/restaurants/:id/status", authenticate, requireAdmin, async 
   try {
     const { status } = req.body;
     if (!["approved", "rejected", "pending"].includes(status)) { res.status(400).json({ error: "حالة غير صحيحة" }); return; }
-
     await db.update(restaurantsTable).set({ status, updatedAt: new Date() }).where(eq(restaurantsTable.id, req.params.id));
     res.json({ message: "تم التحديث" });
   } catch (e: any) {
@@ -454,6 +483,34 @@ router.patch("/admin/restaurants/:id/featured", authenticate, requireAdmin, asyn
     const { isFeatured } = req.body;
     await db.update(restaurantsTable).set({ isFeatured: !!isFeatured, updatedAt: new Date() }).where(eq(restaurantsTable.id, req.params.id));
     res.json({ message: "تم التحديث" });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// إدارة اشتراك مطعم (أدمن)
+router.patch("/admin/restaurants/:id/subscription", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const { isSubscribed, subscriptionPlan, months } = req.body as {
+      isSubscribed: boolean;
+      subscriptionPlan?: string;
+      months?: number;
+    };
+
+    let subscriptionExpiresAt: Date | null = null;
+    if (isSubscribed && months && months > 0) {
+      subscriptionExpiresAt = new Date();
+      subscriptionExpiresAt.setMonth(subscriptionExpiresAt.getMonth() + months);
+    }
+
+    await db.update(restaurantsTable).set({
+      isSubscribed: !!isSubscribed,
+      subscriptionPlan: subscriptionPlan ?? "free",
+      subscriptionExpiresAt: isSubscribed ? subscriptionExpiresAt : null,
+      updatedAt: new Date(),
+    }).where(eq(restaurantsTable.id, req.params.id));
+
+    res.json({ message: "تم تحديث الاشتراك" });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

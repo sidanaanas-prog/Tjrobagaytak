@@ -21,6 +21,9 @@ export const restaurantsTable = pgTable("restaurants", {
   rating: numeric("rating", { precision: 3, scale: 2 }).default("0"),
   ratingCount: integer("rating_count").default(0),
   isFeatured: boolean("is_featured").default(false),
+  isSubscribed: boolean("is_subscribed").default(false),
+  subscriptionPlan: text("subscription_plan").default("free"),
+  subscriptionExpiresAt: timestamp("subscription_expires_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
