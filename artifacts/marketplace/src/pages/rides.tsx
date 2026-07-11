@@ -82,6 +82,7 @@ function PassengerRequest() {
   const [countdownTrigger, setCountdownTrigger] = useState(0);
   // معرّف الرحلة المرسلة مؤخراً — يمنع العداد من الاختفاء قبل تحديث قائمة رحلاتي
   const [justSubmittedId, setJustSubmittedId] = useState<string | null>(null);
+  const [ridesLoadedOnce, setRidesLoadedOnce] = useState(false);
   const [isEstimating, setIsEstimating] = useState(false);
   const [estimate, setEstimate] = useState<{ distance: number; estimatedPrice: number; estimatedMinutes: number } | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
@@ -93,6 +94,8 @@ function PassengerRequest() {
     const token = getMemToken(); if (!token) return;
     try {
       const res = await fetch(`${BASE}/api/rides/my?_t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+      // لا تُحدِّث الحالة إذا فشل الطلب (401/500) — احتفظ بآخر بيانات صحيحة
+      if (!res.ok) { setLoading(false); return; }
       const data = await res.json();
       const fresh: Ride[] = Array.isArray(data) ? data : [];
       // كشف انتقال pending → accepted لعرض popup القبول
@@ -103,6 +106,7 @@ function PassengerRequest() {
       if (justAccepted) setNewlyAcceptedRide(justAccepted);
       prevMyRidesRef.current = fresh;
       setMyRides(fresh);
+      setRidesLoadedOnce(true);
     } catch {}
     setLoading(false);
   }, []);
@@ -113,11 +117,14 @@ function PassengerRequest() {
   // الرحلة المُرسلة — نتحقق من حالتها في القائمة
   const submittedRide = justSubmittedId ? myRides.find((r) => r.id === justSubmittedId) : null;
 
-  // البحث جارٍ إذا: الرحلة pending في القائمة، أو لم تظهر بعد في القائمة (أول 2 ثانية)
-  // يتوقف حين تُقبل أو تُلغى (status != pending)
+  // البحث جارٍ إذا:
+  //  - الرحلة لا تزال "pending" في القائمة، أو
+  //  - الرحلة لم تظهر بعد (لم يُحمَّل الـ list بعد)
+  // يتوقف فور أن تُحمَّل القائمة وتكون الرحلة غير pending (accepted/cancelled)
   const isStillSearching = !!justSubmittedId && (
-    !submittedRide ||                        // لم تظهر بعد في القائمة
-    submittedRide.status === "pending"       // لا تزال قيد الانتظار
+    !ridesLoadedOnce ||                     // لم يُحمَّل الـ list بعد (أول مرة)
+    submittedRide?.status === "pending"     // محُمِّل + الرحلة لا تزال pending
+    // إذا ridesLoadedOnce=true والرحلة غير موجودة/accepted/cancelled → false تلقائياً
   );
 
   // activeSearchId: معرّف الرحلة قيد البحث — يصبح null فور قبولها
