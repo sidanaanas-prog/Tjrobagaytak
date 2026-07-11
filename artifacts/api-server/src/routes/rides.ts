@@ -183,6 +183,7 @@ router.get("/rides/:id", authenticate, async (req, res): Promise<void> => {
 // ── الراكب: رحلاتي ──────────────────────────────────────────────────
 router.get("/rides/my", authenticate, async (req, res): Promise<void> => {
   try {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     const passengerId = (req as any).user.id;
     const rows = (await db
       .select()

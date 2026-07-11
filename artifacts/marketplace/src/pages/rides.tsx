@@ -89,12 +89,16 @@ function PassengerRequest() {
   const prevMyRidesRef = useRef<Ride[]>([]);
   const [, navigate] = useLocation();
 
+  const [ridesLoaded, setRidesLoaded] = useState(false);
+
   const fetchMyRides = useCallback(async () => {
     const token = getMemToken(); if (!token) return;
     try {
-      const res = await fetch(`${BASE}/api/rides/my`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${BASE}/api/rides/my?_t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+      if (!res.ok) return; // ✅ لا تحذف myRides عند خطأ (401, 500)
       const data = await res.json();
       const fresh: Ride[] = Array.isArray(data) ? data : [];
+      setRidesLoaded(true);
       // كشف انتقال الرحلة من pending → accepted
       const justAccepted = fresh.find((r) =>
         r.status === "accepted" &&
@@ -116,10 +120,13 @@ function PassengerRequest() {
 
   // الرحلة المُرسلة — نتحقق من حالتها الفعلية في القائمة
   const submittedRide = justSubmittedId ? myRides.find((r) => r.id === justSubmittedId) : null;
-  // نعتبر البحث جارياً فقط إذا: الرحلة المُرسلة لم تُقبل/تُلغَ بعد
+  // نعتبر البحث جارياً فقط إذا:
+  // - البيانات لم تُحمَّل بعد (ridesLoaded=false) ولم تظهر الرحلة → ربما لازالت تُجلب
+  // - أو الرحلة ظهرت وحالتها "pending"
+  // إذا حُمِّلت البيانات ولم تجد الرحلة → توقف البحث (رحلة منتهية أو خطأ)
   const isStillSearching = justSubmittedId && (
-    !submittedRide || // لم تظهر بعد في القائمة (أول 2 ثانية)
-    submittedRide.status === "pending" // لا تزال قيد الانتظار
+    (!ridesLoaded && !submittedRide) || // لم تُحمَّل البيانات بعد (أول ثانيتين)
+    submittedRide?.status === "pending" // لا تزال قيد الانتظار
   );
 
   // activeSearchId = معرّف الرحلة قيد البحث
