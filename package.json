@@ -3,15 +3,21 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
-    "build": "pnpm -r --if-present run build",
-    "build:render": "pnpm --filter @workspace/api-server run build && PORT=3000 BASE_PATH=/ pnpm --filter @workspace/marketplace run build",
+    "dev": "PORT=3000 tsx artifacts/api-server/src/index.ts",
+    "build": "npm run build --workspace=@workspace/db --workspace=@workspace/api-server --workspace=@workspace/marketplace --workspace=@workspace/admin-panel",
+    "build:render": "npm run build --workspace=@workspace/api-server && PORT=3000 BASE_PATH=/ npm run build --workspace=@workspace/marketplace && BASE_PATH=/admin/ npm run build --workspace=@workspace/admin-panel",
     "typecheck:libs": "tsc --build || true",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "typecheck": "npm run typecheck:libs && npm run typecheck --workspaces --if-present"
   },
+  "workspaces": [
+    "artifacts/*",
+    "lib/*",
+    "scripts"
+  ],
   "private": true,
   "devDependencies": {
     "typescript": "~5.9.2",
-    "prettier": "^3.8.1"
+    "prettier": "^3.8.1",
+    "tsx": "^4.21.0"
   }
 }

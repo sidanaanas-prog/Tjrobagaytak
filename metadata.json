@@ -1,0 +1,6 @@
+{
+  "name": "Tjrobagaytak Marketplace",
+  "description": "A full-stack marketplace and admin panel application with Google Gemini AI integration, resilient database connectivity, and full admin capabilities.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
