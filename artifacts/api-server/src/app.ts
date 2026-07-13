@@ -101,7 +101,7 @@ if (isDev && viteAdmin && viteMarketplace) {
   });
 
   app.use(express.static(marketplaceDist));
-  app.get("*", (req, res) => {
+  app.get(/^(?!\/api).*/, (req, res) => {
     res.sendFile(path.join(marketplaceDist, "index.html"));
   });
 }
