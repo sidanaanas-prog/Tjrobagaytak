@@ -5,8 +5,9 @@ import { getApiUrl } from "@/lib/api-url";
 import {
   Loader2, Home, CheckCircle, XCircle, Star, Clock, MapPin,
   Flame, RefreshCw, ShoppingBag, User, Phone, Mail, UtensilsCrossed,
-  CreditCard, Crown, CalendarDays, X, Plus, Trash2, Edit, PlusCircle, DollarSign,
+  CreditCard, Crown, CalendarDays, X, Plus, Trash2, Edit, PlusCircle, DollarSign, Upload,
 } from "lucide-react";
+import { uploadToFirebaseWithProgress } from "@/lib/firebase-upload";
 
 const BASE = getApiUrl("");
 
@@ -28,6 +29,7 @@ type Restaurant = {
   name: string;
   description: string | null;
   logo: string | null;
+  coverImage: string | null;
   category: string;
   address: string;
   phone: string | null;
@@ -88,6 +90,8 @@ export default function RestaurantsAdminPage() {
     deliveryFee: "0",
     minOrder: "0",
     estimatedDeliveryMinutes: 30,
+    logo: "",
+    coverImage: "",
   });
   const [createLoading, setCreateLoading] = useState(false);
 
@@ -104,8 +108,13 @@ export default function RestaurantsAdminPage() {
     minOrder: "0",
     estimatedDeliveryMinutes: 30,
     isOpen: true,
+    logo: "",
+    coverImage: "",
   });
   const [editLoading, setEditLoading] = useState(false);
+
+  const [logoProgress, setLogoProgress] = useState<number | null>(null);
+  const [coverProgress, setCoverProgress] = useState<number | null>(null);
 
   // New states for managing service packages (menu items)
   const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
@@ -168,12 +177,41 @@ export default function RestaurantsAdminPage() {
         deliveryFee: "0",
         minOrder: "0",
         estimatedDeliveryMinutes: 30,
+        logo: "",
+        coverImage: "",
       });
       fetchRestaurants();
     } catch (e: any) {
       toast({ title: "خطأ", description: e.message, variant: "destructive" });
     }
     setCreateLoading(false);
+  };
+
+  const handleUploadImage = async (file: File, type: "logo" | "cover", isEdit: boolean) => {
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "اختر صورة فقط", variant: "destructive" });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "الصورة أكبر من 10 ميغابايت", variant: "destructive" });
+      return;
+    }
+    const path = `restaurants/${Date.now()}-${file.name}`;
+    const setProgress = type === "logo" ? setLogoProgress : setCoverProgress;
+    setProgress(0);
+    try {
+      const url = await uploadToFirebaseWithProgress(file, path, (p) => setProgress(p));
+      if (isEdit) {
+        setEditForm((prev) => ({ ...prev, [type === "logo" ? "logo" : "coverImage"]: url }));
+      } else {
+        setCreateForm((prev) => ({ ...prev, [type === "logo" ? "logo" : "coverImage"]: url }));
+      }
+      toast({ title: "تم رفع الصورة بنجاح ✓" });
+    } catch (err: any) {
+      toast({ title: err.message ?? "فشل الرفع", variant: "destructive" });
+    } finally {
+      setProgress(null);
+    }
   };
 
   const handleOpenEdit = (r: Restaurant) => {
@@ -188,6 +226,8 @@ export default function RestaurantsAdminPage() {
       minOrder: r.minOrder,
       estimatedDeliveryMinutes: r.estimatedDeliveryMinutes,
       isOpen: r.isOpen,
+      logo: r.logo ?? "",
+      coverImage: r.coverImage ?? "",
     });
     setIsEditModalOpen(true);
   };
@@ -892,6 +932,86 @@ export default function RestaurantsAdminPage() {
                   />
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-4 pt-2">
+                <div>
+                  <label className="block text-xs text-white/50 mb-2">شعار منزل المناسبات (Logo)</label>
+                  {createForm.logo ? (
+                    <div className="relative w-24 h-24 rounded-xl border border-white/10 overflow-hidden bg-white/5">
+                      <img src={createForm.logo} alt="Logo" className="w-full h-full object-cover" />
+                      <button
+                        onClick={() => setCreateForm({ ...createForm, logo: "" })}
+                        className="absolute top-1 right-1 p-1 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center w-24 h-24 rounded-xl border border-dashed border-white/20 hover:border-primary/50 cursor-pointer bg-white/5 transition-colors">
+                      {logoProgress !== null ? (
+                        <div className="text-center">
+                          <Loader2 className="w-5 h-5 text-primary animate-spin mx-auto mb-1" />
+                          <span className="text-[10px] text-white/70">{logoProgress}%</span>
+                        </div>
+                      ) : (
+                        <>
+                          <Upload className="w-5 h-5 text-white/40 mb-1" />
+                          <span className="text-[10px] text-white/50">اختر شعار</span>
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleUploadImage(file, "logo", false);
+                        }}
+                        disabled={logoProgress !== null}
+                      />
+                    </label>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs text-white/50 mb-2">صورة الغلاف (Cover)</label>
+                  {createForm.coverImage ? (
+                    <div className="relative w-full h-24 rounded-xl border border-white/10 overflow-hidden bg-white/5">
+                      <img src={createForm.coverImage} alt="Cover" className="w-full h-full object-cover" />
+                      <button
+                        onClick={() => setCreateForm({ ...createForm, coverImage: "" })}
+                        className="absolute top-1 right-1 p-1 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center w-full h-24 rounded-xl border border-dashed border-white/20 hover:border-primary/50 cursor-pointer bg-white/5 transition-colors">
+                      {coverProgress !== null ? (
+                        <div className="text-center">
+                          <Loader2 className="w-5 h-5 text-primary animate-spin mx-auto mb-1" />
+                          <span className="text-[10px] text-white/70">{coverProgress}%</span>
+                        </div>
+                      ) : (
+                        <>
+                          <Upload className="w-5 h-5 text-white/40 mb-1" />
+                          <span className="text-[10px] text-white/50">اختر غلاف</span>
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleUploadImage(file, "cover", false);
+                        }}
+                        disabled={coverProgress !== null}
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="mt-6 pt-4 border-t border-white/10 flex justify-end gap-2">
@@ -1021,6 +1141,86 @@ export default function RestaurantsAdminPage() {
                     onChange={(e) => setEditForm({ ...editForm, estimatedDeliveryMinutes: Number(e.target.value) })}
                     className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 pt-2">
+                <div>
+                  <label className="block text-xs text-white/50 mb-2">شعار منزل المناسبات (Logo)</label>
+                  {editForm.logo ? (
+                    <div className="relative w-24 h-24 rounded-xl border border-white/10 overflow-hidden bg-white/5">
+                      <img src={editForm.logo} alt="Logo" className="w-full h-full object-cover" />
+                      <button
+                        onClick={() => setEditForm({ ...editForm, logo: "" })}
+                        className="absolute top-1 right-1 p-1 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center w-24 h-24 rounded-xl border border-dashed border-white/20 hover:border-primary/50 cursor-pointer bg-white/5 transition-colors">
+                      {logoProgress !== null ? (
+                        <div className="text-center">
+                          <Loader2 className="w-5 h-5 text-primary animate-spin mx-auto mb-1" />
+                          <span className="text-[10px] text-white/70">{logoProgress}%</span>
+                        </div>
+                      ) : (
+                        <>
+                          <Upload className="w-5 h-5 text-white/40 mb-1" />
+                          <span className="text-[10px] text-white/50">اختر شعار</span>
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleUploadImage(file, "logo", true);
+                        }}
+                        disabled={logoProgress !== null}
+                      />
+                    </label>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs text-white/50 mb-2">صورة الغلاف (Cover)</label>
+                  {editForm.coverImage ? (
+                    <div className="relative w-full h-24 rounded-xl border border-white/10 overflow-hidden bg-white/5">
+                      <img src={editForm.coverImage} alt="Cover" className="w-full h-full object-cover" />
+                      <button
+                        onClick={() => setEditForm({ ...editForm, coverImage: "" })}
+                        className="absolute top-1 right-1 p-1 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center w-full h-24 rounded-xl border border-dashed border-white/20 hover:border-primary/50 cursor-pointer bg-white/5 transition-colors">
+                      {coverProgress !== null ? (
+                        <div className="text-center">
+                          <Loader2 className="w-5 h-5 text-primary animate-spin mx-auto mb-1" />
+                          <span className="text-[10px] text-white/70">{coverProgress}%</span>
+                        </div>
+                      ) : (
+                        <>
+                          <Upload className="w-5 h-5 text-white/40 mb-1" />
+                          <span className="text-[10px] text-white/50">اختر غلاف</span>
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleUploadImage(file, "cover", true);
+                        }}
+                        disabled={coverProgress !== null}
+                      />
+                    </label>
+                  )}
                 </div>
               </div>
 

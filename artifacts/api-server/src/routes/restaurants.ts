@@ -441,6 +441,7 @@ router.get("/admin/restaurants", authenticate, requireAdmin, async (req, res): P
         name: restaurantsTable.name,
         description: restaurantsTable.description,
         logo: restaurantsTable.logo,
+        coverImage: restaurantsTable.coverImage,
         category: restaurantsTable.category,
         address: restaurantsTable.address,
         phone: restaurantsTable.phone,
