@@ -53,7 +53,8 @@ app.get("/.well-known/assetlinks.json", (_req, res) => {
 
 // Full-stack Vite / Static Files serving
 if (process.env.NODE_ENV !== "production") {
-  const { createServer: createViteServer } = await import("vite");
+  const vitePkgName = "vite";
+  const { createServer: createViteServer } = await import(vitePkgName);
   const path = await import("path");
 
   console.log("[Fullstack] Starting Vite development servers...");
