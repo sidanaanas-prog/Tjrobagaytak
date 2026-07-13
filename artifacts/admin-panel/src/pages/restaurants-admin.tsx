@@ -165,7 +165,10 @@ export default function RestaurantsAdminPage() {
           estimatedDeliveryMinutes: Number(createForm.estimatedDeliveryMinutes) || 30,
         }),
       });
-      if (!res.ok) throw new Error("فشل إضافة منزل المناسبات");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "فشل إضافة منزل المناسبات");
+      }
       toast({ title: "✅ تم إضافة منزل المناسبات بنجاح" });
       setIsCreateModalOpen(false);
       setCreateForm({
@@ -253,7 +256,10 @@ export default function RestaurantsAdminPage() {
           estimatedDeliveryMinutes: Number(editForm.estimatedDeliveryMinutes) || 30,
         }),
       });
-      if (!res.ok) throw new Error("فشل تحديث منزل المناسبات");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "فشل تحديث منزل المناسبات");
+      }
       toast({ title: "✅ تم التحديث بنجاح" });
       setIsEditModalOpen(false);
       fetchRestaurants();

@@ -4,7 +4,41 @@ import { drizzle as drizzleNode } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import * as schema from "./schema";
 
-const DATABASE_URL = process.env.DATABASE_URL || "";
+import fs from "fs";
+import path from "path";
+
+let DATABASE_URL = process.env.DATABASE_URL || "";
+
+// Load NEON_URL from .neon_env to override localhost if present
+try {
+  let currentDir = process.cwd();
+  let neonEnvPath = "";
+  for (let i = 0; i < 4; i++) {
+    const tempPath = path.join(currentDir, ".neon_env");
+    if (fs.existsSync(tempPath)) {
+      neonEnvPath = tempPath;
+      break;
+    }
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) break;
+    currentDir = parentDir;
+  }
+  if (neonEnvPath) {
+    const content = fs.readFileSync(neonEnvPath, "utf-8");
+    const match = content.match(/NEON_URL\s*=\s*["']?([^"'\r\n]+)["']?/);
+    if (match && match[1]) {
+      DATABASE_URL = match[1].trim();
+      console.log("[DB] Found and loaded NEON_URL from .neon_env");
+    }
+  }
+} catch (err: any) {
+  console.warn("[DB] Failed to load .neon_env:", err.message);
+}
+
+if (process.env.NEON_URL) {
+  DATABASE_URL = process.env.NEON_URL;
+}
+
 const isNeon = DATABASE_URL ? DATABASE_URL.includes("neon.tech") : false;
 
 function buildDb() {
