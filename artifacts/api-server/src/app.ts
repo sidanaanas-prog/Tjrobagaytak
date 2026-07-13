@@ -52,29 +52,40 @@ app.get("/.well-known/assetlinks.json", (_req, res) => {
 });
 
 // Full-stack Vite / Static Files serving
-if (process.env.NODE_ENV !== "production") {
-  const vitePkgName = "vite";
-  const { createServer: createViteServer } = await import(vitePkgName);
-  const path = await import("path");
+let isDev = process.env.NODE_ENV !== "production";
+let viteAdmin: any = null;
+let viteMarketplace: any = null;
 
-  console.log("[Fullstack] Starting Vite development servers...");
+if (isDev) {
+  try {
+    const vitePkgName = "vite";
+    const { createServer: createViteServer } = await import(vitePkgName);
+    const path = await import("path");
 
-  // For Admin Panel (at /admin)
-  const viteAdmin = await createViteServer({
-    server: { middlewareMode: true },
-    appType: "spa",
-    root: path.resolve(process.cwd(), "artifacts/admin-panel"),
-    base: "/admin/",
-  });
+    console.log("[Fullstack] Starting Vite development servers...");
 
-  // For Marketplace (at /)
-  const viteMarketplace = await createViteServer({
-    server: { middlewareMode: true },
-    appType: "spa",
-    root: path.resolve(process.cwd(), "artifacts/marketplace"),
-    base: "/",
-  });
+    // For Admin Panel (at /admin)
+    viteAdmin = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+      root: path.resolve(process.cwd(), "artifacts/admin-panel"),
+      base: "/admin/",
+    });
 
+    // For Marketplace (at /)
+    viteMarketplace = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+      root: path.resolve(process.cwd(), "artifacts/marketplace"),
+      base: "/",
+    });
+  } catch (e) {
+    console.warn("[Fullstack] Vite is not available or failed to load. Falling back to static serving...", e);
+    isDev = false;
+  }
+}
+
+if (isDev && viteAdmin && viteMarketplace) {
   app.use("/admin", viteAdmin.middlewares);
   app.use(viteMarketplace.middlewares);
 } else {
