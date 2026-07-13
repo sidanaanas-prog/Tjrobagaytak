@@ -21,7 +21,7 @@ async function buildAll() {
 
     console.log("==> Building @workspace/admin-panel for production...");
     try {
-      execSync("pnpm --filter @workspace/admin-panel run build", {
+      execSync("npx --yes pnpm@9 --filter @workspace/admin-panel run build", {
         cwd: rootDir,
         stdio: "inherit",
       });
@@ -32,7 +32,7 @@ async function buildAll() {
 
     console.log("==> Building @workspace/marketplace for production...");
     try {
-      execSync("pnpm --filter @workspace/marketplace run build", {
+      execSync("npx --yes pnpm@9 --filter @workspace/marketplace run build", {
         cwd: rootDir,
         stdio: "inherit",
       });

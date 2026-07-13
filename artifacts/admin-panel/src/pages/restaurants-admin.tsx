@@ -69,7 +69,8 @@ const FILTER_TABS = ["الكل", "انتظار", "معتمد", "مرفوض"];
 type SubModal = { restaurantId: string; name: string; current: boolean; plan: string; expires: string | null };
 
 export default function RestaurantsAdminPage() {
-  const { token } = useAdminAuth();
+  const { token: authContextToken, logout } = useAdminAuth();
+  const token = authContextToken || localStorage.getItem("glow_admin_token") || "";
   const { toast } = useToast();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -137,11 +138,16 @@ export default function RestaurantsAdminPage() {
       const res = await fetch(`${BASE}/api/admin/restaurants`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (res.status === 401) {
+        toast({ title: "انتهت الجلسة", description: "يرجى تسجيل الدخول مجدداً", variant: "destructive" });
+        logout();
+        return;
+      }
       const data = await res.json();
       setRestaurants(Array.isArray(data) ? data : []);
     } catch {}
     setLoading(false);
-  }, [token]);
+  }, [token, logout, toast]);
 
   useEffect(() => { fetchRestaurants(); }, [fetchRestaurants]);
 
@@ -165,6 +171,11 @@ export default function RestaurantsAdminPage() {
           estimatedDeliveryMinutes: Number(createForm.estimatedDeliveryMinutes) || 30,
         }),
       });
+      if (res.status === 401) {
+        toast({ title: "انتهت الجلسة", description: "يرجى تسجيل الدخول مجدداً", variant: "destructive" });
+        logout();
+        return;
+      }
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || "فشل إضافة منزل المناسبات");
@@ -256,6 +267,11 @@ export default function RestaurantsAdminPage() {
           estimatedDeliveryMinutes: Number(editForm.estimatedDeliveryMinutes) || 30,
         }),
       });
+      if (res.status === 401) {
+        toast({ title: "انتهت الجلسة", description: "يرجى تسجيل الدخول مجدداً", variant: "destructive" });
+        logout();
+        return;
+      }
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || "فشل تحديث منزل المناسبات");
@@ -276,6 +292,11 @@ export default function RestaurantsAdminPage() {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (res.status === 401) {
+        toast({ title: "انتهت الجلسة", description: "يرجى تسجيل الدخول مجدداً", variant: "destructive" });
+        logout();
+        return;
+      }
       if (!res.ok) throw new Error("فشل حذف منزل المناسبات");
       toast({ title: "✅ تم الحذف بنجاح" });
       fetchRestaurants();
@@ -290,6 +311,11 @@ export default function RestaurantsAdminPage() {
       const res = await fetch(`${BASE}/api/admin/restaurants/${rId}/menu`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (res.status === 401) {
+        toast({ title: "انتهت الجلسة", description: "يرجى تسجيل الدخول مجدداً", variant: "destructive" });
+        logout();
+        return;
+      }
       const data = await res.json();
       setMenuItems(Array.isArray(data) ? data : []);
     } catch {
@@ -346,6 +372,11 @@ export default function RestaurantsAdminPage() {
         },
         body: JSON.stringify(menuItemForm),
       });
+      if (res.status === 401) {
+        toast({ title: "انتهت الجلسة", description: "يرجى تسجيل الدخول مجدداً", variant: "destructive" });
+        logout();
+        return;
+      }
       if (!res.ok) throw new Error("فشل حفظ الصنف");
       toast({ title: "✅ تم الحفظ بنجاح" });
       setIsMenuItemFormOpen(false);
@@ -365,6 +396,11 @@ export default function RestaurantsAdminPage() {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (res.status === 401) {
+        toast({ title: "انتهت الجلسة", description: "يرجى تسجيل الدخول مجدداً", variant: "destructive" });
+        logout();
+        return;
+      }
       if (!res.ok) throw new Error("فشل الحذف");
       toast({ title: "✅ تم الحذف بنجاح" });
       fetchMenuItems(menuRestaurant.id);
@@ -382,6 +418,11 @@ export default function RestaurantsAdminPage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status }),
       });
+      if (res.status === 401) {
+        toast({ title: "انتهت الجلسة", description: "يرجى تسجيل الدخول مجدداً", variant: "destructive" });
+        logout();
+        return;
+      }
       if (!res.ok) throw new Error("فشل التحديث");
       toast({ title: status === "approved" ? "✅ تم الاعتماد" : status === "rejected" ? "❌ تم الرفض" : "⏸ تم الإيقاف" });
       fetchRestaurants();
@@ -399,6 +440,11 @@ export default function RestaurantsAdminPage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ isFeatured: !current }),
       });
+      if (res.status === 401) {
+        toast({ title: "انتهت الجلسة", description: "يرجى تسجيل الدخول مجدداً", variant: "destructive" });
+        logout();
+        return;
+      }
       if (!res.ok) throw new Error("فشل");
       toast({ title: !current ? "⭐ تم التمييز" : "تم إلغاء التمييز" });
       fetchRestaurants();
@@ -436,6 +482,11 @@ export default function RestaurantsAdminPage() {
           months: subForm.isSubscribed ? subForm.months : 0,
         }),
       });
+      if (res.status === 401) {
+        toast({ title: "انتهت الجلسة", description: "يرجى تسجيل الدخول مجدداً", variant: "destructive" });
+        logout();
+        return;
+      }
       if (!res.ok) throw new Error("فشل التحديث");
       toast({ title: subForm.isSubscribed ? "✅ تم تفعيل الاشتراك" : "⏹ تم إلغاء الاشتراك" });
       setSubModal(null);

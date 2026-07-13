@@ -19,6 +19,7 @@ type AdminAuthContextType = {
   isLoading: boolean;
   login: ReturnType<typeof useLogin>["mutateAsync"];
   logout: () => void;
+  token: string | null;
 };
 
 const AdminAuthContext = createContext<AdminAuthContextType | null>(null);
@@ -71,7 +72,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AdminAuthContext.Provider
-      value={{ user: user || null, isLoading, login: loginMutation.mutateAsync, logout }}
+      value={{ user: user || null, isLoading, login: loginMutation.mutateAsync, logout, token }}
     >
       {children}
     </AdminAuthContext.Provider>
