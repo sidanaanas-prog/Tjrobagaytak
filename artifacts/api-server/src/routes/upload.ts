@@ -1,9 +1,14 @@
-import { Router, type IRouter, type Request, type Response } from "express";
+import express, { Router, type IRouter, type Request, type Response } from "express";
 import { v2 as cloudinary } from "cloudinary";
 import { objectStorageClient } from "../lib/objectStorage";
 import { authenticate } from "../lib/auth";
+import fs from "fs";
+import path from "path";
 
 const router: IRouter = Router();
+
+// Serve local uploads
+router.use("/local-uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // ─── detect environment ────────────────────────────────────────────────────
 
@@ -54,6 +59,16 @@ function getHost(req: Request): string {
   return host === "localhost:80" ? "localhost" : host;
 }
 
+async function uploadToLocalStorage(buffer: Buffer, filePath: string, req: Request): Promise<string> {
+  const localDir = path.join(process.cwd(), "uploads");
+  const localPath = path.join(localDir, filePath);
+  fs.mkdirSync(path.dirname(localPath), { recursive: true });
+  fs.writeFileSync(localPath, buffer);
+  const host = getHost(req);
+  const protocol = req.secure || (req.headers["x-forwarded-proto"] as string) === "https" ? "https" : "http";
+  return `${protocol}://${host}/api/local-uploads/${filePath}`;
+}
+
 async function uploadToReplitStorage(buffer: Buffer, filePath: string, contentType: string, req: Request): Promise<string> {
   const { bucket: bucketName, prefix } = getPublicBucketAndPrefix();
   const objectName = prefix ? `${prefix}/${filePath}` : filePath;
@@ -75,21 +90,32 @@ router.post("/upload", authenticate, async (req: Request, res: Response): Promis
     const cleanBase64 = base64.replace(/^data:.*?;base64,/, "");
     const folder = filePath.split("/")[0] || "general";
     const resourceType = isAudioContentType(contentType) ? "video" : "image";
+    const buffer = Buffer.from(cleanBase64, "base64");
 
     let url: string;
 
     if (IS_REPLIT) {
       // Use Replit Object Storage (works on both dev & prod)
-      const buffer = Buffer.from(cleanBase64, "base64");
       url = await uploadToReplitStorage(buffer, filePath, contentType, req);
       console.log(`[Upload] ✅ Replit Storage (${resourceType}): ${filePath}`);
     } else {
-      // Fallback to Cloudinary (Render / external)
-      const cloudinaryBase64 = resourceType === "video"
-        ? `data:video/webm;base64,${cleanBase64}`
-        : base64;
-      url = await uploadToCloudinary(cloudinaryBase64, folder, resourceType);
-      console.log(`[Upload] ✅ Cloudinary (${resourceType}): ${filePath}`);
+      const hasCloudinary = !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
+      if (hasCloudinary) {
+        try {
+          const cloudinaryBase64 = resourceType === "video"
+            ? `data:video/webm;base64,${cleanBase64}`
+            : base64;
+          url = await uploadToCloudinary(cloudinaryBase64, folder, resourceType);
+          console.log(`[Upload] ✅ Cloudinary (${resourceType}): ${filePath}`);
+        } catch (cloudinaryErr: any) {
+          console.warn("[Upload] Cloudinary upload failed, falling back to local storage:", cloudinaryErr?.message || cloudinaryErr);
+          url = await uploadToLocalStorage(buffer, filePath, req);
+          console.log(`[Upload] ✅ Local Storage Fallback (${resourceType}): ${filePath}`);
+        }
+      } else {
+        url = await uploadToLocalStorage(buffer, filePath, req);
+        console.log(`[Upload] ✅ Local Storage (${resourceType}): ${filePath}`);
+      }
     }
 
     res.json({ url, path: filePath });
