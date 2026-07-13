@@ -93,6 +93,7 @@ export default function Users() {
     try {
       await banMutation.mutateAsync({ id: userToBan.id, data: { banned: !userToBan.isCurrentlyBanned } });
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: getListUsersQueryKey(queryParams) });
     } finally { setUserToBan(null); }
   };
 
@@ -101,6 +102,7 @@ export default function Users() {
     try {
       await deleteMutation.mutateAsync({ id: userToDelete.id });
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: getListUsersQueryKey(queryParams) });
     } finally { setUserToDelete(null); }
   };
 
@@ -110,6 +112,7 @@ export default function Users() {
       await updateMutation.mutateAsync({ id: userToEdit.id, data });
       toast({ title: "✅ تم تحديث البيانات بنجاح" });
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: getListUsersQueryKey(queryParams) });
       setUserToEdit(null);
     } catch (e: any) {
       console.error(e);
