@@ -14,6 +14,34 @@ async function buildAll() {
   const distDir = path.resolve(artifactDir, "dist");
   await rm(distDir, { recursive: true, force: true });
 
+  // Build admin-panel and marketplace in production so their static files are available for serving
+  if (process.env.NODE_ENV === "production" || process.env.RENDER === "true") {
+    const { execSync } = await import("node:child_process");
+    const rootDir = path.resolve(artifactDir, "../..");
+
+    console.log("==> Building @workspace/admin-panel for production...");
+    try {
+      execSync("pnpm --filter @workspace/admin-panel run build", {
+        cwd: rootDir,
+        stdio: "inherit",
+      });
+    } catch (err) {
+      console.error("Failed to build @workspace/admin-panel:", err);
+      throw err;
+    }
+
+    console.log("==> Building @workspace/marketplace for production...");
+    try {
+      execSync("pnpm --filter @workspace/marketplace run build", {
+        cwd: rootDir,
+        stdio: "inherit",
+      });
+    } catch (err) {
+      console.error("Failed to build @workspace/marketplace:", err);
+      throw err;
+    }
+  }
+
   await esbuild({
     entryPoints: [path.resolve(artifactDir, "src/index.ts")],
     platform: "node",

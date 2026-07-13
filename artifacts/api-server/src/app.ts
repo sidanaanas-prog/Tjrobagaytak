@@ -96,7 +96,7 @@ if (isDev && viteAdmin && viteMarketplace) {
   console.log("[Fullstack] Serving production static files...");
 
   app.use("/admin", express.static(adminDist));
-  app.get("/admin*", (req, res) => {
+  app.get(/^\/admin/, (req, res) => {
     res.sendFile(path.join(adminDist, "index.html"));
   });
 
