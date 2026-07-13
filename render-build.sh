@@ -3,7 +3,7 @@ set -e
 
 echo "==> Installing dependencies..."
 corepack enable pnpm 2>/dev/null || npm install -g pnpm
-pnpm install
+pnpm install --no-frozen-lockfile
 
 echo "==> Building libs (type declarations)..."
 cd lib/db && pnpm exec tsc --noEmit 2>/dev/null || true && cd ../..
