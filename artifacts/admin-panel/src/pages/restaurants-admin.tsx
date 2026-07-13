@@ -5,10 +5,22 @@ import { getApiUrl } from "@/lib/api-url";
 import {
   Loader2, Home, CheckCircle, XCircle, Star, Clock, MapPin,
   Flame, RefreshCw, ShoppingBag, User, Phone, Mail, UtensilsCrossed,
-  CreditCard, Crown, CalendarDays, X,
+  CreditCard, Crown, CalendarDays, X, Plus, Trash2, Edit, PlusCircle, DollarSign,
 } from "lucide-react";
 
 const BASE = getApiUrl("");
+
+type MenuItem = {
+  id: string;
+  restaurantId: string;
+  category: string;
+  name: string;
+  description: string | null;
+  price: string;
+  image: string | null;
+  isAvailable: boolean;
+  sortOrder: number;
+};
 
 type Restaurant = {
   id: string;
@@ -65,6 +77,52 @@ export default function RestaurantsAdminPage() {
   const [subForm, setSubForm] = useState({ isSubscribed: false, plan: "basic", months: 1 });
   const [subLoading, setSubLoading] = useState(false);
 
+  // New states for creating event houses (restaurants)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    name: "",
+    description: "",
+    category: "عام",
+    address: "",
+    phone: "",
+    deliveryFee: "0",
+    minOrder: "0",
+    estimatedDeliveryMinutes: 30,
+  });
+  const [createLoading, setCreateLoading] = useState(false);
+
+  // New states for editing event houses
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingRestaurant, setEditingRestaurant] = useState<Restaurant | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    description: "",
+    category: "عام",
+    address: "",
+    phone: "",
+    deliveryFee: "0",
+    minOrder: "0",
+    estimatedDeliveryMinutes: 30,
+    isOpen: true,
+  });
+  const [editLoading, setEditLoading] = useState(false);
+
+  // New states for managing service packages (menu items)
+  const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
+  const [menuRestaurant, setMenuRestaurant] = useState<Restaurant | null>(null);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [menuLoading, setMenuLoading] = useState(false);
+
+  const [isMenuItemFormOpen, setIsMenuItemFormOpen] = useState(false);
+  const [editingMenuItem, setEditingMenuItem] = useState<MenuItem | null>(null);
+  const [menuItemForm, setMenuItemForm] = useState({
+    name: "",
+    description: "",
+    price: "",
+    category: "الرئيسية",
+  });
+  const [menuItemLoading, setMenuItemLoading] = useState(false);
+
   const fetchRestaurants = useCallback(async () => {
     try {
       const res = await fetch(`${BASE}/api/admin/restaurants`, {
@@ -77,6 +135,198 @@ export default function RestaurantsAdminPage() {
   }, [token]);
 
   useEffect(() => { fetchRestaurants(); }, [fetchRestaurants]);
+
+  const handleCreateRestaurant = async () => {
+    if (!createForm.name || !createForm.address) {
+      toast({ title: "الاسم والعنوان مطلوبان", variant: "destructive" });
+      return;
+    }
+    setCreateLoading(true);
+    try {
+      const res = await fetch(`${BASE}/api/admin/restaurants`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          ...createForm,
+          deliveryFee: createForm.deliveryFee || "0",
+          minOrder: createForm.minOrder || "0",
+          estimatedDeliveryMinutes: Number(createForm.estimatedDeliveryMinutes) || 30,
+        }),
+      });
+      if (!res.ok) throw new Error("فشل إضافة منزل المناسبات");
+      toast({ title: "✅ تم إضافة منزل المناسبات بنجاح" });
+      setIsCreateModalOpen(false);
+      setCreateForm({
+        name: "",
+        description: "",
+        category: "عام",
+        address: "",
+        phone: "",
+        deliveryFee: "0",
+        minOrder: "0",
+        estimatedDeliveryMinutes: 30,
+      });
+      fetchRestaurants();
+    } catch (e: any) {
+      toast({ title: "خطأ", description: e.message, variant: "destructive" });
+    }
+    setCreateLoading(false);
+  };
+
+  const handleOpenEdit = (r: Restaurant) => {
+    setEditingRestaurant(r);
+    setEditForm({
+      name: r.name,
+      description: r.description ?? "",
+      category: r.category,
+      address: r.address,
+      phone: r.phone ?? "",
+      deliveryFee: r.deliveryFee,
+      minOrder: r.minOrder,
+      estimatedDeliveryMinutes: r.estimatedDeliveryMinutes,
+      isOpen: r.isOpen,
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditRestaurant = async () => {
+    if (!editingRestaurant) return;
+    if (!editForm.name || !editForm.address) {
+      toast({ title: "الاسم والعنوان مطلوبان", variant: "destructive" });
+      return;
+    }
+    setEditLoading(true);
+    try {
+      const res = await fetch(`${BASE}/api/admin/restaurants/${editingRestaurant.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          ...editForm,
+          deliveryFee: editForm.deliveryFee || "0",
+          minOrder: editForm.minOrder || "0",
+          estimatedDeliveryMinutes: Number(editForm.estimatedDeliveryMinutes) || 30,
+        }),
+      });
+      if (!res.ok) throw new Error("فشل تحديث منزل المناسبات");
+      toast({ title: "✅ تم التحديث بنجاح" });
+      setIsEditModalOpen(false);
+      fetchRestaurants();
+    } catch (e: any) {
+      toast({ title: "خطأ", description: e.message, variant: "destructive" });
+    }
+    setEditLoading(false);
+  };
+
+  const handleDeleteRestaurant = async (id: string) => {
+    if (!confirm("هل أنت متأكد من حذف هذا المنزل نهائياً؟")) return;
+    try {
+      const res = await fetch(`${BASE}/api/admin/restaurants/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("فشل حذف منزل المناسبات");
+      toast({ title: "✅ تم الحذف بنجاح" });
+      fetchRestaurants();
+    } catch (e: any) {
+      toast({ title: "خطأ", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const fetchMenuItems = async (rId: string) => {
+    setMenuLoading(true);
+    try {
+      const res = await fetch(`${BASE}/api/admin/restaurants/${rId}/menu`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setMenuItems(Array.isArray(data) ? data : []);
+    } catch {
+      setMenuItems([]);
+    }
+    setMenuLoading(false);
+  };
+
+  const handleOpenMenu = (r: Restaurant) => {
+    setMenuRestaurant(r);
+    setMenuItems([]);
+    setIsMenuModalOpen(true);
+    fetchMenuItems(r.id);
+  };
+
+  const handleOpenMenuItemForm = (item?: MenuItem) => {
+    if (item) {
+      setEditingMenuItem(item);
+      setMenuItemForm({
+        name: item.name,
+        description: item.description ?? "",
+        price: item.price,
+        category: item.category,
+      });
+    } else {
+      setEditingMenuItem(null);
+      setMenuItemForm({
+        name: "",
+        description: "",
+        price: "",
+        category: "الرئيسية",
+      });
+    }
+    setIsMenuItemFormOpen(true);
+  };
+
+  const handleSaveMenuItem = async () => {
+    if (!menuRestaurant) return;
+    if (!menuItemForm.name || !menuItemForm.price) {
+      toast({ title: "الاسم والسعر مطلوبان", variant: "destructive" });
+      return;
+    }
+    setMenuItemLoading(true);
+    try {
+      const url = editingMenuItem
+        ? `${BASE}/api/admin/restaurants/${menuRestaurant.id}/menu/${editingMenuItem.id}`
+        : `${BASE}/api/admin/restaurants/${menuRestaurant.id}/menu`;
+      const method = editingMenuItem ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(menuItemForm),
+      });
+      if (!res.ok) throw new Error("فشل حفظ الصنف");
+      toast({ title: "✅ تم الحفظ بنجاح" });
+      setIsMenuItemFormOpen(false);
+      fetchMenuItems(menuRestaurant.id);
+      fetchRestaurants();
+    } catch (e: any) {
+      toast({ title: "خطأ", description: e.message, variant: "destructive" });
+    }
+    setMenuItemLoading(false);
+  };
+
+  const handleDeleteMenuItem = async (itemId: string) => {
+    if (!menuRestaurant) return;
+    if (!confirm("هل أنت متأكد من حذف هذا الصنف؟")) return;
+    try {
+      const res = await fetch(`${BASE}/api/admin/restaurants/${menuRestaurant.id}/menu/${itemId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("فشل الحذف");
+      toast({ title: "✅ تم الحذف بنجاح" });
+      fetchMenuItems(menuRestaurant.id);
+      fetchRestaurants();
+    } catch (e: any) {
+      toast({ title: "خطأ", description: e.message, variant: "destructive" });
+    }
+  };
 
   const updateStatus = async (id: string, status: string) => {
     setActionLoading(id + status);
@@ -174,12 +424,20 @@ export default function RestaurantsAdminPage() {
             <p className="text-yellow-400 text-sm mt-1">⚠️ {pendingCount} منزل مناسبات بانتظار المراجعة</p>
           )}
         </div>
-        <button
-          onClick={fetchRestaurants}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-white text-sm transition-colors"
-        >
-          <RefreshCw className="w-4 h-4" /> تحديث
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-sm shadow-[0_0_15px_rgba(168,85,247,0.4)] transition-all"
+          >
+            <Plus className="w-4 h-4" /> إضافة منزل مناسبات جديد
+          </button>
+          <button
+            onClick={fetchRestaurants}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-white text-sm transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" /> تحديث
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -392,6 +650,27 @@ export default function RestaurantsAdminPage() {
                     <CreditCard className="w-3.5 h-3.5" />
                     الاشتراك
                   </button>
+                  <button
+                    onClick={() => handleOpenEdit(r)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/70 hover:text-white text-xs font-semibold transition-colors"
+                  >
+                    <Edit className="w-3.5 h-3.5 text-blue-400" />
+                    تعديل التفاصيل
+                  </button>
+                  <button
+                    onClick={() => handleOpenMenu(r)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 text-xs font-semibold transition-colors"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    إدارة الخدمات والأسعار ({r.menuCount})
+                  </button>
+                  <button
+                    onClick={() => handleDeleteRestaurant(r.id)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 text-xs font-semibold transition-colors mr-auto"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    حذف
+                  </button>
                 </div>
               </div>
             );
@@ -496,6 +775,462 @@ export default function RestaurantsAdminPage() {
               {subLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               {subForm.isSubscribed ? "تفعيل الاشتراك" : "إلغاء الاشتراك"}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Create Event House Modal */}
+      {isCreateModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto"
+          onClick={() => setIsCreateModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl bg-[#1a1a2e] border border-white/10 p-6 max-h-[90vh] overflow-y-auto"
+            dir="rtl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4 pb-2 border-b border-white/10">
+              <h3 className="font-bold text-white text-lg flex items-center gap-2">
+                <Home className="w-5 h-5 text-primary" /> إضافة منزل مناسبات جديد
+              </h3>
+              <button onClick={() => setIsCreateModalOpen(false)} className="text-white/40 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs text-white/50 mb-1">اسم منزل المناسبات *</label>
+                <input
+                  type="text"
+                  value={createForm.name}
+                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary"
+                  placeholder="مثال: فيلا الياسمين للمناسبات"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-white/50 mb-1">وصف مختصر</label>
+                <textarea
+                  value={createForm.description}
+                  onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary h-20 resize-none"
+                  placeholder="وصف تفصيلي للخدمات والمزايا المتوفرة..."
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-white/50 mb-1">العنوان / الموقع *</label>
+                  <input
+                    type="text"
+                    value={createForm.address}
+                    onChange={(e) => setCreateForm({ ...createForm, address: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary"
+                    placeholder="مثال: الجزائر العاصمة"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-white/50 mb-1">رقم الهاتف</label>
+                  <input
+                    type="text"
+                    value={createForm.phone}
+                    onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary"
+                    placeholder="مثال: 0555123456"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-white/50 mb-1">التأمين (دج)</label>
+                  <input
+                    type="text"
+                    value={createForm.deliveryFee}
+                    onChange={(e) => setCreateForm({ ...createForm, deliveryFee: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary"
+                    placeholder="مثال: 5000"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-white/50 mb-1">الحد الأدنى للحجز (دج)</label>
+                  <input
+                    type="text"
+                    value={createForm.minOrder}
+                    onChange={(e) => setCreateForm({ ...createForm, minOrder: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary"
+                    placeholder="مثال: 15000"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-white/50 mb-1">الفئة</label>
+                  <select
+                    value={createForm.category}
+                    onChange={(e) => setCreateForm({ ...createForm, category: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-[#131324] border border-white/10 text-white text-sm focus:outline-none focus:border-primary"
+                  >
+                    <option value="عام">عام</option>
+                    <option value="قاعات حفلات">قاعات حفلات</option>
+                    <option value="شاليهات وفيلات">شاليهات وفيلات</option>
+                    <option value="خيم تقليدية">خيم تقليدية</option>
+                    <option value="فنادق ومطاعم">فنادق ومطاعم</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-white/50 mb-1">مدة تأكيد الطلب (بالدقائق)</label>
+                  <input
+                    type="number"
+                    value={createForm.estimatedDeliveryMinutes}
+                    onChange={(e) => setCreateForm({ ...createForm, estimatedDeliveryMinutes: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-white/10 flex justify-end gap-2">
+              <button
+                onClick={() => setIsCreateModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/80 text-sm transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleCreateRestaurant}
+                disabled={createLoading}
+                className="px-5 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-sm transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {createLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                إضافة وحفظ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Event House Modal */}
+      {isEditModalOpen && editingRestaurant && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto"
+          onClick={() => setIsEditModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl bg-[#1a1a2e] border border-white/10 p-6 max-h-[90vh] overflow-y-auto"
+            dir="rtl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4 pb-2 border-b border-white/10">
+              <h3 className="font-bold text-white text-lg flex items-center gap-2">
+                <Edit className="w-5 h-5 text-primary" /> تعديل تفاصيل منزل المناسبات
+              </h3>
+              <button onClick={() => setIsEditModalOpen(false)} className="text-white/40 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs text-white/50 mb-1">اسم منزل المناسبات *</label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary"
+                  placeholder="اسم منزل المناسبات"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-white/50 mb-1">وصف مختصر</label>
+                <textarea
+                  value={editForm.description}
+                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary h-20 resize-none"
+                  placeholder="الوصف..."
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-white/50 mb-1">العنوان *</label>
+                  <input
+                    type="text"
+                    value={editForm.address}
+                    onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-white/50 mb-1">رقم الهاتف</label>
+                  <input
+                    type="text"
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-white/50 mb-1">التأمين (دج)</label>
+                  <input
+                    type="text"
+                    value={editForm.deliveryFee}
+                    onChange={(e) => setEditForm({ ...editForm, deliveryFee: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-white/50 mb-1">الحد الأدنى للحجز (دج)</label>
+                  <input
+                    type="text"
+                    value={editForm.minOrder}
+                    onChange={(e) => setEditForm({ ...editForm, minOrder: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-white/50 mb-1">الفئة</label>
+                  <select
+                    value={editForm.category}
+                    onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-[#131324] border border-white/10 text-white text-sm focus:outline-none focus:border-primary"
+                  >
+                    <option value="عام">عام</option>
+                    <option value="قاعات حفلات">قاعات حفلات</option>
+                    <option value="شاليهات وفيلات">شاليهات وفيلات</option>
+                    <option value="خيم تقليدية">خيم تقليدية</option>
+                    <option value="فنادق ومطاعم">فنادق ومطاعم</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-white/50 mb-1">مدة تأكيد الطلب (بالدقائق)</label>
+                  <input
+                    type="number"
+                    value={editForm.estimatedDeliveryMinutes}
+                    onChange={(e) => setEditForm({ ...editForm, estimatedDeliveryMinutes: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
+                <span className="text-sm text-white/80">حالة المنزل (نشط / مفتوح للحجز)</span>
+                <button
+                  onClick={() => setEditForm({ ...editForm, isOpen: !editForm.isOpen })}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${editForm.isOpen ? "bg-green-500" : "bg-white/20"}`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${editForm.isOpen ? "right-1" : "right-6"}`}
+                  />
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-white/10 flex justify-end gap-2">
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/80 text-sm transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleEditRestaurant}
+                disabled={editLoading}
+                className="px-5 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-sm transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {editLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                حفظ التعديلات
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Menu / Pricing Packages Modal */}
+      {isMenuModalOpen && menuRestaurant && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
+          onClick={() => setIsMenuModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-2xl rounded-2xl bg-[#121222] border border-white/10 p-6 max-h-[85vh] flex flex-col"
+            dir="rtl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-white/10 shrink-0">
+              <div>
+                <h3 className="font-bold text-white text-lg flex items-center gap-2">
+                  <PlusCircle className="w-5 h-5 text-primary" /> إدارة خدمات وأسعار: {menuRestaurant.name}
+                </h3>
+                <p className="text-xs text-white/40 mt-1">أضف باقات الحجز أو الخدمات الإضافية المتاحة وحدد أسعارها</p>
+              </div>
+              <button onClick={() => setIsMenuModalOpen(false)} className="text-white/40 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Menu items list */}
+            <div className="flex-1 overflow-y-auto py-4 space-y-3">
+              {menuLoading ? (
+                <div className="flex items-center justify-center py-10">
+                  <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                </div>
+              ) : menuItems.length === 0 ? (
+                <div className="text-center py-12 bg-white/3 rounded-xl border border-dashed border-white/10">
+                  <DollarSign className="w-10 h-10 text-white/10 mx-auto mb-2" />
+                  <p className="text-sm text-white/40">لا توجد خدمات أو أسعار مضافة لهذا المنزل بعد</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {menuItems.map((item) => (
+                    <div key={item.id} className="rounded-xl bg-white/5 border border-white/10 p-3 flex flex-col justify-between">
+                      <div>
+                        <div className="flex justify-between items-start gap-2">
+                          <h4 className="font-bold text-sm text-white">{item.name}</h4>
+                          <span className="text-xs font-black text-primary shrink-0 bg-primary/10 px-2 py-0.5 rounded-lg">
+                            {item.price} دج
+                          </span>
+                        </div>
+                        {item.description && (
+                          <p className="text-xs text-white/40 mt-1 line-clamp-2">{item.description}</p>
+                        )}
+                        <span className="text-[10px] text-white/30 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded-md mt-2 inline-block">
+                          {item.category}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 mt-3 pt-2 border-t border-white/5 shrink-0">
+                        <button
+                          onClick={() => handleOpenMenuItemForm(item)}
+                          className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                        >
+                          <Edit className="w-3 h-3" /> تعديل
+                        </button>
+                        <span className="text-white/10 text-xs">|</span>
+                        <button
+                          onClick={() => handleDeleteMenuItem(item.id)}
+                          className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3 h-3" /> حذف
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 border-t border-white/10 shrink-0 flex justify-between items-center">
+              <button
+                onClick={() => handleOpenMenuItemForm()}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-sm transition-colors shadow-[0_0_10px_rgba(168,85,247,0.3)]"
+              >
+                <Plus className="w-4 h-4" /> إضافة خدمة / باقة جديدة
+              </button>
+              <button
+                onClick={() => setIsMenuModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/80 text-sm transition-colors"
+              >
+                إغلاق النافذة
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MenuItem Form SubModal */}
+      {isMenuItemFormOpen && menuRestaurant && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          onClick={() => setIsMenuItemFormOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-[#18182a] border border-white/10 p-5 shadow-2xl"
+            dir="rtl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4 pb-2 border-b border-white/10">
+              <h3 className="font-bold text-white text-md flex items-center gap-1.5">
+                {editingMenuItem ? <Edit className="w-4 h-4 text-primary" /> : <Plus className="w-4 h-4 text-primary" />}
+                {editingMenuItem ? "تعديل الخدمة/الباقة" : "إضافة خدمة/باقة جديدة"}
+              </h3>
+              <button onClick={() => setIsMenuItemFormOpen(false)} className="text-white/40 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-white/50 mb-1">اسم الخدمة أو باقة الحجز *</label>
+                <input
+                  type="text"
+                  value={menuItemForm.name}
+                  onChange={(e) => setMenuItemForm({ ...menuItemForm, name: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary"
+                  placeholder="مثال: حجز كامل لمدة 24 ساعة"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-white/50 mb-1">السعر (دج) *</label>
+                <input
+                  type="text"
+                  value={menuItemForm.price}
+                  onChange={(e) => setMenuItemForm({ ...menuItemForm, price: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary"
+                  placeholder="مثال: 35000"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-white/50 mb-1">تصنيف الخدمة</label>
+                <input
+                  type="text"
+                  value={menuItemForm.category}
+                  onChange={(e) => setMenuItemForm({ ...menuItemForm, category: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary"
+                  placeholder="مثال: باقات الحجز أو خدمات إضافية"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-white/50 mb-1">وصف تفصيلي للخدمة</label>
+                <textarea
+                  value={menuItemForm.description}
+                  onChange={(e) => setMenuItemForm({ ...menuItemForm, description: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary h-16 resize-none"
+                  placeholder="تفاصيل العرض، كالمرافق المتاحة، شروط الحجز..."
+                />
+              </div>
+            </div>
+
+            <div className="mt-5 pt-3 border-t border-white/10 flex justify-end gap-2">
+              <button
+                onClick={() => setIsMenuItemFormOpen(false)}
+                className="px-3.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/80 text-xs transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleSaveMenuItem}
+                disabled={menuItemLoading}
+                className="px-4.5 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-white font-bold text-xs transition-colors disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {menuItemLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                حفظ الخدمة
+              </button>
+            </div>
           </div>
         </div>
       )}

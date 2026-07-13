@@ -103,6 +103,7 @@ async function buildAll() {
       "puppeteer",
       "puppeteer-core",
       "electron",
+      "vite",
     ],
     sourcemap: "linked",
     plugins: [

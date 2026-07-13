@@ -193,6 +193,10 @@ router.get("/users/:id", async (req, res): Promise<void> => {
 router.patch("/users/:id", authenticate, async (req, res): Promise<void> => {
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    console.log("[PATCH /users/:id] START for user:", id);
+    console.log("[PATCH /users/:id] req.body received:", JSON.stringify(req.body));
+    console.log("[PATCH /users/:id] Current admin role check:", req.user?.role);
+
     if (req.user!.id !== id && req.user!.role !== "admin") {
       res.status(403).json({ error: "Forbidden" });
       return;
@@ -203,28 +207,42 @@ router.patch("/users/:id", authenticate, async (req, res): Promise<void> => {
     if (name) updates.name = name;
     if (avatar !== undefined) updates.avatar = avatar;
     if (pushToken !== undefined) updates.pushToken = pushToken;
-    if (role && req.user!.role === "admin") updates.role = role;
+    if (role && req.user!.role === "admin") {
+      updates.role = role;
+    }
+    
     if (phone !== undefined) {
+      console.log("[PATCH /users/:id] Phone field is present in body. Value:", JSON.stringify(phone));
       if (phone && phone.trim() !== "") {
         const [existing] = await db.select().from(usersTable).where(eq(usersTable.phone, phone.trim()));
+        if (existing) {
+          console.log("[PATCH /users/:id] Found existing user with phone:", existing.id, "current user id:", id);
+        }
         if (existing && existing.id !== id) {
+          console.log("[PATCH /users/:id] Phone number conflict detected for phone:", phone.trim());
           res.status(400).json({ error: "رقم الهاتف مستخدم بالفعل من قبل حساب آخر" });
           return;
         }
         updates.phone = phone.trim();
       } else {
+        console.log("[PATCH /users/:id] Phone is empty string or null, setting to null");
         updates.phone = null;
       }
     }
 
+    console.log("[PATCH /users/:id] Final updates object to write:", JSON.stringify(updates));
+
     await db.update(usersTable).set(updates).where(eq(usersTable.id, id as string));
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id as string));
     if (!user) {
+      console.log("[PATCH /users/:id] User not found after update!");
       res.status(404).json({ error: "User not found" });
       return;
     }
+    console.log("[PATCH /users/:id] User successfully updated. New phone:", user.phone);
     res.json(formatUser(user));
-  } catch (err) {
+  } catch (err: any) {
+    console.error("[PATCH /users/:id] ERROR:", err);
     res.status(500).json({ error: "حدث خطأ في الخادم" });
   }
 });

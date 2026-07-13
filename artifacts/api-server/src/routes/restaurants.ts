@@ -533,4 +533,138 @@ router.get("/admin/food-orders", authenticate, requireAdmin, async (req, res): P
   }
 });
 
+// إضافة منزل مناسبات جديد (أدمن)
+router.post("/admin/restaurants", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const userId = (req as any).user.id;
+    const { name, description, category, address, phone, logo, coverImage, deliveryFee, minOrder, estimatedDeliveryMinutes } = req.body;
+
+    if (!name || !address) { res.status(400).json({ error: "الاسم والعنوان مطلوبان" }); return; }
+
+    const id = randomUUID().slice(0, 8);
+    await db.insert(restaurantsTable).values({
+      id,
+      ownerId: userId,
+      name,
+      description: description ?? null,
+      category: category ?? "عام",
+      address,
+      phone: phone ?? null,
+      logo: logo ?? null,
+      coverImage: coverImage ?? null,
+      deliveryFee: deliveryFee ?? "0",
+      minOrder: minOrder ?? "0",
+      estimatedDeliveryMinutes: estimatedDeliveryMinutes ?? 30,
+      status: "approved",
+    });
+
+    res.json({ id, message: "تمت إضافة منزل المناسبات بنجاح" });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// تعديل منزل مناسبات (أدمن)
+router.patch("/admin/restaurants/:id", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const { name, description, category, address, phone, logo, coverImage, isOpen, deliveryFee, minOrder, estimatedDeliveryMinutes } = req.body;
+    await db.update(restaurantsTable).set({
+      ...(name !== undefined && { name }),
+      ...(description !== undefined && { description }),
+      ...(category !== undefined && { category }),
+      ...(address !== undefined && { address }),
+      ...(phone !== undefined && { phone }),
+      ...(logo !== undefined && { logo }),
+      ...(coverImage !== undefined && { coverImage }),
+      ...(isOpen !== undefined && { isOpen }),
+      ...(deliveryFee !== undefined && { deliveryFee }),
+      ...(minOrder !== undefined && { minOrder }),
+      ...(estimatedDeliveryMinutes !== undefined && { estimatedDeliveryMinutes }),
+      updatedAt: new Date(),
+    }).where(eq(restaurantsTable.id, req.params.id));
+
+    res.json({ message: "تم تحديث منزل المناسبات بنجاح" });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// حذف منزل مناسبات (أدمن)
+router.delete("/admin/restaurants/:id", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    await db.delete(restaurantsTable).where(eq(restaurantsTable.id, req.params.id));
+    res.json({ message: "تم حذف منزل المناسبات بنجاح" });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// قائمة أصناف منزل المناسبات (أدمن)
+router.get("/admin/restaurants/:id/menu", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const menu = (await db
+      .select()
+      .from(menuItemsTable)
+      .where(eq(menuItemsTable.restaurantId, req.params.id))
+      .orderBy(menuItemsTable.category, menuItemsTable.sortOrder)) ?? [];
+    res.json(menu);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// إضافة صنف لمنزل المناسبات (أدمن)
+router.post("/admin/restaurants/:id/menu", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const { name, description, category, price, image, sortOrder } = req.body;
+    if (!name || !price) { res.status(400).json({ error: "الاسم والسعر مطلوبان" }); return; }
+
+    const id = randomUUID().slice(0, 8);
+    await db.insert(menuItemsTable).values({
+      id,
+      restaurantId: req.params.id,
+      name,
+      description: description ?? null,
+      category: category ?? "الرئيسية",
+      price: String(price),
+      image: image ?? null,
+      sortOrder: sortOrder ?? 0,
+    });
+
+    res.json({ id, message: "تمت إضافة الصنف بنجاح" });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// تعديل صنف لمنزل المناسبات (أدمن)
+router.patch("/admin/restaurants/:id/menu/:itemId", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const { name, description, category, price, image, isAvailable, sortOrder } = req.body;
+    await db.update(menuItemsTable).set({
+      ...(name !== undefined && { name }),
+      ...(description !== undefined && { description }),
+      ...(category !== undefined && { category }),
+      ...(price !== undefined && { price: String(price) }),
+      ...(image !== undefined && { image }),
+      ...(isAvailable !== undefined && { isAvailable }),
+      ...(sortOrder !== undefined && { sortOrder }),
+    }).where(and(eq(menuItemsTable.id, req.params.itemId), eq(menuItemsTable.restaurantId, req.params.id)));
+
+    res.json({ message: "تم تعديل الصنف بنجاح" });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// حذف صنف من منزل المناسبات (أدمن)
+router.delete("/admin/restaurants/:id/menu/:itemId", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    await db.delete(menuItemsTable).where(and(eq(menuItemsTable.id, req.params.itemId), eq(menuItemsTable.restaurantId, req.params.id)));
+    res.json({ message: "تم حذف الصنف بنجاح" });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;
