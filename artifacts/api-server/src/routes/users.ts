@@ -198,12 +198,24 @@ router.patch("/users/:id", authenticate, async (req, res): Promise<void> => {
       return;
     }
 
-    const { name, avatar, role, pushToken } = req.body;
+    const { name, avatar, role, pushToken, phone } = req.body;
     const updates: Partial<typeof usersTable.$inferInsert> = {};
     if (name) updates.name = name;
     if (avatar !== undefined) updates.avatar = avatar;
     if (pushToken !== undefined) updates.pushToken = pushToken;
     if (role && req.user!.role === "admin") updates.role = role;
+    if (phone !== undefined) {
+      if (phone && phone.trim() !== "") {
+        const [existing] = await db.select().from(usersTable).where(eq(usersTable.phone, phone.trim()));
+        if (existing && existing.id !== id) {
+          res.status(400).json({ error: "رقم الهاتف مستخدم بالفعل من قبل حساب آخر" });
+          return;
+        }
+        updates.phone = phone.trim();
+      } else {
+        updates.phone = null;
+      }
+    }
 
     await db.update(usersTable).set(updates).where(eq(usersTable.id, id as string));
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id as string));

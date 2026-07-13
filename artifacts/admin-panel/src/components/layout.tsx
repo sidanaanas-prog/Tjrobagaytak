@@ -17,7 +17,7 @@ import {
   CreditCard,
   Navigation,
   Car,
-  ChefHat,
+  Home,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -105,7 +105,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/subscriptions", label: "الاشتراكات", icon: CreditCard, badge: pendingSubscriptions },
     { href: "/driver-subscriptions", label: "اشتراكات الكورسا", icon: Navigation },
     { href: "/rides", label: "طلبات الكورسا", icon: Car },
-    { href: "/restaurants", label: "المطاعم", icon: ChefHat },
+    { href: "/restaurants", label: "منازل المناسبات", icon: Home },
     { href: "/promotions", label: "العروض الترويجية", icon: Zap },
     { href: "/flash-sales", label: "Flash Sales", icon: Zap },
     { href: "/activity", label: "Activity", icon: Activity },

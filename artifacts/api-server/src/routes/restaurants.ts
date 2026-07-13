@@ -60,6 +60,13 @@ router.get("/restaurants/:id", async (req, res): Promise<void> => {
 router.post("/restaurants", authenticate, async (req, res): Promise<void> => {
   try {
     const userId = (req as any).user.id;
+    const userRole = (req as any).user.role;
+
+    if (userRole !== "admin") {
+      res.status(403).json({ error: "غير مصرح. فقط المسؤول يمكنه إضافة منازل مناسبات." });
+      return;
+    }
+
     const { name, description, category, address, phone, logo, coverImage, deliveryFee, minOrder, estimatedDeliveryMinutes } = req.body;
 
     if (!name || !address) { res.status(400).json({ error: "الاسم والعنوان مطلوبان" }); return; }

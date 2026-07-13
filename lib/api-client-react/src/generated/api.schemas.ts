@@ -73,6 +73,7 @@ export interface UpdateUserInput {
   name?: string;
   avatar?: string;
   role?: UpdateUserInputRole;
+  phone?: string | null;
 }
 
 export interface UsersListResponse {

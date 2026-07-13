@@ -8,7 +8,7 @@ import {
   Banknote, CalendarDays, CheckCircle,
 } from "lucide-react";
 import { getApiUrl } from "@/lib/api-url";
-import { getMemToken } from "@/hooks/use-auth";
+import { getMemToken, useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { compressImage } from "@/lib/compress-image";
 
@@ -418,6 +418,7 @@ function SubscriptionTab({ restaurant }: { restaurant: Restaurant }) {
 
 // ── الصفحة الرئيسية ────────────────────────────────────────────────────────
 export default function FoodDashboard() {
+  const { user } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const token = getMemToken();
@@ -459,10 +460,36 @@ export default function FoodDashboard() {
   };
 
   useEffect(() => {
+    if (user && user.role !== "admin") {
+      setLoading(false);
+      return;
+    }
     fetchData();
     const iv = setInterval(fetchData, 15_000);
     return () => clearInterval(iv);
-  }, []);
+  }, [user]);
+
+  if (user && user.role !== "admin") {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6 px-6 text-center" dir="rtl">
+        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" }}>
+          <Settings className="w-20 h-20 text-amber-500 animate-spin" />
+        </motion.div>
+        <div>
+          <h2 className="text-2xl font-black text-white">منطقة الإدارة فقط 🏠</h2>
+          <p className="text-white/50 text-sm mt-2 max-w-sm mx-auto">
+            عذراً، هذه اللوحة مخصصة لإدارة المنصة فقط لإضافة منازل المناسبات وعرضها وتلقي طلبات الحجز.
+          </p>
+        </div>
+        <button
+          onClick={() => navigate("/food")}
+          className="px-6 py-3 rounded-2xl bg-primary font-bold text-white text-sm shadow-[0_0_20px_rgba(168,85,247,0.4)]"
+        >
+          العودة لمنزل المناسبات
+        </button>
+      </div>
+    );
+  }
 
   const saveSettings = async () => {
     setSavingSettings(true);

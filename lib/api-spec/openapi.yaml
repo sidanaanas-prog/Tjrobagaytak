@@ -697,6 +697,9 @@ components:
         role:
           type: string
           enum: [user, admin]
+        phone:
+          type: string
+          nullable: true
 
     UsersListResponse:
       type: object

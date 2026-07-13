@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { ArrowRight, ChefHat, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Home, CheckCircle2, AlertTriangle } from "lucide-react";
 import { getApiUrl } from "@/lib/api-url";
-import { getMemToken } from "@/hooks/use-auth";
+import { getMemToken, useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 
 const BASE = getApiUrl("");
@@ -11,6 +11,7 @@ const BASE = getApiUrl("");
 const CATEGORIES = ["برجر", "بيتزا", "مشاوي", "سوشي", "وجبات صحية", "حلويات", "مشروبات", "عام"];
 
 export default function FoodRegisterPage() {
+  const { user } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -28,6 +29,28 @@ export default function FoodRegisterPage() {
   });
 
   const set = (k: string, v: string) => setForm((prev) => ({ ...prev, [k]: v }));
+
+  if (user && user.role !== "admin") {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6 px-6 text-center" dir="rtl">
+        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" }}>
+          <AlertTriangle className="w-20 h-20 text-amber-500" />
+        </motion.div>
+        <div>
+          <h2 className="text-2xl font-black text-white">قسم خاص بالإدارة 🏠</h2>
+          <p className="text-white/50 text-sm mt-2 max-w-sm mx-auto">
+            عذراً، هذا القسم مخصص لإدارة المنصة فقط لإضافة منازل المناسبات وعرضها للحجز. لا يمكن للمستخدمين نشر عروضهم هنا.
+          </p>
+        </div>
+        <button
+          onClick={() => navigate("/food")}
+          className="px-6 py-3 rounded-2xl bg-primary font-bold text-white text-sm shadow-[0_0_20px_rgba(168,85,247,0.4)]"
+        >
+          العودة لمنزل المناسبات
+        </button>
+      </div>
+    );
+  }
 
   const handleSubmit = async () => {
     if (!form.name || !form.address) { toast({ title: "الاسم والعنوان مطلوبان", variant: "destructive" }); return; }

@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Star, Clock, ChefHat, MapPin, Flame, ChevronRight, LayoutDashboard } from "lucide-react";
+import { Search, Star, Clock, Home, Sparkles, MapPin, Flame, ChevronRight, LayoutDashboard } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { getApiUrl } from "@/lib/api-url";
+import { useAuth } from "@/hooks/use-auth";
 
 const BASE = getApiUrl("");
 
-const CATEGORIES = ["الكل", "برجر", "بيتزا", "مشاوي", "سوشي", "وجبات صحية", "حلويات", "مشروبات", "عام"];
+const CATEGORIES = ["الكل", "فلل فاخرة", "شاليهات", "قاعات كبيرة", "منازل ريفية", "خيم ومساحات مفتوحة", "أخرى"];
 
 type Restaurant = {
   id: string;
@@ -41,7 +42,7 @@ function RestaurantCard({ r }: { r: Restaurant }) {
             <img src={r.coverImage} alt={r.name} className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <ChefHat className="w-12 h-12 text-white/20" />
+              <Home className="w-12 h-12 text-white/20" />
             </div>
           )}
           {r.isFeatured && (
@@ -86,14 +87,14 @@ function RestaurantCard({ r }: { r: Restaurant }) {
           <div className="flex items-center gap-3 mt-2.5 text-[11px] text-white/50">
             <div className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              <span>{r.estimatedDeliveryMinutes} دقيقة</span>
+              <span>تأكيد خلال {r.estimatedDeliveryMinutes} د</span>
             </div>
             <div className="flex items-center gap-1">
               <MapPin className="w-3 h-3" />
-              <span>{Number(r.deliveryFee) === 0 ? "توصيل مجاني" : `${r.deliveryFee} دج`}</span>
+              <span>{Number(r.deliveryFee) === 0 ? "تأمين مجاني" : `تأمين: ${r.deliveryFee} دج`}</span>
             </div>
             {Number(r.minOrder) > 0 && (
-              <span>حد أدنى {r.minOrder} دج</span>
+              <span>حد أدنى للحجز {r.minOrder} دج</span>
             )}
           </div>
         </div>
@@ -103,6 +104,7 @@ function RestaurantCard({ r }: { r: Restaurant }) {
 }
 
 export default function FoodPage() {
+  const { user } = useAuth();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState("الكل");
@@ -122,6 +124,8 @@ export default function FoodPage() {
   const featured = restaurants.filter((r) => r.isFeatured);
   const rest = restaurants.filter((r) => !r.isFeatured);
 
+  const isAdmin = user?.role === "admin";
+
   return (
     <AppLayout>
       <div className="flex flex-col pb-24">
@@ -129,27 +133,29 @@ export default function FoodPage() {
         <div className="sticky top-0 z-30 px-5 pt-12 pb-4 bg-background/90 backdrop-blur-xl">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="text-xs text-muted-foreground tracking-widest uppercase font-mono">اطلب الآن</p>
-              <h1 className="text-2xl font-black text-white">
-                🍽️ <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">مطاعم</span>
+              <p className="text-xs text-muted-foreground tracking-widest uppercase font-mono">احجز الآن</p>
+              <h1 className="text-2xl font-black text-white flex items-center gap-2">
+                🏠 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">منازل المناسبات</span>
               </h1>
             </div>
             <div className="flex items-center gap-2">
-              <Link href="/food/dashboard">
-                <motion.button
-                  whileTap={{ scale: 0.9 }}
-                  className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center"
-                  title="لوحة مطعمي"
-                >
-                  <LayoutDashboard className="w-4 h-4 text-white/50" />
-                </motion.button>
-              </Link>
+              {isAdmin && (
+                <Link href="/food/dashboard">
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center"
+                    title="لوحة الإدارة"
+                  >
+                    <LayoutDashboard className="w-4 h-4 text-white/50" />
+                  </motion.button>
+                </Link>
+              )}
               <Link href="/food/orders">
                 <motion.button
                   whileTap={{ scale: 0.9 }}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/15 border border-primary/30 text-primary text-xs font-semibold"
                 >
-                  طلباتي <ChevronRight className="w-3.5 h-3.5" />
+                  حجوزاتي <ChevronRight className="w-3.5 h-3.5" />
                 </motion.button>
               </Link>
             </div>
@@ -161,7 +167,7 @@ export default function FoodPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="ابحث عن مطعم..."
+              placeholder="ابحث عن منزل مناسبات أو قاعة..."
               className="w-full bg-white/5 border border-white/10 rounded-xl pr-10 pl-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-primary/50 transition-colors"
               dir="rtl"
             />
@@ -197,8 +203,8 @@ export default function FoodPage() {
             </div>
           ) : restaurants.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
-              <ChefHat className="w-14 h-14 text-white/10" />
-              <p className="text-white/40 text-sm">لا توجد مطاعم متاحة</p>
+              <Home className="w-14 h-14 text-white/10" />
+              <p className="text-white/40 text-sm">لا توجد منازل مناسبات متاحة حالياً</p>
               <p className="text-white/20 text-xs">جرب تغيير الفئة أو البحث</p>
             </div>
           ) : (
@@ -218,7 +224,7 @@ export default function FoodPage() {
               {rest.length > 0 && (
                 <div>
                   {featured.length > 0 && (
-                    <h2 className="text-sm font-bold text-white mb-3">جميع المطاعم</h2>
+                    <h2 className="text-sm font-bold text-white mb-3">جميع المنازل والقاعات</h2>
                   )}
                   <div className="space-y-3">
                     {rest.map((r) => <RestaurantCard key={r.id} r={r} />)}
@@ -229,23 +235,25 @@ export default function FoodPage() {
           )}
         </div>
 
-        {/* CTA: سجّل مطعمك */}
-        <div className="px-4 mt-8">
-          <Link href="/food/register">
-            <motion.div
-              whileTap={{ scale: 0.97 }}
-              className="rounded-2xl p-4 bg-gradient-to-r from-primary/20 to-secondary/20 border border-primary/30 flex items-center justify-between"
-            >
-              <div>
-                <p className="text-white font-bold text-sm">هل تملك مطعماً؟</p>
-                <p className="text-white/50 text-xs mt-0.5">سجّل مطعمك واستقبل الطلبات</p>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-primary/30 flex items-center justify-center">
-                <ChefHat className="w-5 h-5 text-primary" />
-              </div>
-            </motion.div>
-          </Link>
-        </div>
+        {/* CTA */}
+        {isAdmin && (
+          <div className="px-4 mt-8">
+            <Link href="/food/dashboard">
+              <motion.div
+                whileTap={{ scale: 0.97 }}
+                className="rounded-2xl p-4 bg-gradient-to-r from-primary/20 to-secondary/20 border border-primary/30 flex items-center justify-between"
+              >
+                <div>
+                  <p className="text-white font-bold text-sm">إدارة منازل المناسبات</p>
+                  <p className="text-white/50 text-xs mt-0.5">يمكنك إضافة وإدارة العروض وتلقي الحجوزات</p>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-primary/30 flex items-center justify-center">
+                  <LayoutDashboard className="w-5 h-5 text-primary" />
+                </div>
+              </motion.div>
+            </Link>
+          </div>
+        )}
       </div>
     </AppLayout>
   );

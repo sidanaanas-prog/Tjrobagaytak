@@ -31,14 +31,6 @@ app.use(express.urlencoded({ extended: true, limit: "20mb" }));
 
 app.use("/api", router);
 
-// ── Global JSON error handler — يضمن JSON دائماً بدل HTML ──────────────────
-// يجب أن يكون بعد كل الـ routes وله 4 معاملات حتى يتعرف عليه Express كـ error handler
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  logger.error({ err }, "Unhandled error");
-  res.status(500).json({ error: "حدث خطأ في الخادم" });
-});
-
 // ── Digital Asset Links (Play Console domain verification) ──────────────────
 app.get("/.well-known/assetlinks.json", (_req, res) => {
   res.setHeader("Content-Type", "application/json");
@@ -57,6 +49,57 @@ app.get("/.well-known/assetlinks.json", (_req, res) => {
       },
     },
   ]);
+});
+
+// Full-stack Vite / Static Files serving
+if (process.env.NODE_ENV !== "production") {
+  const { createServer: createViteServer } = await import("vite");
+  const path = await import("path");
+
+  console.log("[Fullstack] Starting Vite development servers...");
+
+  // For Admin Panel (at /admin)
+  const viteAdmin = await createViteServer({
+    server: { middlewareMode: true },
+    appType: "spa",
+    root: path.resolve(process.cwd(), "artifacts/admin-panel"),
+    base: "/admin/",
+  });
+
+  // For Marketplace (at /)
+  const viteMarketplace = await createViteServer({
+    server: { middlewareMode: true },
+    appType: "spa",
+    root: path.resolve(process.cwd(), "artifacts/marketplace"),
+    base: "/",
+  });
+
+  app.use("/admin", viteAdmin.middlewares);
+  app.use(viteMarketplace.middlewares);
+} else {
+  const path = await import("path");
+  const adminDist = path.resolve(process.cwd(), "artifacts/admin-panel/dist/public");
+  const marketplaceDist = path.resolve(process.cwd(), "artifacts/marketplace/dist/public");
+
+  console.log("[Fullstack] Serving production static files...");
+
+  app.use("/admin", express.static(adminDist));
+  app.get("/admin*", (req, res) => {
+    res.sendFile(path.join(adminDist, "index.html"));
+  });
+
+  app.use(express.static(marketplaceDist));
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(marketplaceDist, "index.html"));
+  });
+}
+
+// ── Global JSON error handler — يضمن JSON دائماً بدل HTML ──────────────────
+// يجب أن يكون بعد كل الـ routes وله 4 معاملات حتى يتعرف عليه Express كـ error handler
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  logger.error({ err }, "Unhandled error");
+  res.status(500).json({ error: "حدث خطأ في الخادم" });
 });
 
 export default app;

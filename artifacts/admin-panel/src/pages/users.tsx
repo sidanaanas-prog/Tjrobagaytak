@@ -36,6 +36,7 @@ const BASE = getApiUrl("");
 const updateUserSchema = z.object({
   name: z.string().min(2, "Name required"),
   role: z.enum(["admin", "user"]),
+  phone: z.string().optional(),
 });
 
 export default function Users() {
@@ -84,7 +85,7 @@ export default function Users() {
 
   const editForm = useForm<z.infer<typeof updateUserSchema>>({
     resolver: zodResolver(updateUserSchema),
-    defaultValues: { name: "", role: "user" },
+    defaultValues: { name: "", role: "user", phone: "" },
   });
 
   const handleBanToggle = async () => {
@@ -107,14 +108,22 @@ export default function Users() {
     if (!userToEdit) return;
     try {
       await updateMutation.mutateAsync({ id: userToEdit.id, data });
+      toast({ title: "✅ تم تحديث البيانات بنجاح" });
       queryClient.invalidateQueries({ queryKey: getListUsersQueryKey(queryParams) });
       setUserToEdit(null);
-    } catch (e) { console.error(e); }
+    } catch (e: any) {
+      console.error(e);
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: e.message || "حدث خطأ أثناء حفظ التغييرات",
+      });
+    }
   };
 
   const openEditModal = (user: any) => {
     setUserToEdit(user);
-    editForm.reset({ name: user.name, role: user.role as "admin" | "user" });
+    editForm.reset({ name: user.name, role: user.role as "admin" | "user", phone: user.phone || "" });
   };
 
   const handleLogoutAll = async () => {
@@ -521,6 +530,21 @@ export default function Users() {
                     <FormLabel className="text-primary/70 uppercase text-xs">Name</FormLabel>
                     <FormControl>
                       <Input {...field} className="bg-background/50 border-primary/30 text-primary" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editForm.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-primary/70 uppercase text-xs flex justify-between">
+                      <span>Phone / رقم الهاتف</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value || ""} className="bg-background/50 border-primary/30 text-primary" placeholder="مثال: 0550000000" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

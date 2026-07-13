@@ -3,7 +3,7 @@ import { useRoute, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight, Star, Clock, MapPin, Minus, Plus, ShoppingCart,
-  ChefHat, Flame, CheckCircle2, X
+  Home, Flame, CheckCircle2, X
 } from "lucide-react";
 import { getApiUrl } from "@/lib/api-url";
 import { getMemToken } from "@/hooks/use-auth";
@@ -59,9 +59,9 @@ function CheckoutSheet({
   const total = itemTotal + deliveryFee;
 
   const handleOrder = async () => {
-    if (!address.trim()) { toast({ title: "أدخل عنوان التوصيل", variant: "destructive" }); return; }
+    if (!address.trim()) { toast({ title: "أدخل تفاصيل الحجز (التاريخ والوقت والمكان)", variant: "destructive" }); return; }
     const minOrder = Number(restaurant.minOrder ?? 0);
-    if (itemTotal < minOrder) { toast({ title: `الحد الأدنى للطلب ${minOrder} دج`, variant: "destructive" }); return; }
+    if (itemTotal < minOrder) { toast({ title: `الحد الأدنى لقيمة الحجز ${minOrder} دج`, variant: "destructive" }); return; }
 
     setLoading(true);
     try {
@@ -78,7 +78,7 @@ function CheckoutSheet({
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
-      toast({ title: "✅ تم إرسال الطلب!", description: "سيصلك تأكيد من المطعم قريباً" });
+      toast({ title: "✅ تم إرسال طلب الحجز!", description: "سيتم مراجعة وتأكيد الحجز قريباً" });
       onSuccess();
     } catch (e: any) {
       toast({ title: "خطأ", description: e.message, variant: "destructive" });
@@ -96,7 +96,7 @@ function CheckoutSheet({
       className="fixed inset-x-0 bottom-0 z-50 max-w-lg mx-auto bg-[#0e0e14] border-t border-white/10 rounded-t-3xl p-5"
     >
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-bold text-white text-lg">تأكيد الطلب</h3>
+        <h3 className="font-bold text-white text-lg">تأكيد الحجز</h3>
         <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
           <X className="w-4 h-4 text-white/60" />
         </button>
@@ -117,7 +117,7 @@ function CheckoutSheet({
           <span>المجموع</span><span>{itemTotal.toFixed(1)} دج</span>
         </div>
         <div className="flex justify-between text-white/60">
-          <span>رسوم التوصيل</span>
+          <span>رسوم تأمين / خدمة إضافية</span>
           <span>{deliveryFee === 0 ? "مجاني 🎉" : `${deliveryFee} دج`}</span>
         </div>
         <div className="flex justify-between text-white font-bold text-base">
@@ -129,7 +129,7 @@ function CheckoutSheet({
       <textarea
         value={address}
         onChange={(e) => setAddress(e.target.value)}
-        placeholder="عنوان التوصيل..."
+        placeholder="أدخل تفاصيل الحجز (تاريخ الحجز، المناسبة، مدة الحجز، تفاصيل الاتصال)..."
         rows={2}
         className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-primary/50 resize-none mb-3"
         dir="rtl"
@@ -165,7 +165,7 @@ function CheckoutSheet({
         disabled={loading}
         className="w-full py-3.5 rounded-2xl bg-primary font-bold text-white text-sm shadow-[0_0_20px_rgba(168,85,247,0.5)] disabled:opacity-50"
       >
-        {loading ? "جاري الإرسال..." : `تأكيد الطلب • ${total.toFixed(1)} دج`}
+        {loading ? "جاري الإرسال..." : `تأكيد الحجز • ${total.toFixed(1)} دج`}
       </motion.button>
     </motion.div>
   );
@@ -237,8 +237,8 @@ export default function FoodDetailPage() {
   if (!restaurant) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3">
-        <ChefHat className="w-14 h-14 text-white/10" />
-        <p className="text-white/40">المطعم غير موجود</p>
+        <Home className="w-14 h-14 text-white/10" />
+        <p className="text-white/40">منزل المناسبات غير موجود</p>
         <button onClick={() => navigate("/food")} className="text-primary text-sm">العودة</button>
       </div>
     );
@@ -250,15 +250,15 @@ export default function FoodDetailPage() {
         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" }}>
           <CheckCircle2 className="w-20 h-20 text-green-400" />
         </motion.div>
-        <h2 className="text-2xl font-black text-white">تم الطلب! 🎉</h2>
-        <p className="text-white/50 text-sm">سيصلك تأكيد من المطعم قريباً، يمكنك متابعة الطلب</p>
+        <h2 className="text-2xl font-black text-white">تم تقديم طلب الحجز! 🎉</h2>
+        <p className="text-white/50 text-sm">سيتم مراجعة وتأكيد الحجز من قبل الإدارة في أقرب وقت</p>
         <button
           onClick={() => navigate("/food/orders")}
           className="px-6 py-3 rounded-2xl bg-primary font-bold text-white text-sm shadow-[0_0_20px_rgba(168,85,247,0.4)]"
         >
-          متابعة طلباتي
+          متابعة حجوزاتي
         </button>
-        <button onClick={() => navigate("/food")} className="text-white/40 text-sm">العودة للمطاعم</button>
+        <button onClick={() => navigate("/food")} className="text-white/40 text-sm">العودة للرئيسية</button>
       </div>
     );
   }
@@ -271,7 +271,7 @@ export default function FoodDetailPage() {
           <img src={restaurant.coverImage} alt={restaurant.name} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-            <ChefHat className="w-16 h-16 text-white/10" />
+            <Home className="w-16 h-16 text-white/10" />
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
@@ -318,11 +318,11 @@ export default function FoodDetailPage() {
           )}
           <div className="flex items-center gap-1">
             <Clock className="w-3.5 h-3.5" />
-            <span>{restaurant.estimatedDeliveryMinutes} دقيقة</span>
+            <span>تأكيد خلال {restaurant.estimatedDeliveryMinutes} دقيقة</span>
           </div>
           <div className="flex items-center gap-1">
             <MapPin className="w-3.5 h-3.5" />
-            <span>{Number(restaurant.deliveryFee) === 0 ? "توصيل مجاني" : `${restaurant.deliveryFee} دج`}</span>
+            <span>{Number(restaurant.deliveryFee) === 0 ? "تأمين مجاني" : `تأمين: ${restaurant.deliveryFee} دج`}</span>
           </div>
         </div>
 

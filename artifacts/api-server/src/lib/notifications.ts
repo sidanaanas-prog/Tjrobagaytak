@@ -59,7 +59,7 @@ export async function sendNotification({
 
     await admin.messaging().send({
       token: fcmToken,
-      notification: { title, body },
+      // لا نضع notification على المستوى الأعلى للويب حتى تعمل onBackgroundMessage في Service Worker
       data: {
         ...data,
         _title: title,
@@ -77,7 +77,16 @@ export async function sendNotification({
           ...(isRideAlert ? { fullScreenIntent: true, wakeScreen: true } : {}),
         },
       },
-      apns: { payload: { aps: { sound: isRideAlert ? "alert.mp3" : "default", badge: 1, "content-available": 1 } } },
+      apns: {
+        payload: {
+          aps: {
+            alert: { title, body },
+            sound: isRideAlert ? "alert.mp3" : "default",
+            badge: 1,
+            "content-available": 1,
+          },
+        },
+      },
       webpush: {
         headers: { Urgency: "high" },
         ...(link ? { fcmOptions: { link } } : {}),
@@ -115,7 +124,7 @@ export async function sendPushNotification({
   const results = await admin.messaging().sendEach(
     clean.map((token) => ({
       token,
-      notification: { title, body },
+      // لا نضع notification على المستوى الأعلى للويب حتى تعمل onBackgroundMessage في Service Worker
       data: {
         ...data,
         _title: title,
@@ -137,6 +146,7 @@ export async function sendPushNotification({
       apns: {
         payload: {
           aps: {
+            alert: { title, body },
             sound: isRideAlert ? "alert.mp3" : "default",
             badge: 1,
             "content-available": 1,

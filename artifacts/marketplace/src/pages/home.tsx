@@ -5,7 +5,7 @@ import { StoriesBar } from "@/components/Stories";
 import { HeroSlider } from "@/components/HeroSlider";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Zap, Clock, Flame, UtensilsCrossed, ChevronRight } from "lucide-react";
+import { Zap, Clock, Flame, UtensilsCrossed, ChevronRight, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { SkeletonCard } from "@/components/SkeletonCard";
 import { getCachedData } from "@/hooks/use-cached-query";
@@ -66,8 +66,8 @@ function RestaurantsStrip() {
     <div className="mt-5">
       <div className="flex items-center justify-between px-5 mb-3">
         <div className="flex items-center gap-2">
-          <UtensilsCrossed className="w-4 h-4 text-primary" />
-          <h2 className="text-xs font-bold text-white/60 uppercase tracking-widest">مطاعم</h2>
+          <Sparkles className="w-4 h-4 text-primary" />
+          <h2 className="text-xs font-bold text-white/60 uppercase tracking-widest">منازل المناسبات</h2>
         </div>
         <Link href="/food">
           <span className="text-xs text-primary font-semibold flex items-center gap-1">

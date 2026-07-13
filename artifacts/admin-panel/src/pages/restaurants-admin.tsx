@@ -3,7 +3,7 @@ import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/lib/api-url";
 import {
-  Loader2, ChefHat, CheckCircle, XCircle, Star, Clock, MapPin,
+  Loader2, Home, CheckCircle, XCircle, Star, Clock, MapPin,
   Flame, RefreshCw, ShoppingBag, User, Phone, Mail, UtensilsCrossed,
   CreditCard, Crown, CalendarDays, X,
 } from "lucide-react";
@@ -168,10 +168,10 @@ export default function RestaurantsAdminPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <ChefHat className="w-7 h-7 text-primary" /> إدارة المطاعم
+            <Home className="w-7 h-7 text-primary" /> إدارة منازل المناسبات
           </h1>
           {pendingCount > 0 && (
-            <p className="text-yellow-400 text-sm mt-1">⚠️ {pendingCount} مطعم بانتظار المراجعة</p>
+            <p className="text-yellow-400 text-sm mt-1">⚠️ {pendingCount} منزل مناسبات بانتظار المراجعة</p>
           )}
         </div>
         <button
@@ -220,8 +220,8 @@ export default function RestaurantsAdminPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3">
-          <ChefHat className="w-14 h-14 text-white/10" />
-          <p className="text-white/40">لا توجد مطاعم</p>
+          <Home className="w-14 h-14 text-white/10" />
+          <p className="text-white/40">لا توجد منازل مناسبات</p>
         </div>
       ) : (
         <div className="space-y-3">
