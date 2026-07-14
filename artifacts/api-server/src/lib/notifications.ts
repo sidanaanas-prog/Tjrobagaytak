@@ -79,7 +79,6 @@ function getApp(): admin.app.App {
 const STALE_TOKEN_CODES = new Set([
   "messaging/registration-token-not-registered",
   "messaging/invalid-registration-token",
-  "messaging/invalid-argument",      // token مرتبط بـ app-id مختلف أو منتهي
   "messaging/unregistered",
 ]);
 
@@ -143,9 +142,8 @@ export async function sendNotification({
         notification: {
           title,
           body,
-          // استخدام ride_alerts_v2 لتخطي قنوات الإشعارات السابقة المعطلة أو الصامتة على جهاز المستخدم
-          channelId: isRideAlert ? "ride_alerts_v2" : "default",
-          sound: "default",
+          channelId: isRideAlert ? "ride_alerts" : "default",
+          sound: isRideAlert ? "alert.mp3" : "default",
           notificationPriority: isRideAlert ? "PRIORITY_MAX" : "PRIORITY_DEFAULT",
         },
       },
@@ -153,7 +151,7 @@ export async function sendNotification({
         payload: {
           aps: {
             alert: { title, body },
-            sound: "default",
+            sound: isRideAlert ? "alert.mp3" : "default",
             badge: 1,
             "content-available": 1,
           },
@@ -242,9 +240,8 @@ export async function sendPushNotification({
         notification: {
           title,
           body,
-          // استخدام ride_alerts_v2 لتخطي قنوات الإشعارات السابقة المعطلة أو الصامتة على جهاز المستخدم
-          channelId: isRideAlert ? "ride_alerts_v2" : "default",
-          sound: "default",
+          channelId: isRideAlert ? "ride_alerts" : "default",
+          sound: isRideAlert ? "alert.mp3" : "default",
           notificationPriority: isRideAlert ? "PRIORITY_MAX" : "PRIORITY_DEFAULT",
         },
       },
@@ -252,7 +249,7 @@ export async function sendPushNotification({
         payload: {
           aps: {
             alert: { title, body },
-            sound: "default",
+            sound: isRideAlert ? "alert.mp3" : "default",
             badge: 1,
             "content-available": 1,
           },

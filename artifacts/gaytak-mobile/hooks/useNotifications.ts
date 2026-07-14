@@ -23,11 +23,24 @@ Notifications.setNotificationHandler({
 export async function setupAndroidChannels() {
   if (Platform.OS !== "android") return;
 
-  // استخدام معرّف جديد "ride_alerts_v2" لضمان تخطي الإعدادات القديمة المشوهة أو الصامتة
-  await Notifications.setNotificationChannelAsync("ride_alerts_v2", {
+  // تسجيل كلتا القناتين (القديمة والجديدة) لضمان التوافق التام مع أي إصدار من التطبيق مثبت على هاتف المستخدم
+  await Notifications.setNotificationChannelAsync("ride_alerts", {
     name: "طلبات النقل",
     importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: [200, 100, 200, 100, 500, 100, 500],
+    sound: "alert.mp3",
+    lightColor: "#00FF88",
+    showBadge: true,
+    enableVibrate: true,
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+    bypassDnd: true,
+  });
+
+  await Notifications.setNotificationChannelAsync("ride_alerts_v2", {
+    name: "طلبات النقل (بديل)",
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [200, 100, 200, 100, 500, 100, 500],
+    sound: "alert.mp3",
     lightColor: "#00FF88",
     showBadge: true,
     enableVibrate: true,
