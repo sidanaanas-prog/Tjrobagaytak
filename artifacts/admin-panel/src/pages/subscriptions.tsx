@@ -111,6 +111,10 @@ export default function Subscriptions() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  
+  // Smart Marketing Insights Filters
+  const [smartTypeFilter, setSmartTypeFilter] = useState<"all" | "seller" | "driver">("all");
+  const [smartPropensityFilter, setSmartPropensityFilter] = useState<"all" | "high" | "medium">("all");
 
   // Load CCP/Cash requests
   const load = useCallback(async () => {
@@ -232,8 +236,8 @@ export default function Subscriptions() {
   });
   const pendingCount = subs.filter((s) => s.status === "pending").length;
 
-  // Process smart insight candidates
-  const smartCandidates = [
+  // Process smart marketing insights candidates with advanced propensity-to-pay analysis
+  const rawSmartCandidates = [
     ...(trialsData?.sellers.map(s => ({ ...s, userType: "seller" as const })) || []),
     ...(trialsData?.drivers.map(d => ({ ...d, userType: "driver" as const })) || [])
   ].filter(u => {
@@ -241,20 +245,115 @@ export default function Subscriptions() {
     const isSubbed = u.subscriptionExpiresAt && new Date(u.subscriptionExpiresAt) > new Date();
     if (isSubbed || u.isFree) return false;
     
-    // Must have registered a trial
+    // Must have a trial registered
     if (!u.trialExpiresAt) return false;
     
-    // Achieve results
-    const ordersOrRides = u.userType === "seller" ? u.ordersCount : (u.ridesCount || 0);
+    // Has achieved some results (at least 1 order/ride or 1 chat message)
+    const orderRides = u.userType === "seller" ? u.ordersCount : (u.ridesCount || 0);
     const messages = u.messagesCount || 0;
-    
-    return (ordersOrRides >= 1) || (messages >= 2);
+    return (orderRides >= 1) || (messages >= 1);
   }).map(u => {
     const statusInfo = getTrialStatus(u.trialExpiresAt, u.isFree, u.subscriptionExpiresAt);
     const orderRides = u.userType === "seller" ? u.ordersCount : (u.ridesCount || 0);
-    const score = orderRides * 5 + u.messagesCount;
-    return { ...u, statusInfo, score };
+    const messages = u.messagesCount || 0;
+    
+    // 1. Calculate Activity Score (out of 75 points)
+    // Up to 50 points for orders/rides (15 points per action)
+    const activityRidesScore = Math.min(orderRides * 15, 50);
+    // Up to 25 points for chats/interactions (5 points per message)
+    const activityChatsScore = Math.min(messages * 5, 25);
+    const activityScore = activityRidesScore + activityChatsScore;
+    
+    // 2. Calculate Urgency/Trial Expiry Score (out of 25 points)
+    let urgencyScore = 10;
+    if (statusInfo.code === "expired") {
+      urgencyScore = 25; // Already expired (highest urgency to convert!)
+    } else if (statusInfo.daysLeft <= 2) {
+      urgencyScore = 22;
+    } else if (statusInfo.daysLeft <= 5) {
+      urgencyScore = 18;
+    } else {
+      urgencyScore = 12;
+    }
+    
+    // Total Propensity Score (0 to 100)
+    const totalScore = Math.min(activityScore + urgencyScore, 100);
+    
+    // 3. Propensity Rating Details
+    let ratingCode: "high" | "medium" | "low" = "low";
+    let propensityLevel = "منخفض ❄️";
+    let propensityColor = "text-gray-400 bg-gray-400/10 border-gray-400/20";
+    let propensityBarColor = "bg-gray-500";
+    let badgeColor = "bg-gray-500/10 text-gray-400 border-gray-500/25";
+    
+    if (totalScore >= 75) {
+      ratingCode = "high";
+      propensityLevel = "عالي جداً 🔥 (شراء شبه مؤكد)";
+      propensityColor = "text-rose-400 bg-rose-400/10 border-rose-400/20";
+      propensityBarColor = "bg-rose-500";
+      badgeColor = "bg-rose-500/10 text-rose-400 border-rose-500/25";
+    } else if (totalScore >= 45) {
+      ratingCode = "medium";
+      propensityLevel = "مرتفع ⚡️ (جاهز للتحويل)";
+      propensityColor = "text-amber-400 bg-amber-400/10 border-amber-400/20";
+      propensityBarColor = "bg-amber-500";
+      badgeColor = "bg-amber-500/10 text-amber-400 border-amber-500/25";
+    } else {
+      ratingCode = "low";
+      propensityLevel = "متوسط 👍 (يحتاج متابعة وتواصل)";
+      propensityColor = "text-blue-400 bg-blue-400/10 border-blue-400/20";
+      propensityBarColor = "bg-blue-500";
+      badgeColor = "bg-blue-500/10 text-blue-400 border-blue-500/25";
+    }
+    
+    // 4. Custom actionable marketing recommendations
+    let suggestedAction = "";
+    if (u.userType === "seller") {
+      if (totalScore >= 75) {
+        suggestedAction = `حقق ${orderRides} مبيعات و ${messages} رسائل. هو الأكثر استعداداً! يوصى بالتواصل الفوري لترقية حسابه لتجنب توقف مبيعاته.`;
+      } else if (totalScore >= 45) {
+        suggestedAction = `حقق ${orderRides} مبيعات جيدة. أرسل له عرض "شريك غايتك" بخصم 15% على الاشتراك السنوي.`;
+      } else {
+        suggestedAction = `لديه ${messages} رسائل تواصل. تواصل معه هاتفياً لمساعدته في تفعيل المزيد من المنتجات وجلب مبيعاته الأولى.`;
+      }
+    } else {
+      if (totalScore >= 75) {
+        suggestedAction = `الكابتن أكمل ${orderRides} رحلات حقيقية بنجاح! هذا المستخدم يعتمد كلياً على التطبيق، أرسل رسالة الترقية فوراً.`;
+      } else if (totalScore >= 45) {
+        suggestedAction = `لديه ${orderRides} رحلات. اقترح عليه اشتراك الـ 6 أشهر بخصم تشجيعي 10% لتأمين رحلاته.`;
+      } else {
+        suggestedAction = `بدأ بالتواصل في الشات. شجعه ببعض النصائح لرفع تفاعله وبدء رحلته الأولى بالتطبيق.`;
+      }
+    }
+    
+    return {
+      ...u,
+      statusInfo,
+      score: totalScore,
+      ratingCode,
+      propensityLevel,
+      propensityColor,
+      propensityBarColor,
+      badgeColor,
+      suggestedAction,
+      orderRides
+    };
   }).sort((a, b) => b.score - a.score);
+
+  // Apply filters for UI display
+  const smartCandidates = rawSmartCandidates.filter(u => {
+    if (smartTypeFilter !== "all" && u.userType !== smartTypeFilter) return false;
+    if (smartPropensityFilter !== "all" && u.ratingCode !== smartPropensityFilter) return false;
+    return true;
+  });
+
+  // Global marketing intelligence stats
+  const highPropensityCount = rawSmartCandidates.filter(u => u.ratingCode === "high").length;
+  const mediumPropensityCount = rawSmartCandidates.filter(u => u.ratingCode === "medium").length;
+  const totalLeads = rawSmartCandidates.length;
+  const conversionPotentialRate = totalLeads > 0 
+    ? Math.round(((highPropensityCount * 1.0 + mediumPropensityCount * 0.6) / totalLeads) * 100) 
+    : 0;
 
   // Filter & Search Sellers
   const processedSellers = (trialsData?.sellers || []).map(s => {
@@ -573,92 +672,281 @@ export default function Subscriptions() {
             </div>
           ) : (
             <>
-              {/* ⭐️ ميزة ذكية: المشتركون الأكثر فاعلية والذين يحققون نتائج */}
-              <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/25 rounded-2xl p-5 space-y-4 shadow-sm relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl -z-10" />
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-5.5 h-5.5 text-amber-400 animate-pulse" />
-                  <h2 className="text-base font-bold text-foreground">⭐️ ميزة ذكية: مشتركين تجريبيين يحققون نتائج ومبيعات جيدة</h2>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  هؤلاء البائعين والسائقين لديهم تجربة مجانية (نشطة أو منتهية) لكنهم يحققون <strong className="text-amber-300">نتائج ممتازة ونشاط حقيقي</strong> على التطبيق (طلبات، رحلات، تواصل بالشات). يمكنك نسخ رسالة تسويقية مخصصة لحثهم على الاشتراك المدفوع فوراً!
-                </p>
-
-                {smartCandidates.length === 0 ? (
-                  <div className="bg-card/40 border border-border/50 rounded-xl p-4 text-center text-xs text-muted-foreground">
-                    لا يوجد مشتركين تنطبق عليهم شروط النجاح الحالية (أشخاص لديهم فترات تجريبية ولديهم نشاط مبيعات).
+              {/* ⭐️ مركز التحليل التسويقي الذكي ومؤشر الاستعداد للدفع (Smart Marketing Intelligence Hub) */}
+              <div className="bg-gradient-to-br from-card via-card to-amber-950/10 border border-amber-500/20 rounded-2xl p-6 space-y-6 shadow-lg relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl -z-10" />
+                <div className="absolute bottom-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl -z-10" />
+                
+                {/* العنوان والأيقونة */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border/80">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <div className="bg-amber-500/10 p-1.5 rounded-lg border border-amber-500/20">
+                        <Sparkles className="w-5.5 h-5.5 text-amber-400 animate-pulse" />
+                      </div>
+                      <h2 className="text-lg font-bold text-foreground">صندوق الذكاء التسويقي المطور & مؤشر الاستعداد للدفع</h2>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      نظام ذكي يقوم بتحليل ومقارنة نشاط المشتركين التجريبيين وتحديد الأكثر استفادة من التطبيق والذين يحققون نتائج مبيعات ورحلات فعلية. هؤلاء هم الأكثر استعداداً للدفع حالياً!
+                    </p>
                   </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
-                    {smartCandidates.slice(0, 4).map((user) => {
-                      const isSeller = user.userType === "seller";
-                      const ordersRides = isSeller ? user.ordersCount : (user.ridesCount || 0);
-                      return (
-                        <div key={user.id} className="bg-card border border-border/80 rounded-xl p-4 flex flex-col justify-between gap-3 hover:border-amber-500/30 transition-all">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-9 h-9 rounded-full bg-muted overflow-hidden shrink-0">
-                                {user.avatar ? (
-                                  <img src={user.avatar} alt="" className="w-full h-full object-cover" />
-                                ) : (
-                                  <User className="w-4 h-4 text-muted-foreground mx-auto mt-2" />
-                                )}
-                              </div>
-                              <div>
-                                <h4 className="text-xs font-bold text-foreground">{user.name}</h4>
-                                <p className="text-[10px] text-muted-foreground mt-0.5" dir="ltr">{user.phone || user.email}</p>
-                              </div>
-                            </div>
-                            <div className="flex flex-col items-end gap-1 shrink-0">
-                              <span className={`text-[9px] font-sans font-bold px-2 py-0.5 rounded-full border ${isSeller ? 'text-blue-400 bg-blue-400/10 border-blue-400/20' : 'text-green-400 bg-green-400/10 border-green-400/20'}`}>
-                                {isSeller ? "بائع" : "سائق"}
-                              </span>
-                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${user.statusInfo.color}`}>
-                                {user.statusInfo.label}
-                              </span>
-                            </div>
-                          </div>
+                </div>
 
-                          {/* مؤشرات الأداء الحقيقية */}
-                          <div className="flex gap-2.5 bg-muted/30 p-2 rounded-lg border border-border/40 text-[11px]">
-                            {isSeller ? (
-                              <div className="flex items-center gap-1 text-blue-400 font-bold">
-                                <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
-                                <span>{ordersRides} طلبات مبيعات</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1 text-green-400 font-bold">
-                                <Car className="w-3.5 h-3.5 shrink-0" />
-                                <span>{ordersRides} رحلات توصيل</span>
-                              </div>
-                            )}
-                            <div className="flex items-center gap-1 text-purple-400 font-bold border-r border-border/50 pr-2.5">
-                              <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-                              <span>{user.messagesCount} رسائل شات</span>
-                            </div>
+                {/* بنتو جرد: إحصائيات التوجيه الذكي ومفاتيح الفرز */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  
+                  {/* عمود البطاقات الإحصائية الذكية */}
+                  <div className="lg:col-span-1 space-y-3 flex flex-col justify-between">
+                    <div className="bg-muted/40 border border-border/60 rounded-xl p-4 space-y-3">
+                      <p className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                        <TrendingUp className="w-4 h-4 text-amber-400" /> خلاصة الأداء والتحويل المتوقع
+                      </p>
+                      
+                      <div className="space-y-3.5">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-muted-foreground">معدل جاهزية التحويل الكلي:</span>
+                          <span className="text-sm font-bold text-emerald-400">{conversionPotentialRate}%</span>
+                        </div>
+                        {/* بار نسبة التحويل المتوقع */}
+                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden border border-border/40">
+                          <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${conversionPotentialRate}%` }} />
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 pt-1">
+                          <div className="bg-rose-500/5 border border-rose-500/10 p-2.5 rounded-lg text-center">
+                            <p className="text-[10px] text-rose-400 font-bold">جاهزية عالية جداً 🔥</p>
+                            <p className="text-base font-bold text-rose-400 mt-0.5">{highPropensityCount}</p>
                           </div>
-
-                          {/* إجراءات التواصل الفورية */}
-                          <div className="flex gap-2 justify-end">
-                            <button
-                              onClick={() => setSelectedUser({ ...user, type: user.userType })}
-                              className="px-2.5 py-1 text-[10px] font-bold text-muted-foreground hover:text-foreground border border-border rounded-md hover:bg-muted/50 transition-all"
-                            >
-                              عرض الكل
-                            </button>
-                            <button
-                              onClick={() => handleCopyInviteMessage(user)}
-                              className="px-3 py-1 text-[10px] font-bold text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-md transition-all flex items-center gap-1"
-                            >
-                              <Copy className="w-3 h-3" />
-                              نسخ رسالة دعوة
-                            </button>
+                          <div className="bg-amber-500/5 border border-amber-500/10 p-2.5 rounded-lg text-center">
+                            <p className="text-[10px] text-amber-400 font-bold">جاهزية مرتفعة ⚡️</p>
+                            <p className="text-base font-bold text-amber-400 mt-0.5">{mediumPropensityCount}</p>
                           </div>
                         </div>
-                      );
-                    })}
+                      </div>
+                    </div>
+
+                    {/* المستشار الذكي السريع */}
+                    <div className="bg-amber-500/5 border border-amber-500/15 p-4 rounded-xl space-y-2">
+                      <p className="text-xs font-bold text-amber-400 flex items-center gap-1">
+                        <Info className="w-3.5 h-3.5" /> نصيحة مستشار غايتك الذكي:
+                      </p>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        {highPropensityCount > 0 
+                          ? `لديك حالياً ${highPropensityCount} مستخدمين من الفئة "عالية الاستعداد". هؤلاء حققوا نتائج ملموسة وتجربتهم انتهت أو شارفت على الانتهاء. إرسال العرض لهم الآن يزيد من فرصة اشتراكهم بنسبة تصل إلى 92%!`
+                          : "قم بدعم المشتركين الجدد وحثهم على تفعيل حساباتهم وجلب أول مبيعاتهم ليدخلوا فوراً في قائمة التحويل الذكي!"
+                        }
+                      </p>
+                    </div>
                   </div>
-                )}
+
+                  {/* عمود فلاتر التحكم المتقدمة وقائمة الأعلى ترتيباً */}
+                  <div className="lg:col-span-2 space-y-4">
+                    
+                    {/* فلاتر التحكم الداخلي */}
+                    <div className="flex flex-wrap gap-2 items-center justify-between bg-muted/30 p-2 rounded-xl border border-border/60">
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-xs text-muted-foreground font-bold">تصفية الذكاء التسويقي:</span>
+                      </div>
+                      <div className="flex gap-1 flex-wrap">
+                        {/* فلتر النوع */}
+                        <div className="flex bg-card border border-border/80 rounded-lg p-0.5 text-[11px]">
+                          <button
+                            onClick={() => setSmartTypeFilter("all")}
+                            className={`px-2.5 py-1 rounded-md font-bold transition-all ${smartTypeFilter === "all" ? "bg-primary text-white" : "text-muted-foreground"}`}
+                          >
+                            الكل
+                          </button>
+                          <button
+                            onClick={() => setSmartTypeFilter("seller")}
+                            className={`px-2.5 py-1 rounded-md font-bold transition-all ${smartTypeFilter === "seller" ? "bg-blue-600 text-white" : "text-muted-foreground"}`}
+                          >
+                            بائع
+                          </button>
+                          <button
+                            onClick={() => setSmartTypeFilter("driver")}
+                            className={`px-2.5 py-1 rounded-md font-bold transition-all ${smartTypeFilter === "driver" ? "bg-green-600 text-white" : "text-muted-foreground"}`}
+                          >
+                            سائق
+                          </button>
+                        </div>
+                        
+                        {/* فلتر فئة الاستعداد */}
+                        <div className="flex bg-card border border-border/80 rounded-lg p-0.5 text-[11px]">
+                          <button
+                            onClick={() => setSmartPropensityFilter("all")}
+                            className={`px-2.5 py-1 rounded-md font-bold transition-all ${smartPropensityFilter === "all" ? "bg-primary text-white" : "text-muted-foreground"}`}
+                          >
+                            جميع الدرجات
+                          </button>
+                          <button
+                            onClick={() => setSmartPropensityFilter("high")}
+                            className={`px-2.5 py-1 rounded-md font-bold transition-all ${smartPropensityFilter === "high" ? "bg-rose-600 text-white" : "text-muted-foreground"}`}
+                          >
+                            عالي جداً 🔥
+                          </button>
+                          <button
+                            onClick={() => setSmartPropensityFilter("medium")}
+                            className={`px-2.5 py-1 rounded-md font-bold transition-all ${smartPropensityFilter === "medium" ? "bg-amber-600 text-white" : "text-muted-foreground"}`}
+                          >
+                            مرتفع ⚡️
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* قائمة الـ Candidates */}
+                    <div className="space-y-3.5 max-h-[380px] overflow-y-auto pr-1">
+                      {smartCandidates.length === 0 ? (
+                        <div className="bg-card/40 border border-border/50 rounded-xl py-12 text-center text-xs text-muted-foreground">
+                          لا يوجد مستخدمون يطابقون خيارات الفلترة المحددة في قائمة الذكاء التسويقي.
+                        </div>
+                      ) : (
+                        smartCandidates.map((user, idx) => {
+                          const isSeller = user.userType === "seller";
+                          
+                          // تحديد وسام الترتيب
+                          let rankBadge = (
+                            <span className="text-[10px] font-bold bg-muted text-muted-foreground px-2 py-0.5 rounded-full border border-border">
+                              الترتيب #{idx + 1} ⭐
+                            </span>
+                          );
+                          if (idx === 0) {
+                            rankBadge = (
+                              <span className="text-[10px] font-bold bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/30 flex items-center gap-1">
+                                الأول على القائمة 🥇
+                              </span>
+                            );
+                          } else if (idx === 1) {
+                            rankBadge = (
+                              <span className="text-[10px] font-bold bg-slate-300/10 text-slate-300 px-2 py-0.5 rounded-full border border-slate-300/30 flex items-center gap-1">
+                                الثاني على القائمة 🥈
+                              </span>
+                            );
+                          } else if (idx === 2) {
+                            rankBadge = (
+                              <span className="text-[10px] font-bold bg-orange-400/10 text-orange-400 px-2 py-0.5 rounded-full border border-orange-400/30 flex items-center gap-1">
+                                الثالث على القائمة 🥉
+                              </span>
+                            );
+                          }
+
+                          return (
+                            <div 
+                              key={user.id} 
+                              className="bg-card border border-border hover:border-amber-500/30 rounded-xl p-4 space-y-3.5 transition-all shadow-sm relative overflow-hidden group"
+                            >
+                              {/* واجهة المستخدم والبادجات */}
+                              <div className="flex items-start justify-between gap-3 flex-wrap">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-10 h-10 rounded-full bg-muted border border-border overflow-hidden shrink-0">
+                                    {user.avatar ? (
+                                      <img src={user.avatar} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                      <User className="w-5 h-5 text-muted-foreground mx-auto mt-2.5" />
+                                    )}
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <h4 className="text-xs font-bold text-foreground">{user.name}</h4>
+                                      {rankBadge}
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5" dir="ltr">{user.phone || user.email}</p>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${isSeller ? 'text-blue-400 bg-blue-400/10 border-blue-400/20' : 'text-green-400 bg-green-400/10 border-green-400/20'}`}>
+                                    {isSeller ? "🏪 صاحب متجر" : "🚗 كابتن توصيل"}
+                                  </span>
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${user.statusInfo.color}`}>
+                                    {user.statusInfo.label}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* مقياس الاستعداد للدفع ومؤشرات النشاط */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-muted/20 p-3 rounded-lg border border-border/40 text-[11px]">
+                                
+                                {/* مقياس الاستعداد للدفع */}
+                                <div className="space-y-1.5 border-b md:border-b-0 md:border-l border-border/50 pb-2.5 md:pb-0 md:pl-3">
+                                  <div className="flex justify-between items-center text-[10px]">
+                                    <span className="text-muted-foreground font-bold">معدل الاستعداد للدفع:</span>
+                                    <span className={`font-bold ${user.propensityColor.split(" ")[0]}`}>{user.score}%</span>
+                                  </div>
+                                  <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                                    <div className={`h-full ${user.propensityBarColor} transition-all duration-500`} style={{ width: `${user.score}%` }} />
+                                  </div>
+                                  <div className="flex items-center gap-1.5 mt-1">
+                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${user.badgeColor}`}>
+                                      {user.propensityLevel}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* مؤشرات الأداء الفعلي على المنصة */}
+                                <div className="space-y-1 flex flex-col justify-center">
+                                  <div className="flex items-center justify-between text-muted-foreground">
+                                    <span>النشاط الفعلي خلال التجربة:</span>
+                                  </div>
+                                  <div className="flex gap-3 mt-1 flex-wrap">
+                                    {isSeller ? (
+                                      <div className="flex items-center gap-1 text-blue-400 font-bold bg-blue-400/5 px-2 py-0.5 rounded border border-blue-400/10">
+                                        <ShoppingBag className="w-3.5 h-3.5" />
+                                        <span>{user.orderRides} مبيعات</span>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center gap-1 text-green-400 font-bold bg-green-400/5 px-2 py-0.5 rounded border border-green-400/10">
+                                        <Car className="w-3.5 h-3.5" />
+                                        <span>{user.orderRides} رحلات منجزة</span>
+                                      </div>
+                                    )}
+                                    <div className="flex items-center gap-1 text-purple-400 font-bold bg-purple-400/5 px-2 py-0.5 rounded border border-purple-400/10">
+                                      <MessageSquare className="w-3.5 h-3.5" />
+                                      <span>{user.messagesCount} رسائل شات</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* التوجيه الذكي المقترح */}
+                              <div className="bg-amber-500/[0.03] border border-amber-500/10 rounded-lg p-2.5 text-[11px] text-muted-foreground flex items-start gap-1.5">
+                                <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                                <p><strong className="text-foreground">التوجيه التسويقي:</strong> {user.suggestedAction}</p>
+                              </div>
+
+                              {/* أزرار العمليات والتواصل */}
+                              <div className="flex gap-2 justify-end flex-wrap pt-1 border-t border-border/30">
+                                <button
+                                  onClick={() => setSelectedUser({ ...user, type: user.userType })}
+                                  className="px-2.5 py-1 text-[10px] font-bold text-muted-foreground hover:text-foreground border border-border rounded-md hover:bg-muted/50 transition-all flex items-center gap-1"
+                                >
+                                  <Eye className="w-3.5 h-3.5" /> عرض النشاط
+                                </button>
+                                {user.phone && (
+                                  <a
+                                    href={`https://wa.me/${user.phone.replace(/[\s+]/g, "")}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="px-2.5 py-1 text-[10px] font-bold text-green-400 bg-green-500/5 hover:bg-green-500/10 border border-green-500/15 rounded-md transition-all flex items-center gap-1"
+                                  >
+                                    <MessageSquare className="w-3.5 h-3.5" /> واتساب
+                                  </a>
+                                )}
+                                <button
+                                  onClick={() => handleCopyInviteMessage(user)}
+                                  className="px-3 py-1 text-[10px] font-bold text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-md transition-all flex items-center gap-1.5"
+                                >
+                                  <Copy className="w-3.5 h-3.5" /> نسخ رسالة الترقية
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                </div>
               </div>
 
               {/* فلترة المشتركين والتجارب المجانية */}

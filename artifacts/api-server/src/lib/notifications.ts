@@ -113,9 +113,15 @@ export async function sendNotification({
     const isRideAlert = data?.type === "new_ride" || data?.type === "price_update";
     const link = absoluteLink(isRideAlert ? "/rides" : "/");
 
+    console.log(`[FCM] محاولة إرسال إشعار إلى الرمز: ${fcmToken.slice(0, 15)}... | العنوان: "${title}"`);
+
     await admin.messaging().send({
       token: fcmToken,
-      // لا نضع notification على المستوى الأعلى للويب حتى تعمل onBackgroundMessage في Service Worker
+      // كائن notification على المستوى الأعلى ضروري لاستقبال الهواتف والمتصفحات الإشعارات مباشرة في الخلفية
+      notification: {
+        title,
+        body,
+      },
       data: {
         ...data,
         _title: title,
@@ -166,6 +172,7 @@ export async function sendNotification({
         ...(link ? { fcmOptions: { link } } : {}),
       },
     });
+    console.log(`[FCM] تم إرسال الإشعار بنجاح إلى: ${fcmToken.slice(0, 15)}...`);
   } catch (err: any) {
     const code: string = err?.code ?? "";
     console.error("[FCM] sendNotification error:", code, err?.message ?? err);
@@ -195,10 +202,15 @@ export async function sendPushNotification({
   const isRideAlert = data?.type === "new_ride" || data?.type === "price_update";
   const link = absoluteLink(isRideAlert ? "/rides" : "/");
 
+  console.log(`[FCM] محاولة إرسال إشعارات جماعية لعدد ${clean.length} رمز... | العنوان: "${title}"`);
+
   const results = await admin.messaging().sendEach(
     clean.map((token) => ({
       token,
-      // لا نضع notification على المستوى الأعلى للويب حتى تعمل onBackgroundMessage في Service Worker
+      notification: {
+        title,
+        body,
+      },
       data: {
         ...data,
         _title: title,
