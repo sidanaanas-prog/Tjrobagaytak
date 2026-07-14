@@ -134,9 +134,8 @@ export async function sendNotification({
           title,
           body,
           channelId: isRideAlert ? "ride_alerts" : "default",
-          priority: "high",
           sound: isRideAlert ? "alert.mp3" : "default",
-          ...(isRideAlert ? { fullScreenIntent: true, wakeScreen: true } : {}),
+          notificationPriority: isRideAlert ? "PRIORITY_MAX" : "PRIORITY_DEFAULT",
         },
       },
       apns: {
@@ -223,10 +222,8 @@ export async function sendPushNotification({
           title,
           body,
           channelId: isRideAlert ? "ride_alerts" : "default",
-          priority: "high" as const,
           sound: isRideAlert ? "alert.mp3" : "default",
-          fullScreenIntent: isRideAlert,
-          wakeScreen: isRideAlert,
+          notificationPriority: isRideAlert ? "PRIORITY_MAX" : "PRIORITY_DEFAULT",
         },
       },
       apns: {
