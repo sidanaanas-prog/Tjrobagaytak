@@ -3,12 +3,68 @@ import { db, pushTokensTable, usersTable } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
 
 // ── تهيئة Firebase Admin (مرة واحدة فقط) ─────────────────────────────────
+function cleanPrivateKey(key: string): string {
+  if (!key) return "";
+  
+  let cleaned = key.trim();
+  
+  // Remove surrounding quotes if any
+  if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
+    cleaned = cleaned.slice(1, -1);
+  }
+  if (cleaned.startsWith("'") && cleaned.endsWith("'")) {
+    cleaned = cleaned.slice(1, -1);
+  }
+  
+  // Replace escaped newlines with actual newlines
+  cleaned = cleaned.replace(/\\n/g, "\n");
+  
+  const header = "-----BEGIN PRIVATE KEY-----";
+  const footer = "-----END PRIVATE KEY-----";
+  
+  // If it's single-line (has spaces instead of newlines)
+  if (!cleaned.includes("\n")) {
+    if (cleaned.startsWith(header) && cleaned.endsWith(footer)) {
+      let body = cleaned.substring(header.length, cleaned.length - footer.length).trim();
+      // Remove all spaces in base64 body
+      body = body.replace(/\s+/g, "");
+      
+      // Chunk body every 64 chars
+      const chunks: string[] = [];
+      for (let i = 0; i < body.length; i += 64) {
+        chunks.push(body.substring(i, i + 64));
+      }
+      cleaned = `${header}\n${chunks.join("\n")}\n${footer}`;
+    }
+  } else {
+    // If it contains newlines, make sure it is formatted cleanly
+    const lines = cleaned.split("\n").map(l => l.trim()).filter(Boolean);
+    let bodyLines: string[] = [];
+    
+    for (let line of lines) {
+      if (line.includes(header)) continue;
+      if (line.includes(footer)) continue;
+      bodyLines.push(line.replace(/\s+/g, ""));
+    }
+    
+    const body = bodyLines.join("");
+    const chunks: string[] = [];
+    for (let i = 0; i < body.length; i += 64) {
+      chunks.push(body.substring(i, i + 64));
+    }
+    cleaned = `${header}\n${chunks.join("\n")}\n${footer}`;
+  }
+  
+  return cleaned;
+}
+
 function getApp(): admin.app.App {
   if (admin.apps.length > 0) return admin.apps[0]!;
 
   const projectId   = process.env.FIREBASE_PROJECT_ID   ?? "";
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL ?? "";
-  const privateKey  = (process.env.FIREBASE_PRIVATE_KEY ?? "").replace(/\\n/g, "\n");
+  const rawKey      = process.env.FIREBASE_PRIVATE_KEY  ?? "";
+  const privateKey  = cleanPrivateKey(rawKey);
 
   if (!projectId || !clientEmail || !privateKey) {
     console.warn("[FCM] ⚠️ بيانات Firebase Admin غير مكتملة");
@@ -89,6 +145,24 @@ export async function sendNotification({
       },
       webpush: {
         headers: { Urgency: "high" },
+        notification: {
+          title,
+          body,
+          icon: "/favicon.png",
+          badge: "/favicon.png",
+          dir: "rtl",
+          lang: "ar",
+          ...(isRideAlert ? {
+            tag: "ride_alert",
+            requireInteraction: true,
+            actions: [
+              { action: "accept", title: "قبول" },
+              { action: "decline", title: "رفض" },
+            ],
+          } : {
+            tag: "default",
+          }),
+        },
         ...(link ? { fcmOptions: { link } } : {}),
       },
     });
@@ -155,6 +229,24 @@ export async function sendPushNotification({
       },
       webpush: {
         headers: { Urgency: "high" },
+        notification: {
+          title,
+          body,
+          icon: "/favicon.png",
+          badge: "/favicon.png",
+          dir: "rtl",
+          lang: "ar",
+          ...(isRideAlert ? {
+            tag: "ride_alert",
+            requireInteraction: true,
+            actions: [
+              { action: "accept", title: "قبول" },
+              { action: "decline", title: "رفض" },
+            ],
+          } : {
+            tag: "default",
+          }),
+        },
         ...(link ? { fcmOptions: { link } } : {}),
       },
     }))
