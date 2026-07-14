@@ -218,6 +218,64 @@ router.get("/admin/subscriptions/pending-count", authenticate, requireAdmin, asy
   }
 });
 
+// ── الأدمن: تفاصيل الاشتراكات التجريبية والإحصائيات ──────────────────────────
+router.get("/admin/subscriptions/trials-and-stats", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    // 1. Fetch Sellers with their trial/subscription info & stats
+    const sellersResult = await db.execute(sql`
+      SELECT 
+        u.id,
+        u.name,
+        u.email,
+        u.phone,
+        u.avatar,
+        u.is_free as "isFree",
+        u.trial_expires_at as "trialExpiresAt",
+        u.subscription_expires_at as "subscriptionExpiresAt",
+        u.created_at as "createdAt",
+        (SELECT COUNT(*)::int FROM orders o WHERE o.seller_id = u.id) as "ordersCount",
+        (SELECT COUNT(*)::int FROM messages m WHERE m.sender_id = u.id) as "messagesCount"
+      FROM users u
+      INNER JOIN user_roles ur ON ur.user_id = u.id AND ur.role = 'seller'
+      ORDER BY u.created_at DESC
+    `);
+    const sellers = (sellersResult.rows ?? sellersResult ?? []) as any[];
+
+    // 2. Fetch Drivers with their trial/subscription info & stats
+    const driversResult = await db.execute(sql`
+      SELECT 
+        u.id,
+        u.name,
+        u.email,
+        u.phone,
+        u.avatar,
+        dp.is_free as "isFree",
+        dp.is_subscribed as "isSubscribed",
+        dp.trial_expires_at as "trialExpiresAt",
+        dp.subscription_expires_at as "subscriptionExpiresAt",
+        dp.total_rides as "totalRidesProfile",
+        dp.vehicle_type as "vehicleType",
+        dp.vehicle_model as "vehicleModel",
+        dp.vehicle_plate as "vehiclePlate",
+        dp.vehicle_color as "vehicleColor",
+        u.created_at as "createdAt",
+        (SELECT COUNT(*)::int FROM rides r WHERE r.driver_id = u.id) as "ridesCount",
+        (SELECT COUNT(*)::int FROM messages m WHERE m.sender_id = u.id) as "messagesCount"
+      FROM users u
+      INNER JOIN driver_profiles dp ON dp.user_id = u.id
+      ORDER BY u.created_at DESC
+    `);
+    const drivers = (driversResult.rows ?? driversResult ?? []) as any[];
+
+    res.json({
+      sellers,
+      drivers
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── الأدمن: قبول طلب اشتراك ──────────────────────────────────────────────
 router.patch("/admin/subscriptions/:id/approve", authenticate, requireAdmin, async (req, res): Promise<void> => {
   try {
