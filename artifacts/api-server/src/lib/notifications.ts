@@ -113,6 +113,16 @@ export async function sendNotification({
     const isRideAlert = !!(data?.type && (data.type === "new_ride" || data.type === "price_update" || data.type.includes("ride")));
     const link = absoluteLink(isRideAlert ? "/rides" : "/");
 
+    // تحويل جميع القيم في الـ data لتكون نصوصًا (string) لضمان توافقية مكتبة Firebase FCM وعدم إلقاء استثناءات
+    const stringData: Record<string, string> = {};
+    if (data) {
+      for (const [k, v] of Object.entries(data)) {
+        if (v !== undefined && v !== null) {
+          stringData[k] = String(v);
+        }
+      }
+    }
+
     console.log(`[FCM] محاولة إرسال إشعار إلى الرمز: ${fcmToken.slice(0, 15)}... | العنوان: "${title}"`);
 
     await admin.messaging().send({
@@ -123,7 +133,7 @@ export async function sendNotification({
         body,
       },
       data: {
-        ...data,
+        ...stringData,
         _title: title,
         _body: body,
         _isRideAlert: isRideAlert ? "1" : "0",
@@ -133,8 +143,9 @@ export async function sendNotification({
         notification: {
           title,
           body,
-          channelId: isRideAlert ? "ride_alerts" : "default",
-          sound: isRideAlert ? "alert.mp3" : "default",
+          // استخدام ride_alerts_v2 لتخطي قنوات الإشعارات السابقة المعطلة أو الصامتة على جهاز المستخدم
+          channelId: isRideAlert ? "ride_alerts_v2" : "default",
+          sound: "default",
           notificationPriority: isRideAlert ? "PRIORITY_MAX" : "PRIORITY_DEFAULT",
         },
       },
@@ -142,7 +153,7 @@ export async function sendNotification({
         payload: {
           aps: {
             alert: { title, body },
-            sound: isRideAlert ? "alert.mp3" : "default",
+            sound: "default",
             badge: 1,
             "content-available": 1,
           },
@@ -201,6 +212,16 @@ export async function sendPushNotification({
   const isRideAlert = !!(data?.type && (data.type === "new_ride" || data.type === "price_update" || data.type.includes("ride")));
   const link = absoluteLink(isRideAlert ? "/rides" : "/");
 
+  // تحويل جميع القيم في الـ data لتكون نصوصًا (string) لضمان توافقية مكتبة Firebase FCM وعدم إلقاء استثناءات
+  const stringData: Record<string, string> = {};
+  if (data) {
+    for (const [k, v] of Object.entries(data)) {
+      if (v !== undefined && v !== null) {
+        stringData[k] = String(v);
+      }
+    }
+  }
+
   console.log(`[FCM] محاولة إرسال إشعارات جماعية لعدد ${clean.length} رمز... | العنوان: "${title}"`);
 
   const results = await admin.messaging().sendEach(
@@ -211,7 +232,7 @@ export async function sendPushNotification({
         body,
       },
       data: {
-        ...data,
+        ...stringData,
         _title: title,
         _body: body,
         _isRideAlert: isRideAlert ? "1" : "0",
@@ -221,8 +242,9 @@ export async function sendPushNotification({
         notification: {
           title,
           body,
-          channelId: isRideAlert ? "ride_alerts" : "default",
-          sound: isRideAlert ? "alert.mp3" : "default",
+          // استخدام ride_alerts_v2 لتخطي قنوات الإشعارات السابقة المعطلة أو الصامتة على جهاز المستخدم
+          channelId: isRideAlert ? "ride_alerts_v2" : "default",
+          sound: "default",
           notificationPriority: isRideAlert ? "PRIORITY_MAX" : "PRIORITY_DEFAULT",
         },
       },
@@ -230,7 +252,7 @@ export async function sendPushNotification({
         payload: {
           aps: {
             alert: { title, body },
-            sound: isRideAlert ? "alert.mp3" : "default",
+            sound: "default",
             badge: 1,
             "content-available": 1,
           },

@@ -7,16 +7,27 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const DOMAIN = process.env.EXPO_PUBLIC_DOMAIN;
 
+// التهيئة الافتراضية لمعالج الإشعارات على مستوى الملف لضمان تسجيله دائماً فور تشغيل التطبيق
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    priority: Notifications.AndroidNotificationPriority.MAX,
+  }),
+});
+
 // ── Android: إنشاء channel للإشعارات المهمة ─────────────────────────────────
 
 export async function setupAndroidChannels() {
   if (Platform.OS !== "android") return;
 
-  await Notifications.setNotificationChannelAsync("ride_alerts", {
+  // استخدام معرّف جديد "ride_alerts_v2" لضمان تخطي الإعدادات القديمة المشوهة أو الصامتة
+  await Notifications.setNotificationChannelAsync("ride_alerts_v2", {
     name: "طلبات النقل",
     importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: [200, 100, 200, 100, 500, 100, 500],
-    sound: "alert.mp3",
     lightColor: "#00FF88",
     showBadge: true,
     enableVibrate: true,
@@ -84,17 +95,6 @@ export async function initNotifications() {
     console.warn("[Notifications] permission not granted");
     return;
   }
-
-  // Set default notification handler
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      priority: Notifications.AndroidNotificationPriority.MAX,
-    }),
-  });
 
   // Get native FCM token (Android) / APNs token (iOS)
   if (Device.isDevice) {
