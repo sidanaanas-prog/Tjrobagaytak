@@ -35,27 +35,15 @@ router.post("/rides", authenticate, async (req, res): Promise<void> => {
       updatedAt: now,
     });
 
-    // إشعار السائقين المشتركين المتاحين أو المجانيين أو في التجربة
-    // فقط السائقين بنفس نوع السيارة يتلقون الطلب
+    // إشعار جميع السائقين المسجلين بنفس نوع السيارة (حتى لو كانوا بالخلفية أو غير نشطين حالياً لضمان وصول الإشعار)
     const typeFilter = vType === "car" ? undefined : eq(driverProfilesTable.vehicleType, vType);
-    const conditions = [
-      eq(driverProfilesTable.isOnline, true),
-      eq(driverProfilesTable.isAvailable, true),
-      or(
-        eq(driverProfilesTable.isFree, true),
-        and(
-          eq(driverProfilesTable.isSubscribed, true),
-          sql`${driverProfilesTable.subscriptionExpiresAt} > ${now}`,
-        ),
-        sql`${driverProfilesTable.trialExpiresAt} > ${now}`,
-      ),
-    ];
+    const conditions = [];
     if (typeFilter) conditions.push(typeFilter);
 
     const drivers = (await db
       .select({ userId: driverProfilesTable.userId, vehicleType: driverProfilesTable.vehicleType })
       .from(driverProfilesTable)
-      .where(and(...conditions))) ?? [];
+      .where(conditions.length > 0 ? and(...conditions) : undefined)) ?? [];
 
     if (drivers.length > 0) {
       await notifyUsers({
@@ -438,22 +426,16 @@ router.patch("/rides/:id/price", authenticate, async (req, res): Promise<void> =
       price: String(price), updatedAt: now,
     }).where(eq(ridesTable.id, req.params.id as string));
 
-    // إشعار السائقين المشتركين أو المجانيين أو في التجربة بالسعر الجديد
+    // إشعار جميع السائقين المسجلين بنفس نوع السيارة بالسعر الجديد (حتى لو كانوا بالخلفية أو غير نشطين حالياً لضمان وصول الإشعار)
+    const vType = ride.vehicleType ?? "car";
+    const typeFilter = vType === "car" ? undefined : eq(driverProfilesTable.vehicleType, vType);
+    const conditions = [];
+    if (typeFilter) conditions.push(typeFilter);
+
     const drivers = (await db
       .select({ userId: driverProfilesTable.userId })
       .from(driverProfilesTable)
-      .where(and(
-        eq(driverProfilesTable.isOnline, true),
-        eq(driverProfilesTable.isAvailable, true),
-        or(
-          eq(driverProfilesTable.isFree, true),
-          and(
-            eq(driverProfilesTable.isSubscribed, true),
-            sql`${driverProfilesTable.subscriptionExpiresAt} > ${now}`,
-          ),
-          sql`${driverProfilesTable.trialExpiresAt} > ${now}`,
-        ),
-      ))) ?? [];
+      .where(conditions.length > 0 ? and(...conditions) : undefined)) ?? [];
 
     if (drivers.length > 0) {
       await notifyUsers({

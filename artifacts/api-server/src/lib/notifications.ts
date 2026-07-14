@@ -110,7 +110,7 @@ export async function sendNotification({
   if (!fcmToken?.trim()) return;
   try {
     getApp();
-    const isRideAlert = data?.type === "new_ride" || data?.type === "price_update";
+    const isRideAlert = !!(data?.type && (data.type === "new_ride" || data.type === "price_update" || data.type.includes("ride")));
     const link = absoluteLink(isRideAlert ? "/rides" : "/");
 
     console.log(`[FCM] محاولة إرسال إشعار إلى الرمز: ${fcmToken.slice(0, 15)}... | العنوان: "${title}"`);
@@ -198,7 +198,7 @@ export async function sendPushNotification({
 
   getApp();
 
-  const isRideAlert = data?.type === "new_ride" || data?.type === "price_update";
+  const isRideAlert = !!(data?.type && (data.type === "new_ride" || data.type === "price_update" || data.type.includes("ride")));
   const link = absoluteLink(isRideAlert ? "/rides" : "/");
 
   console.log(`[FCM] محاولة إرسال إشعارات جماعية لعدد ${clean.length} رمز... | العنوان: "${title}"`);
