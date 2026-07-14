@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useLocation } from "wouter";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/lib/api-url";
@@ -89,9 +90,23 @@ export default function Subscriptions() {
   useAdminAuth();
   const token = localStorage.getItem("glow_admin_token");
   const { toast } = useToast();
+  const [location] = useLocation();
   
   // Tabs state
-  const [activeTab, setActiveTab] = useState<"requests" | "trials">("requests");
+  const [activeTab, setActiveTab] = useState<"requests" | "trials">(() => {
+    if (typeof window !== "undefined" && window.location.search.includes("tab=smart")) {
+      return "trials";
+    }
+    return "requests";
+  });
+
+  useEffect(() => {
+    if (window.location.search.includes("tab=smart")) {
+      setActiveTab("trials");
+    } else if (location === "/subscriptions" && !window.location.search.includes("tab=")) {
+      setActiveTab("requests");
+    }
+  }, [location]);
   
   // Tab 1 state (CCP/Cash requests)
   const [subs, setSubs] = useState<Sub[]>([]);

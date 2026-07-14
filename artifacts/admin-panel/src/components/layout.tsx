@@ -18,6 +18,7 @@ import {
   Navigation,
   Car,
   Home,
+  Sparkles,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -103,6 +104,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/reports", label: "التبليغات", icon: Flag, badge: pendingReports },
     { href: "/delivery-requests", label: "التوصيل", icon: Truck, badge: pendingDeliveries },
     { href: "/subscriptions", label: "الاشتراكات", icon: CreditCard, badge: pendingSubscriptions },
+    { href: "/subscriptions?tab=smart", label: "الذكاء التسويقي ⭐️", icon: Sparkles },
     { href: "/driver-subscriptions", label: "اشتراكات الكورسا", icon: Navigation },
     { href: "/rides", label: "طلبات الكورسا", icon: Car },
     { href: "/restaurants", label: "منازل المناسبات", icon: Home },
@@ -126,7 +128,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         <nav className="flex-1 overflow-y-auto p-4 space-y-1">
           {navItems.map((item) => {
-            const isActive = location === item.href;
+            const isActive = item.href.includes("?")
+              ? (location === item.href.split("?")[0] && typeof window !== "undefined" && window.location.search.includes(item.href.split("?")[1]))
+              : (location === item.href && (typeof window === "undefined" || !window.location.search.includes("tab=")));
             return (
               <Link key={item.href} href={item.href} className="block">
                 <div
