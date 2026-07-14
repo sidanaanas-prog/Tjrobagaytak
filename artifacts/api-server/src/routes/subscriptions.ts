@@ -224,7 +224,7 @@ router.get("/admin/subscriptions/trials-and-stats", authenticate, requireAdmin, 
     // 1. Fetch Sellers with their trial/subscription info & stats
     const sellersResult = await db.execute(sql`
       SELECT 
-        u.id,
+        u.id::text as "id",
         u.name,
         u.email,
         u.phone,
@@ -233,10 +233,10 @@ router.get("/admin/subscriptions/trials-and-stats", authenticate, requireAdmin, 
         u.trial_expires_at as "trialExpiresAt",
         u.subscription_expires_at as "subscriptionExpiresAt",
         u.created_at as "createdAt",
-        (SELECT COUNT(*)::int FROM orders o WHERE o.seller_id = u.id) as "ordersCount",
-        (SELECT COUNT(*)::int FROM messages m WHERE m.sender_id = u.id) as "messagesCount"
+        (SELECT COUNT(*)::int FROM orders o WHERE o.seller_id::text = u.id::text) as "ordersCount",
+        (SELECT COUNT(*)::int FROM messages m WHERE m.sender_id::text = u.id::text) as "messagesCount"
       FROM users u
-      INNER JOIN user_roles ur ON ur.user_id = u.id AND ur.role = 'seller'
+      INNER JOIN user_roles ur ON ur.user_id::text = u.id::text AND ur.role = 'seller'
       ORDER BY u.created_at DESC
     `);
     const sellers = (sellersResult.rows ?? sellersResult ?? []) as any[];
@@ -244,7 +244,7 @@ router.get("/admin/subscriptions/trials-and-stats", authenticate, requireAdmin, 
     // 2. Fetch Drivers with their trial/subscription info & stats
     const driversResult = await db.execute(sql`
       SELECT 
-        u.id,
+        u.id::text as "id",
         u.name,
         u.email,
         u.phone,
@@ -259,10 +259,10 @@ router.get("/admin/subscriptions/trials-and-stats", authenticate, requireAdmin, 
         dp.vehicle_plate as "vehiclePlate",
         dp.vehicle_color as "vehicleColor",
         u.created_at as "createdAt",
-        (SELECT COUNT(*)::int FROM rides r WHERE r.driver_id = u.id) as "ridesCount",
-        (SELECT COUNT(*)::int FROM messages m WHERE m.sender_id = u.id) as "messagesCount"
+        (SELECT COUNT(*)::int FROM rides r WHERE r.driver_id::text = u.id::text) as "ridesCount",
+        (SELECT COUNT(*)::int FROM messages m WHERE m.sender_id::text = u.id::text) as "messagesCount"
       FROM users u
-      INNER JOIN driver_profiles dp ON dp.user_id = u.id
+      INNER JOIN driver_profiles dp ON dp.user_id::text = u.id::text
       ORDER BY u.created_at DESC
     `);
     const drivers = (driversResult.rows ?? driversResult ?? []) as any[];

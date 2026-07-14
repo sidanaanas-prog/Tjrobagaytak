@@ -151,6 +151,9 @@ export default function Subscriptions() {
       });
       if (res.ok) {
         setTrialsData(await res.json());
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "خطأ غير معروف من السيرفر");
       }
     } catch (e: any) {
       toast({ variant: "destructive", title: "خطأ", description: "فشل تحميل تفاصيل الاشتراكات التجريبية" });
