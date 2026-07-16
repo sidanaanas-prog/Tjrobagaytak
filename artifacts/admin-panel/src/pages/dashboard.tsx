@@ -492,8 +492,8 @@ export default function Dashboard() {
                 <DollarSign className="h-4 w-4 text-emerald-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-mono font-bold text-emerald-400">{((stats as any)?.totalRideRevenue || 0).toFixed(0)} دج</div>
-                <p className="text-xs text-emerald-400/70 font-mono mt-1">+{((stats as any)?.rideRevenueToday || 0).toFixed(0)} اليوم</p>
+                <div className="text-2xl font-mono font-bold text-emerald-400">{((stats as any)?.totalRideRevenue || 0).toFixed(0)} ألف دورو</div>
+                <p className="text-xs text-emerald-400/70 font-mono mt-1">+{((stats as any)?.rideRevenueToday || 0).toFixed(0)} ألف دورو اليوم</p>
               </CardContent>
             </Card>
 

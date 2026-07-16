@@ -85,7 +85,7 @@ export default function WalletPage() {
               <p className="text-white/70 text-sm font-medium">الرصيد المتوفر</p>
               <p className="text-4xl font-black mt-1">
                 {wallet ? Number(wallet.balance).toLocaleString("ar-DZ") : "0"}
-                <span className="text-xl font-bold mr-2">دج</span>
+                <span className="text-xl font-bold mr-2">ألف دورو</span>
               </p>
               <div className="flex items-center gap-2 mt-4 text-white/60 text-xs">
                 <Wallet className="w-4 h-4" />
@@ -189,7 +189,7 @@ export default function WalletPage() {
                         <p className="text-[11px] text-muted-foreground">{new Date(t.createdAt).toLocaleDateString("ar-DZ", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
                       </div>
                       <span className={`text-sm font-black ${isIn ? "text-green-400" : "text-red-400"}`}>
-                        {isIn ? "+" : "-"}{Math.abs(Number(t.amount)).toLocaleString("ar-DZ")} دج
+                        {isIn ? "+" : "-"}{Math.abs(Number(t.amount)).toLocaleString("ar-DZ")} ألف دورو
                       </span>
                     </motion.div>
                   );

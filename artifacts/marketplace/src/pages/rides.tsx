@@ -74,9 +74,6 @@ function PassengerRequest() {
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "wallet">("cash");
   const [submitting, setSubmitting] = useState(false);
   const [myRides, setMyRides] = useState<Ride[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [pendingCountdown, setPendingCountdown] = useState<number | null>(null);
-  const [showPriceTip, setShowPriceTip] = useState(false);
   const [editingPrice, setEditingPrice] = useState<string | null>(null);
   const [newPrice, setNewPrice] = useState("");
   const [countdownTrigger, setCountdownTrigger] = useState(0);
@@ -90,17 +87,41 @@ function PassengerRequest() {
   const prevMyRidesRef = useRef<Ride[]>([]);
   const [, navigate] = useLocation();
   const [destinations, setDestinations] = useState<{ id: string; name: string; price: string }[]>([]); // الوجهات المحددة مسبقاً من الإدارة
+  const [pricingMode, setPricingMode] = useState("flexible");
+  const [commissionType, setCommissionType] = useState("percentage");
+  const [commissionValue, setCommissionValue] = useState("10");
+  const [loading, setLoading] = useState(true);
+  const [pendingCountdown, setPendingCountdown] = useState<number | null>(null);
+  const [showPriceTip, setShowPriceTip] = useState(false);
 
-  // جلب الوجهات المعتمدة من الإدارة
+  // جلب الوجهات المعتمدة والإعدادات من الإدارة
   useEffect(() => {
     const token = getMemToken();
     if (token) {
+      // Fetch destinations
       fetch(`${BASE}/api/rides/destinations`, { headers: { Authorization: `Bearer ${token}` } })
         .then((res) => res.json())
         .then((data) => {
           if (Array.isArray(data)) setDestinations(data);
         })
         .catch((err) => console.error("[Destinations] Error fetching:", err));
+
+      // Fetch public settings
+      fetch(`${BASE}/api/rides/settings`, { headers: { Authorization: `Bearer ${token}` } })
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) {
+            const pMode = data.find((s: any) => s.key === "pricing_mode");
+            if (pMode) setPricingMode(pMode.value);
+
+            const commType = data.find((s: any) => s.key === "commission_type");
+            if (commType) setCommissionType(commType.value);
+
+            const commVal = data.find((s: any) => s.key === "commission_value") || data.find((s: any) => s.key === "commission_rate");
+            if (commVal) setCommissionValue(commVal.value);
+          }
+        })
+        .catch((err) => console.error("[Settings] Error fetching:", err));
     }
   }, []);
 
@@ -221,14 +242,25 @@ function PassengerRequest() {
     if (!fromAddress || !toAddress || !price) {
       toast({ title: "المرجو", description: "املأ المكان والسعر", variant: "destructive" }); return;
     }
+
+    const basePrice = Number(price);
+    let comm = 0;
+    const commValNum = Number(commissionValue || 0);
+    if (commissionType === "fixed") {
+      comm = commValNum;
+    } else {
+      comm = Math.round(basePrice * (commValNum / 100));
+    }
+    const totalPrice = basePrice + comm;
+
     // ✅ إصلاح 2: تحقق من رصيد المحفظة قبل الإرسال
     if (paymentMethod === "wallet") {
       const balance = Number(user?.walletBalance ?? 0);
-      if (balance < Number(price)) {
+      if (balance < totalPrice) {
         toast({
           variant: "destructive",
           title: "رصيد غير كافٍ",
-          description: `رصيدك ${balance.toLocaleString("ar-DZ")} دج والكورسة ${Number(price).toLocaleString("ar-DZ")} دج. اشحن المحفظة أو اختر الدفع نقداً`,
+          description: `رصيدك ${balance.toLocaleString("ar-DZ")} دج والكورسة شاملة الرسوم ${totalPrice.toLocaleString("ar-DZ")} دج. اشحن المحفظة أو اختر الدفع نقداً`,
         });
         return;
       }
@@ -239,7 +271,7 @@ function PassengerRequest() {
       const res = await fetch(`${BASE}/api/rides`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          fromAddress, toAddress, price: Number(price),
+          fromAddress, toAddress, price: totalPrice,
           passengerCount: Number(passengerCount) || 1, vehicleType, notes,
           paymentMethod, estimatedPrice: estimate?.estimatedPrice,
           fromLat, fromLng, toLat, toLng,
@@ -290,7 +322,7 @@ function PassengerRequest() {
             <div>
               <p className="text-xs text-primary/70 font-medium">المحفظة</p>
               <p className="text-lg font-black text-primary">
-                {user?.walletBalance ? Number(user.walletBalance).toLocaleString("ar-DZ") : "0"} <span className="text-[10px] font-bold">دج</span>
+                {user?.walletBalance ? Number(user.walletBalance).toLocaleString("ar-DZ") : "0"} <span className="text-[10px] font-bold">ألف دورو</span>
               </p>
             </div>
             <div className="border-r border-primary/20" />
@@ -330,12 +362,12 @@ function PassengerRequest() {
                     setFromAddress("موقعي الحالي");
                     setToAddress(d.name);
                     setPrice(String(d.price));
-                    toast({ title: `📍 تم تحديد الوجهة: ${d.name}`, description: `السعر المعتمد: ${d.price} دج` });
+                    toast({ title: `📍 تم تحديد الوجهة: ${d.name}`, description: `السعر المعتمد: ${d.price} ألف دورو` });
                   }}
                   className="flex-shrink-0 bg-background hover:bg-primary/10 border border-border hover:border-primary px-3 py-2 rounded-xl text-xs font-bold text-foreground transition-all flex items-center gap-2"
                 >
                   <span className="text-primary">{d.name}</span>
-                  <span className="bg-primary/20 text-primary px-1.5 py-0.5 rounded-md text-[10px] font-black">{d.price} دج</span>
+                  <span className="bg-primary/20 text-primary px-1.5 py-0.5 rounded-md text-[10px] font-black">{d.price} ألف دورو</span>
                 </button>
               ))}
             </div>
@@ -388,15 +420,24 @@ function PassengerRequest() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">السعر التقديري</span>
-              <span className="text-sm font-black text-primary">{estimate.estimatedPrice.toLocaleString("ar-DZ")} دج</span>
+              <span className="text-sm font-black text-primary">{estimate.estimatedPrice.toLocaleString("ar-DZ")} ألف دورو</span>
             </div>
           </motion.div>
         )}
 
         {/* السعر */}
-        <div className="relative">
-          <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="السعر (دج)" className="w-full bg-background border border-yellow-500/30 rounded-xl px-4 py-3 text-sm font-bold text-yellow-400 placeholder:text-muted-foreground placeholder:font-normal focus:outline-none focus:border-yellow-400" />
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-yellow-400">دج</span>
+        <div className="space-y-2">
+          <label className="text-[10px] text-muted-foreground font-bold">تسعير الكورسة (ألف دورو)</label>
+          <div className="relative">
+            <input
+              type="number"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="أدخل السعر المقترح (ألف دورو)"
+              className="w-full bg-background border border-yellow-500/30 rounded-xl px-4 py-3 text-sm font-bold text-yellow-400 placeholder:text-muted-foreground placeholder:font-normal focus:outline-none focus:border-yellow-400"
+            />
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-yellow-400">ألف دورو</span>
+          </div>
         </div>
 
         {/* طريقة الدفع */}
@@ -524,7 +565,7 @@ function PassengerRequest() {
                       <div className="flex items-center justify-between">
                         <span className={`text-xs font-bold ${s.color}`}>{s.label}</span>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">{r.price} دج</span>
+                          <span className="text-xs text-muted-foreground">{r.price} ألف دورو</span>
                           <span className="text-[10px] bg-blue-500/15 text-blue-400 px-1.5 py-0.5 rounded-full">{r.passengerCount ?? 1} راكب</span>
                           {r.paymentMethod === "wallet" && <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full flex items-center gap-0.5"><Wallet className="w-2.5 h-2.5" /> محفظة</span>}
                         </div>
@@ -722,7 +763,7 @@ function DriverDashboard() {
         toast({
           title: "🎉 تم إنهاء الرحلة بنجاح!",
           description: data.commissionDeducted > 0
-            ? `تم خصم عمولة التطبيق بقيمة ${data.commissionDeducted} دج.`
+            ? `تم خصم عمولة التطبيق بقيمة ${data.commissionDeducted} ألف دورو.`
             : `الرحلة مجانية! متبقي لديك ${data.freeRidesLeft} رحلات مجانية.`,
         });
         fetchRequests();
@@ -875,9 +916,23 @@ function DriverDashboard() {
                       {r.passengerCount && r.passengerCount > 1 && <span className="text-[10px] bg-blue-500/15 text-blue-400 px-1.5 py-0.5 rounded-full">{r.passengerCount} ركاب</span>}
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5"><span className="text-green-400">{r.fromAddress}</span> → <span className="text-red-400">{r.toAddress}</span></p>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      <p className="text-xs text-primary font-bold">{r.price} دج</p>
-                      {r.paymentMethod === "wallet" && <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full flex items-center gap-0.5"><Wallet className="w-2.5 h-2.5" /> محفظة</span>}
+                    <div className="mt-1 space-y-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 px-1.5 py-0.5 rounded-md font-black">
+                          المبلغ المطلوب من الراكب: {r.price} ألف دورو
+                        </span>
+                        {r.paymentMethod === "wallet" && <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full flex items-center gap-0.5 font-bold"><Wallet className="w-2.5 h-2.5" /> محفظة</span>}
+                      </div>
+                      
+                      {/* عرض العمولة والربح الصافي للشفافية المطلقة */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] bg-red-500/10 text-red-400 border border-red-500/15 px-1.5 py-0.5 rounded-md font-bold">
+                          عمولة التطبيق: -{r.commission !== undefined ? r.commission : Math.round(Number(r.price) * 0.1)} ألف دورو
+                        </span>
+                        <span className="text-[10px] bg-green-500/10 text-green-400 border border-green-500/15 px-1.5 py-0.5 rounded-md font-bold">
+                          ربح السائق الصافي: +{r.netProfit !== undefined ? r.netProfit : Math.round(Number(r.price) * 0.9)} ألف دورو
+                        </span>
+                      </div>
                     </div>
                     {/* ✅ إصلاح 4: رقم الراكب بارز جداً بعد القبول */}
                     {r.status === "accepted" && r.passenger?.phone && (
@@ -961,8 +1016,11 @@ function AdminRidesDashboard() {
   const [destName, setDestName] = useState("");
   const [destPrice, setDestPrice] = useState("");
   
-  // Commission settings states
+  // Commission & Pricing settings states
   const [commissionRate, setCommissionRate] = useState("10");
+  const [pricingMode, setPricingMode] = useState("flexible"); // "fixed" | "flexible"
+  const [commissionType, setCommissionType] = useState("percentage"); // "percentage" | "fixed"
+  const [commissionValue, setCommissionValue] = useState("10");
   const [commissionSubmitting, setCommissionSubmitting] = useState(false);
 
   // Wallet states
@@ -993,8 +1051,17 @@ function AdminRidesDashboard() {
       const res = await fetch(`${BASE}/api/admin/settings`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (Array.isArray(data)) {
-        const comm = data.find((s: any) => s.key === "commission_rate");
-        if (comm) setCommissionRate(comm.value);
+        const pMode = data.find((s: any) => s.key === "pricing_mode");
+        if (pMode) setPricingMode(pMode.value);
+
+        const commType = data.find((s: any) => s.key === "commission_type");
+        if (commType) setCommissionType(commType.value);
+
+        const commVal = data.find((s: any) => s.key === "commission_value") || data.find((s: any) => s.key === "commission_rate");
+        if (commVal) {
+          setCommissionValue(commVal.value);
+          setCommissionRate(commVal.value);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -1006,26 +1073,40 @@ function AdminRidesDashboard() {
     fetchSettings();
   }, []);
 
-  const handleCommissionUpdate = async (e: React.FormEvent) => {
+  const handleSaveAllSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commissionRate || Number(commissionRate) < 0 || Number(commissionRate) > 100) {
-      toast({ variant: "destructive", title: "تنبيه", description: "يرجى إدخال نسبة صحيحة بين 0 و 100." });
+    if (!commissionValue || Number(commissionValue) < 0) {
+      toast({ variant: "destructive", title: "تنبيه", description: "يرجى إدخال قيمة عمولة صحيحة." });
       return;
     }
     setCommissionSubmitting(true);
     const token = getMemToken();
     try {
-      const res = await fetch(`${BASE}/api/admin/settings/commission_rate`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ value: commissionRate }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast({ title: "✅ تم التحديث", description: `تم تحديث نسبة عمولة التطبيق لتصبح ${commissionRate}%.` });
-      } else {
-        toast({ variant: "destructive", title: "خطأ", description: data.error });
-      }
+      await Promise.all([
+        fetch(`${BASE}/api/admin/settings/pricing_mode`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ value: pricingMode }),
+        }),
+        fetch(`${BASE}/api/admin/settings/commission_type`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ value: commissionType }),
+        }),
+        fetch(`${BASE}/api/admin/settings/commission_value`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ value: commissionValue }),
+        }),
+        // For backwards compatibility
+        fetch(`${BASE}/api/admin/settings/commission_rate`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ value: commissionValue }),
+        })
+      ]);
+      toast({ title: "✅ تم حفظ الإعدادات", description: "تم تحديث إعدادات التسعير والعمولة بنجاح." });
+      fetchSettings();
     } catch {
       toast({ variant: "destructive", title: "خطأ", description: "تعذر الاتصال بالخادم" });
     } finally {
@@ -1183,33 +1264,69 @@ function AdminRidesDashboard() {
         </div>
       </div>
 
-      {/* 2. نسبة ربح التطبيق (العمولة من السائق) */}
+      {/* 2. إعدادات التسعير وعمولة التطبيق */}
       <div className="bg-card border rounded-2xl p-4 space-y-4 shadow-lg shadow-primary/5">
-        <h3 className="font-bold text-sm text-foreground flex items-center gap-2">🛠️ نسبة ربح التطبيق (العمولة من السائق)</h3>
-        <p className="text-[11px] text-muted-foreground">هذه النسبة يتم خصمها تلقائياً من محفظة السائق فور إنهاء كل رحلة (كورسة) بعد أن ينهي رحلاته التجريبية المجانية.</p>
-        <form onSubmit={handleCommissionUpdate} className="flex gap-3 max-w-md items-end">
-          <div className="space-y-1 flex-1">
-            <label className="text-[10px] text-muted-foreground font-bold">نسبة العمولة (%)</label>
-            <div className="relative">
-              <input
-                type="number"
-                min="0"
-                max="100"
-                placeholder="مثال: 10"
-                value={commissionRate}
-                onChange={(e) => setCommissionRate(e.target.value)}
-                className="w-full bg-background text-foreground border rounded-xl pl-8 pr-3 py-2 text-xs font-bold text-left"
-              />
-              <span className="absolute left-3 top-2 text-xs text-muted-foreground font-black">%</span>
+        <h3 className="font-bold text-sm text-foreground flex items-center gap-2">🛠️ إعدادات التسعير وعمولة التطبيق</h3>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          قم بضبط طريقة تسعير الرحلات في التطبيق وكيفية احتساب عمولتك المستحقة من السائقين بعد انقضاء فترة تجربتهم المجانية.
+        </p>
+        
+        <form onSubmit={handleSaveAllSettings} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* طريقة تسعير الرحلات */}
+            <div className="space-y-1">
+              <label className="text-[10px] text-muted-foreground font-bold">طريقة تسعير الرحلات (للركاب)</label>
+              <select
+                value={pricingMode}
+                onChange={(e) => setPricingMode(e.target.value)}
+                className="w-full bg-background text-foreground border rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:border-primary"
+              >
+                <option value="flexible">📈 مرن (الراكب يقترح السعر وتضاف له عمولة تلقائية)</option>
+                <option value="fixed">📍 ثابت (الراكب يختار من الوجهات المعتمدة فقط مع عمولة مضافة)</option>
+              </select>
+            </div>
+
+            {/* نوع العمولة */}
+            <div className="space-y-1">
+              <label className="text-[10px] text-muted-foreground font-bold">طريقة احتساب العمولة (من السائق)</label>
+              <select
+                value={commissionType}
+                onChange={(e) => setCommissionType(e.target.value)}
+                className="w-full bg-background text-foreground border rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:border-primary"
+              >
+                <option value="percentage">٪ نسبة مئوية من سعر الرحلة</option>
+                <option value="fixed">💵 مبلغ مالي ثابت لكل رحلة</option>
+              </select>
+            </div>
+
+            {/* قيمة العمولة */}
+            <div className="space-y-1 md:col-span-2 max-w-sm">
+              <label className="text-[10px] text-muted-foreground font-bold">قيمة العمولة المستحقة للتطبيق</label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="مثال: 10 أو 150"
+                  value={commissionValue}
+                  onChange={(e) => setCommissionValue(e.target.value)}
+                  className="w-full bg-background text-foreground border rounded-xl pl-12 pr-3 py-2 text-xs font-bold text-left"
+                />
+                <span className="absolute left-3 top-2 text-xs text-muted-foreground font-black">
+                  {commissionType === "fixed" ? "ألف دورو" : "٪"}
+                </span>
+              </div>
             </div>
           </div>
-          <button
-            type="submit"
-            disabled={commissionSubmitting}
-            className="bg-primary hover:bg-primary/90 text-white font-bold py-2 px-6 rounded-xl text-xs transition-colors disabled:opacity-50 h-[34px]"
-          >
-            {commissionSubmitting ? "جاري الحفظ..." : "حفظ النسبة"}
-          </button>
+
+          <div className="text-left pt-2">
+            <button
+              type="submit"
+              disabled={commissionSubmitting}
+              className="bg-primary hover:bg-primary/90 text-white font-bold py-2 px-6 rounded-xl text-xs transition-colors disabled:opacity-50 h-[34px]"
+            >
+              {commissionSubmitting ? "جاري الحفظ..." : "حفظ الإعدادات بالكامل"}
+            </button>
+          </div>
         </form>
       </div>
 
@@ -1229,7 +1346,7 @@ function AdminRidesDashboard() {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] text-muted-foreground font-bold">المبلغ بالدينار (دج)</label>
+              <label className="text-[10px] text-muted-foreground font-bold">المبلغ بألف دورو</label>
               <input
                 type="number"
                 placeholder="مثال: 1000"

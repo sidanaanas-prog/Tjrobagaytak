@@ -7,15 +7,15 @@ import { uploadDriverDocument } from "@/lib/upload-image";
 import { motion } from "framer-motion";
 import {
   Car, Upload, ChevronLeft, Check, Loader2, Shield,
-  CreditCard, FileText, Camera, AlertTriangle,
+  CreditCard, FileText, AlertTriangle,
 } from "lucide-react";
 
 const BASE = getApiUrl("");
 
 const VEHICLE_TYPES = [
   { id: "car", label: "سيارة" },
-  { id: "van", label: "فان" },
-  { id: "bike", label: "دراجة" },
+  { id: "van", label: "كار / حافلة" },
+  { id: "bike", label: "دراجة نارية" },
 ];
 
 export default function DriverRegisterPage() {
@@ -23,24 +23,16 @@ export default function DriverRegisterPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
 
-  const [step, setStep] = useState(1);
-  const [vehicleType, setVehicleType] = useState("");
-  const [vehicleModel, setVehicleModel] = useState("");
-  const [vehiclePlate, setVehiclePlate] = useState("");
-  const [vehicleColor, setVehicleColor] = useState("");
-
-  const [licensePreview, setLicensePreview] = useState<string | null>(null);
+  const [vehicleType, setVehicleType] = useState("car");
   const [idCardPreview, setIdCardPreview] = useState<string | null>(null);
   const [vehicleDocPreview, setVehicleDocPreview] = useState<string | null>(null);
 
-  const [licenseFile, setLicenseFile] = useState<File | null>(null);
   const [idCardFile, setIdCardFile] = useState<File | null>(null);
   const [vehicleDocFile, setVehicleDocFile] = useState<File | null>(null);
 
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const licenseRef = useRef<HTMLInputElement>(null);
   const idRef = useRef<HTMLInputElement>(null);
   const docRef = useRef<HTMLInputElement>(null);
 
@@ -50,7 +42,6 @@ export default function DriverRegisterPage() {
     fileSetter: (v: File) => void
   ) {
     try {
-      // Create preview from original file
       const reader = new FileReader();
       reader.onload = () => setter(reader.result as string);
       reader.readAsDataURL(file);
@@ -61,44 +52,41 @@ export default function DriverRegisterPage() {
   }
 
   async function handleSubmit() {
-    if (!vehicleType || !vehicleModel || !vehiclePlate || !vehicleColor) {
-      toast({ variant: "destructive", title: "معلومات ناقصة", description: "أكمل معلومات المركبة" });
+    if (!vehicleType) {
+      toast({ variant: "destructive", title: "معلومات ناقصة", description: "الرجاء اختيار نوع المركبة" });
       return;
     }
-    if (!licenseFile || !idCardFile) {
-      toast({ variant: "destructive", title: "وثائق ناقصة", description: "ارفع رخصة القيادة وبطاقة الهوية" });
+    if (!idCardFile || !vehicleDocFile) {
+      toast({ variant: "destructive", title: "وثائق ناقصة", description: "الرجاء رفع بطاقة الهوية والبطاقة الرمادية" });
       return;
     }
 
     setSubmitting(true);
     const token = getMemToken();
     try {
-      // 1) Upload images to server
       setUploading(true);
-      const [licenseUrl, idCardUrl, vehicleDocUrl] = await Promise.all([
-        uploadDriverDocument(licenseFile, user!.id, "license"),
+      const [idCardUrl, vehicleDocUrl] = await Promise.all([
         uploadDriverDocument(idCardFile, user!.id, "id"),
-        vehicleDocFile ? uploadDriverDocument(vehicleDocFile, user!.id, "vehicle") : Promise.resolve(null),
+        uploadDriverDocument(vehicleDocFile, user!.id, "vehicle"),
       ]);
       setUploading(false);
 
-      // 2) Submit profile with URLs
       const res = await fetch(`${BASE}/api/driver/profile`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           vehicleType,
-          vehicleModel,
-          vehiclePlate,
-          vehicleColor,
-          licenseImage: licenseUrl,
+          vehicleModel: "غير محدد",
+          vehiclePlate: "غير محدد",
+          vehicleColor: "غير محدد",
+          licenseImage: idCardUrl, // map National ID to licenseImage for system compliance
           idCardImage: idCardUrl,
-          vehicleDocImage: vehicleDocUrl,
+          vehicleDocImage: vehicleDocUrl, // map Gray Card to vehicleDocImage
         }),
       });
       const data = await res.json();
       if (data.success) {
-        toast({ title: "✅ تم التسجيل!", description: "🎉 تم تفعيل التجربة المجانية 7 أيام! ابدأ باستقبال الطلبات." });
+        toast({ title: "✅ تم تسجيل الطلب!", description: "🎉 تم إرسال وثائقك بنجاح للأدمن للمراجعة. ستبدأ تجربتك المجانية 7 أيام فور موافقة الإدارة." });
         navigate("/rides");
       } else {
         toast({ variant: "destructive", title: "خطأ", description: data.error || "فشل التسجيل" });
@@ -111,155 +99,71 @@ export default function DriverRegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-5" dir="rtl">
+    <div className="min-h-screen bg-background p-5 md:p-10 max-w-2xl mx-auto" dir="rtl">
       {/* Header */}
-      <div className="flex items-center gap-2 mb-6">
-        <button onClick={() => navigate("/")} className="p-2 hover:bg-muted rounded-lg">
+      <div className="flex items-center gap-3 mb-8">
+        <button onClick={() => navigate("/")} className="p-2.5 hover:bg-muted rounded-2xl border border-border/50 transition-colors">
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-xl font-black">تسجيل كسائق</h1>
+        <div>
+          <h1 className="text-2xl font-black text-foreground">التسجيل كسائق شريك</h1>
+          <p className="text-xs text-muted-foreground mt-1">سجل الآن بخطوات بسيطة وابدأ بجني الأرباح نقداً</p>
+        </div>
       </div>
 
-      {/* خطوات التسجيل */}
-      <div className="flex items-center gap-2 mb-6">
-        {[1, 2, 3].map((s) => (
-          <div key={s} className={`flex-1 h-2 rounded-full ${s <= step ? "bg-primary" : "bg-muted"}`} />
-        ))}
-      </div>
-
-      {/* الخطوة 1: معلومات المركبة */}
-      {step === 1 && (
-        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+      <div className="space-y-6">
+        {/* الخطوة 1: نوع المركبة */}
+        <div className="space-y-3 bg-card border border-border rounded-2xl p-5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
               <Car className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="font-bold">معلومات المركبة</p>
-              <p className="text-xs text-muted-foreground">أدخل تفاصيل مركبتك</p>
+              <h2 className="font-bold text-sm text-foreground">نوع المركبة التي تقودها</h2>
+              <p className="text-[11px] text-muted-foreground">اختر المركبة التي ستعمل بها لتلقي طلبات الكورسا المناسبة لك</p>
             </div>
           </div>
 
-          {/* نوع المركبة */}
-          <div className="space-y-2">
-            <p className="text-sm font-bold">نوع المركبة</p>
-            <div className="grid grid-cols-3 gap-2">
-              {VEHICLE_TYPES.map((v) => (
-                <button
-                  key={v.id}
-                  onClick={() => setVehicleType(v.id)}
-                  className={`p-3 rounded-xl border text-sm font-bold transition-all ${
-                    vehicleType === v.id
-                      ? "bg-primary/20 border-primary text-primary"
-                      : "border-white/10 bg-card"
-                  }`}
-                >
-                  {v.label}
-                </button>
-              ))}
-            </div>
+          <div className="grid grid-cols-3 gap-2 pt-2">
+            {VEHICLE_TYPES.map((v) => (
+              <button
+                key={v.id}
+                onClick={() => setVehicleType(v.id)}
+                className={`p-4 rounded-xl border font-bold text-xs transition-all flex flex-col items-center gap-2 ${
+                  vehicleType === v.id
+                    ? "bg-primary/10 border-primary text-primary"
+                    : "border-border bg-background hover:bg-muted"
+                }`}
+              >
+                {v.id === "car" && <span className="text-xl">🚗</span>}
+                {v.id === "van" && <span className="text-xl">🚌</span>}
+                {v.id === "bike" && <span className="text-xl">🏍️</span>}
+                <span>{v.label}</span>
+              </button>
+            ))}
           </div>
+        </div>
 
-          {/* الموديل */}
-          <div className="space-y-2">
-            <p className="text-sm font-bold">الموديل</p>
-            <input
-              value={vehicleModel}
-              onChange={(e) => setVehicleModel(e.target.value)}
-              placeholder="مثال: Peugeot 301"
-              className="w-full bg-card border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary"
-            />
-          </div>
-
-          {/* اللون */}
-          <div className="space-y-2">
-            <p className="text-sm font-bold">اللون</p>
-            <input
-              value={vehicleColor}
-              onChange={(e) => setVehicleColor(e.target.value)}
-              placeholder="مثال: أبيض"
-              className="w-full bg-card border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary"
-            />
-          </div>
-
-          {/* رقم اللوحة */}
-          <div className="space-y-2">
-            <p className="text-sm font-bold">رقم اللوحة</p>
-            <input
-              value={vehiclePlate}
-              onChange={(e) => setVehiclePlate(e.target.value)}
-              placeholder="مثال: 12345-06-16"
-              className="w-full bg-card border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary"
-            />
-          </div>
-
-          <button
-            onClick={() => setStep(2)}
-            disabled={!vehicleType || !vehicleModel || !vehiclePlate || !vehicleColor}
-            className="w-full bg-primary text-primary-foreground py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            التالي <ChevronLeft className="w-4 h-4" />
-          </button>
-        </motion.div>
-      )}
-
-      {/* الخطوة 2: الوثائق */}
-      {step === 2 && (
-        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+        {/* الخطوة 2: رفع الوثائق */}
+        <div className="space-y-4 bg-card border border-border rounded-2xl p-5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
               <Shield className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="font-bold">الوثائق المطلوبة</p>
-              <p className="text-xs text-muted-foreground">ارفع صوراً واضحة للوثائق</p>
+              <h2 className="font-bold text-sm text-foreground">الوثائق المطلوبة</h2>
+              <p className="text-[11px] text-muted-foreground">ارفع صوراً واضحة لتأكيد هويتك ومركبتك</p>
             </div>
-          </div>
-
-          {/* رخصة القيادة */}
-          <div className="bg-card border border-white/10 rounded-xl p-4 space-y-2">
-            <div className="flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-primary" />
-              <p className="text-sm font-bold">رخصة القيادة</p>
-              <span className="text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full">مطلوبة</span>
-            </div>
-            <input
-              ref={licenseRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleFile(file, setLicensePreview, setLicenseFile);
-              }}
-            />
-            {licensePreview ? (
-              <div className="relative">
-                <img src={licensePreview} alt="رخصة" className="w-full h-32 object-cover rounded-lg" />
-                <button
-                  onClick={() => { setLicensePreview(null); setLicenseFile(null); }}
-                  className="absolute top-2 left-2 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center"
-                >
-                  <ChevronLeft className="w-4 h-4 text-white" />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => licenseRef.current?.click()}
-                className="w-full h-32 border-2 border-dashed border-white/20 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors"
-              >
-                <Upload className="w-6 h-6 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">اضغط لرفع صورة رخصة القيادة</p>
-              </button>
-            )}
           </div>
 
           {/* بطاقة الهوية */}
-          <div className="bg-card border border-white/10 rounded-xl p-4 space-y-2">
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-primary" />
-              <p className="text-sm font-bold">بطاقة الهوية</p>
-              <span className="text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full">مطلوبة</span>
+          <div className="bg-background border border-border rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-primary" />
+                <p className="text-xs font-bold text-foreground">بطاقة الهوية الوطنية</p>
+              </div>
+              <span className="text-[10px] bg-red-500/10 text-red-400 px-2.5 py-0.5 rounded-full font-bold">مطلوبة</span>
             </div>
             <input
               ref={idRef}
@@ -272,32 +176,35 @@ export default function DriverRegisterPage() {
               }}
             />
             {idCardPreview ? (
-              <div className="relative">
-                <img src={idCardPreview} alt="هوية" className="w-full h-32 object-cover rounded-lg" />
+              <div className="relative rounded-lg overflow-hidden border border-border">
+                <img src={idCardPreview} alt="بطاقة الهوية" className="w-full h-40 object-cover" />
                 <button
                   onClick={() => { setIdCardPreview(null); setIdCardFile(null); }}
-                  className="absolute top-2 left-2 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center"
+                  className="absolute top-2 left-2 px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-[10px] rounded-full font-bold transition-colors"
                 >
-                  <ChevronLeft className="w-4 h-4 text-white" />
+                  حذف وإعادة الرفع
                 </button>
               </div>
             ) : (
               <button
                 onClick={() => idRef.current?.click()}
-                className="w-full h-32 border-2 border-dashed border-white/20 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors"
+                className="w-full h-32 border-2 border-dashed border-border hover:border-primary/50 rounded-xl flex flex-col items-center justify-center gap-2 hover:bg-primary/5 transition-colors"
               >
-                <Upload className="w-6 h-6 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">اضغط لرفع صورة بطاقة الهوية</p>
+                <Upload className="w-5 h-5 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground font-semibold">اضغط لرفع صورة بطاقة الهوية الوطنية</p>
+                <p className="text-[10px] text-muted-foreground/60">صورة واضحة للجهتين الأمامية والخلفية</p>
               </button>
             )}
           </div>
 
-          {/* رخصة السير (اختيارية) */}
-          <div className="bg-card border border-white/10 rounded-xl p-4 space-y-2">
-            <div className="flex items-center gap-2">
-              <Camera className="w-4 h-4 text-primary" />
-              <p className="text-sm font-bold">رخصة السير</p>
-              <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">اختياري</span>
+          {/* البطاقة الرمادية */}
+          <div className="bg-background border border-border rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-primary" />
+                <p className="text-xs font-bold text-foreground">البطاقة الرمادية (Carte Grise)</p>
+              </div>
+              <span className="text-[10px] bg-red-500/10 text-red-400 px-2.5 py-0.5 rounded-full font-bold">مطلوبة</span>
             </div>
             <input
               ref={docRef}
@@ -310,113 +217,63 @@ export default function DriverRegisterPage() {
               }}
             />
             {vehicleDocPreview ? (
-              <div className="relative">
-                <img src={vehicleDocPreview} alt="رخصة سير" className="w-full h-32 object-cover rounded-lg" />
+              <div className="relative rounded-lg overflow-hidden border border-border">
+                <img src={vehicleDocPreview} alt="البطاقة الرمادية" className="w-full h-40 object-cover" />
                 <button
                   onClick={() => { setVehicleDocPreview(null); setVehicleDocFile(null); }}
-                  className="absolute top-2 left-2 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center"
+                  className="absolute top-2 left-2 px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-[10px] rounded-full font-bold transition-colors"
                 >
-                  <ChevronLeft className="w-4 h-4 text-white" />
+                  حذف وإعادة الرفع
                 </button>
               </div>
             ) : (
               <button
                 onClick={() => docRef.current?.click()}
-                className="w-full h-32 border-2 border-dashed border-white/20 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors"
+                className="w-full h-32 border-2 border-dashed border-border hover:border-primary/50 rounded-xl flex flex-col items-center justify-center gap-2 hover:bg-primary/5 transition-colors"
               >
-                <Upload className="w-6 h-6 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">اضغط لرفع صورة رخصة السير</p>
+                <Upload className="w-5 h-5 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground font-semibold">اضغط لرفع صورة البطاقة الرمادية</p>
+                <p className="text-[10px] text-muted-foreground/60">تأكيد لملكية المركبة وبياناتها القانونية</p>
               </button>
             )}
           </div>
+        </div>
 
-          <div className="flex gap-2">
-            <button onClick={() => setStep(1)} className="flex-1 py-3.5 rounded-xl border font-bold text-sm">
-              رجوع
-            </button>
-            <button
-              onClick={() => setStep(3)}
-              disabled={!licenseFile || !idCardFile}
-              className="flex-1 bg-primary text-primary-foreground py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              التالي <ChevronLeft className="w-4 h-4" />
-            </button>
-          </div>
-        </motion.div>
-      )}
-
-      {/* الخطوة 3: المراجعة والتأكيد */}
-      {step === 3 && (
-        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
-              <Check className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <p className="font-bold">مراجعة التسجيل</p>
-              <p className="text-xs text-muted-foreground">تأكد من المعلومات قبل الإرسال</p>
-            </div>
-          </div>
-
-          {/* ملخص */}
-          <div className="bg-card border border-white/10 rounded-xl p-4 space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">نوع المركبة</span>
-              <span className="font-bold">{VEHICLE_TYPES.find((v) => v.id === vehicleType)?.label}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">الموديل</span>
-              <span className="font-bold">{vehicleModel}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">اللون</span>
-              <span className="font-bold">{vehicleColor}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">رقم اللوحة</span>
-              <span className="font-bold">{vehiclePlate}</span>
-            </div>
-            <div className="border-t border-white/10 pt-3">
-              <div className="flex items-center gap-2 text-sm">
-                <Check className="w-4 h-4 text-green-400" />
-                <span>رخصة القيادة: مرفقة</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm mt-1">
-                <Check className="w-4 h-4 text-green-400" />
-                <span>بطاقة الهوية: مرفقة</span>
-              </div>
-              {vehicleDocFile && (
-                <div className="flex items-center gap-2 text-sm mt-1">
-                  <Check className="w-4 h-4 text-green-400" />
-                  <span>رخصة السير: مرفقة</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* تنبيه */}
-          <div className="bg-yellow-500/10 border border-yellow-500/25 rounded-xl p-3 flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-yellow-400 shrink-0 mt-0.5" />
-            <p className="text-xs text-yellow-400 leading-relaxed">
-              سيتم مراجعة وثائقك من قبل الإدارة. قد يستغرق التحقق من ساعة إلى 24 ساعة. سيتم إخطارك عند الموافقة.
+        {/* تنبيه المراجعة */}
+        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="text-xs font-bold text-yellow-500">نظام المراجعة والموافقة</p>
+            <p className="text-[11px] text-yellow-500/80 leading-relaxed">
+              بموجب سياسات التطبيق، سيتم مراجعة وثائقك من قبل الإدارة لضمان سلامة وجودة الخدمة. بمجرد تأكيد الأدمن لطلبك، ستبدأ مباشرة فترتك التجريبية المجانية لـ 7 أيام لتلقي الطلبات دون دفع أي عمولة!
             </p>
           </div>
+        </div>
 
-          <div className="flex gap-2">
-            <button onClick={() => setStep(2)} className="flex-1 py-3.5 rounded-xl border font-bold text-sm">
-              رجوع
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={submitting || uploading}
-              className="flex-1 bg-primary text-primary-foreground py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              {uploading ? "جاري رفع الصور..." : submitting ? "جاري الإرسال..." : "إرسال التسجيل"}
-            </button>
-          </div>
-        </motion.div>
-      )}
+        {/* زر التقديم */}
+        <button
+          onClick={handleSubmit}
+          disabled={submitting || uploading}
+          className="w-full bg-primary hover:bg-primary/95 text-white py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 disabled:opacity-50 transition-all shadow-lg shadow-primary/20"
+        >
+          {uploading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>جاري رفع وثائق السائق...</span>
+            </>
+          ) : submitting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>جاري تسجيل الطلب وإرساله...</span>
+            </>
+          ) : (
+            <>
+              <Check className="w-4 h-4" />
+              <span>إرسال طلب التسجيل للمراجعة</span>
+            </>
+          )}
+        </button>
+      </div>
     </div>
   );
 }

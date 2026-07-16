@@ -122,11 +122,32 @@ router.get("/rides/driver", authenticate, async (req, res): Promise<void> => {
       : [];
     const dProfMap = Object.fromEntries(driverProfiles.map((d) => [d.userId, d]));
 
-    res.json(rows.map((r) => ({
-      ...r,
-      passenger: pMap[r.passengerId] ?? null,
-      driverProfile: r.driverId ? (dProfMap[r.driverId] ?? null) : null,
-    })));
+    // Fetch settings for commission calculations
+    const [typeSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_type"));
+    const [valSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_value"));
+    const [rateSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_rate"));
+
+    const commType = typeSetting?.value || "percentage";
+    const commVal = Number(valSetting?.value || rateSetting?.value || "10");
+
+    res.json(rows.map((r) => {
+      const priceNum = Number(r.price || 0);
+      let commission = 0;
+      if (commType === "fixed") {
+        commission = commVal;
+      } else {
+        commission = Math.round(priceNum * (commVal / 100));
+      }
+      const netProfit = Math.max(0, priceNum - commission);
+
+      return {
+        ...r,
+        commission,
+        netProfit,
+        passenger: pMap[r.passengerId] ?? null,
+        driverProfile: r.driverId ? (dProfMap[r.driverId] ?? null) : null,
+      };
+    }));
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -151,7 +172,31 @@ router.get("/rides/my", authenticate, async (req, res): Promise<void> => {
       : [];
     const dMap = Object.fromEntries(drivers.map((d) => [d.id, d]));
 
-    res.json(rows.map((r) => ({ ...r, driver: r.driverId ? (dMap[r.driverId] ?? null) : null })));
+    // Fetch settings for commission calculations
+    const [typeSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_type"));
+    const [valSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_value"));
+    const [rateSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_rate"));
+
+    const commType = typeSetting?.value || "percentage";
+    const commVal = Number(valSetting?.value || rateSetting?.value || "10");
+
+    res.json(rows.map((r) => {
+      const priceNum = Number(r.price || 0);
+      let commission = 0;
+      if (commType === "fixed") {
+        commission = commVal;
+      } else {
+        commission = Math.round(priceNum * (commVal / 100));
+      }
+      const netProfit = Math.max(0, priceNum - commission);
+
+      return {
+        ...r,
+        commission,
+        netProfit,
+        driver: r.driverId ? (dMap[r.driverId] ?? null) : null
+      };
+    }));
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -281,7 +326,7 @@ router.patch("/rides/:id/accept", authenticate, async (req, res): Promise<void> 
     }
 
     // أول رسالة تلقائية
-    const firstMsg = `🚕 *تم قبول رحلتك!*\n📍 من: ${ride.fromAddress}\n📍 إلى: ${ride.toAddress}\n💰 السعر: ${ride.price} دج\n\nالسائق في الطريق إليك 🏎️`;
+    const firstMsg = `🚕 *تم قبول رحلتك!*\n📍 من: ${ride.fromAddress}\n📍 إلى: ${ride.toAddress}\n💰 السعر: ${ride.price} ألف دورو\n\nالسائق في الطريق إليك 🏎️`;
     await db.insert(messagesTable).values({
       id: randomUUID(),
       conversationId,
@@ -380,7 +425,7 @@ router.patch("/rides/:id/complete", authenticate, async (req, res): Promise<void
 
     // 1. حساب وإضافة نقاط الوفاء للراكب لتشجيعه على إعطاء الرمز للسائق
     const ridePrice = Number(ride.price || 0);
-    const pointsEarned = Math.max(1, Math.round(ridePrice / 10)); // نقطة واحدة لكل 10 دج
+    const pointsEarned = Math.max(1, Math.round(ridePrice / 10)); // نقطة واحدة لكل 10 ألف دورو
     await db.update(usersTable)
       .set({ points: sql`${usersTable.points} + ${pointsEarned}` })
       .where(eq(usersTable.id, ride.passengerId));
@@ -405,10 +450,18 @@ router.patch("/rides/:id/complete", authenticate, async (req, res): Promise<void
       }).where(eq(driverProfilesTable.userId, driverId));
     } else {
       // السائق أكمل رحلاته المجانية ويجب خصم عمولة مخصصة من لوحة التحكم (الافتراضية 10%)
-      const [commissionRateSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_rate"));
-      const commissionRatePercent = commissionRateSetting?.value ? Number(commissionRateSetting.value) : 10;
-      
-      commissionDeducted = Math.round(ridePrice * (commissionRatePercent / 100));
+      const [typeSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_type"));
+      const [valSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_value"));
+      const [rateSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_rate"));
+
+      const commType = typeSetting?.value || "percentage";
+      const commVal = Number(valSetting?.value || rateSetting?.value || "10");
+
+      if (commType === "fixed") {
+        commissionDeducted = commVal;
+      } else {
+        commissionDeducted = Math.round(ridePrice * (commVal / 100));
+      }
 
       // خصم من محفظة السائق وتسجيل المعاملة
       const [driverWallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, driverId));
@@ -441,7 +494,9 @@ router.patch("/rides/:id/complete", authenticate, async (req, res): Promise<void
         type: "penalty", // عمولة تطبيق
         amount: String(-commissionDeducted),
         balanceAfter: String(newBalance),
-        description: `عمولة الكورسة (${commissionRatePercent}%) من ${ride.fromAddress} إلى ${ride.toAddress}`,
+        description: commType === "fixed" 
+          ? `عمولة الكورسة (مبلغ ثابت: ${commVal} ألف دورو) من ${ride.fromAddress} إلى ${ride.toAddress}`
+          : `عمولة الكورسة (${commVal}%) من ${ride.fromAddress} إلى ${ride.toAddress}`,
         rideId: ride.id,
         status: "completed",
       });
@@ -528,7 +583,7 @@ router.patch("/rides/:id/price", authenticate, async (req, res): Promise<void> =
       await notifyUsers({
         userIds: drivers.map((d) => d.userId),
         title: "طلب نقل بسعر جديد! 🚕",
-        body: `${ride.fromAddress} → ${ride.toAddress} | ${price} دج`,
+        body: `${ride.fromAddress} → ${ride.toAddress} | ${price} ألف دورو`,
         data: { type: "price_update", rideId: ride.id },
       });
     }
@@ -910,6 +965,16 @@ router.get("/rides/:id/live", authenticate, async (req, res): Promise<void> => {
 router.get("/rides/destinations", authenticate, async (_req, res): Promise<void> => {
   try {
     const list = await db.select().from(destinationsTable).orderBy(desc(destinationsTable.createdAt));
+    res.json(list);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── جلب الإعدادات المتاحة للراكب والسائق (مثل عمولة التطبيق وطريقة التسعير) ──
+router.get("/rides/settings", authenticate, async (_req, res): Promise<void> => {
+  try {
+    const list = await db.select().from(rideSettingsTable);
     res.json(list);
   } catch (e: any) {
     res.status(500).json({ error: e.message });

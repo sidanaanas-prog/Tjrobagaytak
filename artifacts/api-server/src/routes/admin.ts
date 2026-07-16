@@ -545,10 +545,14 @@ router.patch("/admin/drivers/:userId/verify-documents", authenticate, requireAdm
   const userId = req.params.userId as string;
   const { status } = req.body; // "verified" | "rejected"
   const now = new Date();
+  
+  const trialExpiresAt = status === "verified" ? new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) : undefined;
+  
   await db.update(driverProfilesTable)
     .set({
       documentsStatus: status,
       licenseVerified: status === "verified",
+      ...(trialExpiresAt ? { trialExpiresAt } : {}),
       updatedAt: now,
     })
     .where(eq(driverProfilesTable.userId, userId));

@@ -338,7 +338,7 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
               <div className="flex items-center gap-2 text-sm">
                 <DollarSign className={`w-4 h-4 ${alertState.type === "price_update" ? "text-yellow-400" : "text-primary"}`} />
                 <span className={`font-bold ${alertState.type === "price_update" ? "text-yellow-400" : "text-white"}`}>
-                  {alertState.ride.price} دج
+                  {alertState.ride.price} ألف دورو
                 </span>
                 {alertState.type === "price_update" && (
                   <span className="text-[10px] bg-yellow-500/15 text-yellow-400 px-1.5 rounded-full">سعر جديد</span>
