@@ -110,8 +110,47 @@ function buildDb() {
 
   if (isNeon) {
     // Neon serverless HTTP — لا يعاني من انقطاع TCP مع Neon
-    const sql = neon(DATABASE_URL);
-    return drizzleNeon(sql, { schema });
+    const baseSql = neon(DATABASE_URL);
+    
+    // Wrapped SQL to handle database auto-retry when Neon instance is suspended/inactive
+    const wrappedSql = async (stringsOrQuery: any, ...params: any[]) => {
+      let attempts = 0;
+      const maxAttempts = 5;
+      let delay = 1000;
+      
+      while (attempts < maxAttempts) {
+        try {
+          if (Array.isArray(stringsOrQuery)) {
+            return await baseSql(stringsOrQuery as any, ...params);
+          } else {
+            return await baseSql(stringsOrQuery, params[0]);
+          }
+        } catch (err: any) {
+          attempts++;
+          const errMsg = (err?.message || "").toLowerCase();
+          const isSuspended = 
+            errMsg.includes("suspended") || 
+            errMsg.includes("inactive") || 
+            errMsg.includes("shutting down") || 
+            errMsg.includes("terminating connection") || 
+            errMsg.includes("admin command") ||
+            errMsg.includes("socket hang up") ||
+            errMsg.includes("closed") ||
+            err?.code === "57P01" ||
+            err?.code === "57P02";
+          
+          if (isSuspended && attempts < maxAttempts) {
+            console.warn(`[DB Neon Wrapper] Neon database is suspended or inactive. Retrying in ${delay}ms... (Attempt ${attempts}/${maxAttempts})`);
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            delay = Math.min(delay * 1.5, 3000);
+          } else {
+            throw err;
+          }
+        }
+      }
+    };
+    
+    return drizzleNeon(wrappedSql as any, { schema });
   }
   // node-postgres — للتطوير المحلي
   const pool = new pg.Pool({
