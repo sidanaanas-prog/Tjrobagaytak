@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { randomUUID } from "crypto";
-import { db, usersTable, productsTable, conversationsTable, messagesTable, activityTable, ordersTable, broadcastsTable, ridesTable, driverProfilesTable } from "@workspace/db";
+import { db, usersTable, productsTable, conversationsTable, messagesTable, activityTable, ordersTable, broadcastsTable, ridesTable, driverProfilesTable, destinationsTable, walletsTable, walletTransactionsTable, rideSettingsTable } from "@workspace/db";
 import { count, eq, and, or, ne, gte, sql, desc, inArray, isNotNull } from "drizzle-orm";
 import { authenticate, requireAdmin } from "../lib/auth";
 import { notifyUsers, sendNotification } from "../lib/notifications";
@@ -645,6 +645,156 @@ router.post("/admin/bulk/free-all", authenticate, requireAdmin, async (req, res)
   }
 
   res.json({ success: true, message: isFree ? "تم تفعيل الوضع المجاني لجميع المستخدمين والسائقين" : "تم إلغاء الوضع المجاني لجميع المستخدمين والسائقين" });
+});
+
+// ── إدارة الوجهات (الأدمن) ──────────────────────────────────
+router.post("/admin/destinations", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const { name, price } = req.body;
+    if (!name || !price) { res.status(400).json({ error: "الرجاء تحديد الاسم والسعر" }); return; }
+    const id = randomUUID();
+    await db.insert(destinationsTable).values({
+      id,
+      name,
+      price: String(price),
+    });
+    res.json({ success: true, id });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.patch("/admin/destinations/:id", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const { name, price } = req.body;
+    await db.update(destinationsTable)
+      .set({
+        name: name || undefined,
+        price: price ? String(price) : undefined,
+      })
+      .where(eq(destinationsTable.id, req.params.id as string));
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.delete("/admin/destinations/:id", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    await db.delete(destinationsTable).where(eq(destinationsTable.id, req.params.id as string));
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── شحن وخصم المحافظ للسائقين والمستخدمين (الأدمن) ──────────────────────────
+router.patch("/admin/users/:userId/wallet", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const userId = req.params.userId as string;
+    const { amount, action } = req.body; // action: "deposit" | "withdraw"
+    if (!amount || Number(amount) <= 0) { res.status(400).json({ error: "مبلغ غير صالح" }); return; }
+
+    const change = action === "deposit" ? Number(amount) : -Number(amount);
+
+    const [userWallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, userId));
+    let walletId = userWallet?.id;
+    let currentBalance = Number(userWallet?.balance ?? 0);
+
+    if (!userWallet) {
+      walletId = randomUUID();
+      await db.insert(walletsTable).values({
+        id: walletId,
+        userId,
+        balance: "0",
+      });
+      currentBalance = 0;
+    } else {
+      walletId = userWallet.id;
+    }
+
+    const newBalance = currentBalance + change;
+    await db.update(walletsTable).set({
+      balance: String(newBalance),
+      updatedAt: new Date(),
+    }).where(eq(walletsTable.id, walletId!));
+
+    await db.insert(walletTransactionsTable).values({
+      id: randomUUID(),
+      walletId: walletId!,
+      userId,
+      type: action === "deposit" ? "deposit" : "withdrawal",
+      amount: String(change),
+      balanceAfter: String(newBalance),
+      description: action === "deposit" ? "شحن المحفظة من قبل الإدارة" : "خصم رصيد من قبل الإدارة",
+      status: "completed",
+    });
+
+    res.json({ success: true, newBalance });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── التحكم في عدد الحجوزات المجانية للسائق (الأدمن) ──────────────────────────
+router.patch("/admin/drivers/:userId/free-rides", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const userId = req.params.userId as string;
+    const { freeRidesLeft } = req.body;
+    if (freeRidesLeft === undefined || Number(freeRidesLeft) < 0) { res.status(400).json({ error: "عدد غير صالح" }); return; }
+
+    await db.update(driverProfilesTable)
+      .set({
+        freeRidesLeft: Number(freeRidesLeft),
+        updatedAt: new Date(),
+      })
+      .where(eq(driverProfilesTable.userId, userId));
+
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── جلب كل الوجهات للأدمن ──────────────────────────
+router.get("/admin/destinations", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const list = await db.select().from(destinationsTable).orderBy(desc(destinationsTable.createdAt));
+    res.json(list);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── جلب إعدادات الرحلات للأدمن ──────────────────────────
+router.get("/admin/settings", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const list = await db.select().from(rideSettingsTable);
+    res.json(list);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── تحديث/إضافة إعداد للرحلات للأدمن ──────────────────────────
+router.patch("/admin/settings/:key", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const key = req.params.key as string;
+    const { value } = req.body;
+    if (value === undefined) { res.status(400).json({ error: "الرجاء توفير القيمة المطلوبة" }); return; }
+
+    // Insert or update setting
+    await db.insert(rideSettingsTable)
+      .values({ key, value: String(value), updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: rideSettingsTable.key,
+        set: { value: String(value), updatedAt: new Date() }
+      });
+
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 export default router;

@@ -89,6 +89,20 @@ function PassengerRequest() {
   const [newlyAcceptedRide, setNewlyAcceptedRide] = useState<Ride | null>(null);
   const prevMyRidesRef = useRef<Ride[]>([]);
   const [, navigate] = useLocation();
+  const [destinations, setDestinations] = useState<{ id: string; name: string; price: string }[]>([]); // الوجهات المحددة مسبقاً من الإدارة
+
+  // جلب الوجهات المعتمدة من الإدارة
+  useEffect(() => {
+    const token = getMemToken();
+    if (token) {
+      fetch(`${BASE}/api/rides/destinations`, { headers: { Authorization: `Bearer ${token}` } })
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) setDestinations(data);
+        })
+        .catch((err) => console.error("[Destinations] Error fetching:", err));
+    }
+  }, []);
 
   const fetchMyRides = useCallback(async () => {
     const token = getMemToken(); if (!token) return;
@@ -272,11 +286,20 @@ function PassengerRequest() {
       {/* بطاقة الراكب */}
       <div className="bg-gradient-to-r from-primary/20 via-primary/10 to-transparent border border-primary/20 rounded-2xl p-4">
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-primary/70 font-medium">الرصيد المتوفر في المحفظة</p>
-            <p className="text-xl font-black text-primary">
-              {user?.walletBalance ? Number(user.walletBalance).toLocaleString("ar-DZ") : "0"} <span className="text-sm font-bold">دج</span>
-            </p>
+          <div className="flex gap-6 text-right">
+            <div>
+              <p className="text-xs text-primary/70 font-medium">المحفظة</p>
+              <p className="text-lg font-black text-primary">
+                {user?.walletBalance ? Number(user.walletBalance).toLocaleString("ar-DZ") : "0"} <span className="text-[10px] font-bold">دج</span>
+              </p>
+            </div>
+            <div className="border-r border-primary/20" />
+            <div>
+              <p className="text-xs text-yellow-500/70 font-medium">نقاط المكافآت 🎁</p>
+              <p className="text-lg font-black text-yellow-500 flex items-center gap-1">
+                {user?.points ? Number(user.points).toLocaleString("ar-DZ") : "0"} <span className="text-[10px] font-bold">نقطة</span>
+              </p>
+            </div>
           </div>
           <button onClick={() => navigate("/wallet")} className="bg-primary text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1">
             <Wallet className="w-4 h-4" /> المحفظة
@@ -291,8 +314,33 @@ function PassengerRequest() {
             <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center"><Car className="w-4 h-4 text-primary" /></div>
             احجز كورسا
           </h3>
-          <span className="text-[10px] bg-primary/15 text-primary px-2 py-0.5 rounded-full font-bold">السعر التلقائي متوفر</span>
+          <span className="text-[10px] bg-primary/15 text-primary px-2 py-0.5 rounded-full font-bold">حجوزات سريعة</span>
         </div>
+
+        {/* وجهات سريعة معتمدة من الإدارة */}
+        {destinations.length > 0 && (
+          <div className="space-y-2 bg-primary/5 p-3 rounded-xl border border-primary/10">
+            <p className="text-[11px] text-muted-foreground font-bold flex items-center gap-1.5">📍 وجهات سريعة معتمدة من الإدارة بأسعار ثابتة:</p>
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+              {destinations.map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => {
+                    setFromAddress("موقعي الحالي");
+                    setToAddress(d.name);
+                    setPrice(String(d.price));
+                    toast({ title: `📍 تم تحديد الوجهة: ${d.name}`, description: `السعر المعتمد: ${d.price} دج` });
+                  }}
+                  className="flex-shrink-0 bg-background hover:bg-primary/10 border border-border hover:border-primary px-3 py-2 rounded-xl text-xs font-bold text-foreground transition-all flex items-center gap-2"
+                >
+                  <span className="text-primary">{d.name}</span>
+                  <span className="bg-primary/20 text-primary px-1.5 py-0.5 rounded-md text-[10px] font-black">{d.price} دج</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* المسار */}
         <div className="space-y-3">
@@ -489,6 +537,16 @@ function PassengerRequest() {
                           {r.driver.phone && <a href={`tel:${r.driver.phone}`} className="text-primary flex items-center gap-0.5"><Phone className="w-3 h-3" /> اتصل</a>}
                         </div>
                       )}
+                      {/* عرض رمز التأكيد المكون من 4 أرقام للراكب */}
+                      {["accepted", "arrived", "picked_up"].includes(r.status) && r.completionCode && (
+                        <div className="mt-2.5 bg-primary/10 border border-primary/20 rounded-xl p-2.5 text-center">
+                          <p className="text-[10px] text-muted-foreground font-semibold">🎁 كود تأكيد الرحلة للسائق:</p>
+                          <p className="text-base font-black text-primary tracking-widest mt-0.5 bg-primary/20 inline-block px-3 py-1 rounded-lg border border-primary/30">
+                            {r.completionCode}
+                          </p>
+                          <p className="text-[9px] text-primary/70 mt-1">أعطِ هذا الرمز للسائق عند الوصول ليتمكن من إنهاء الرحلة وتحصل على نقاط مكافآت!</p>
+                        </div>
+                      )}
                       {/* معلومات السائق المباشرة */}
                       {r.status === "accepted" && r.driverLat && (
                         <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
@@ -588,6 +646,7 @@ function DriverDashboard() {
   const [profile, setProfile] = useState<any>(null);
   const { status: subStatus } = useDriverSubscription();
   const [_, setLocation] = useLocation();
+  const [completionCodes, setCompletionCodes] = useState<Record<string, string>>({}); // رموز التأكيد المدخلة من السائق لإنهاء الرحلات
 
   const driverTrialDays = subStatus?.trialExpiresAt ? Math.max(0, Math.ceil((new Date(subStatus.trialExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : null;
   const isDriverTrialActive = driverTrialDays !== null && driverTrialDays > 0;
@@ -646,10 +705,34 @@ function DriverDashboard() {
     fetchRequests();
   };
 
-  const handleComplete = async (id: string) => {
+  const handleComplete = async (id: string, code: string) => {
+    if (!code || code.trim().length !== 4) {
+      toast({ variant: "destructive", title: "⚠️ كود غير صالح", description: "الرجاء إدخال كود التأكيد المكون من 4 أرقام المستلم من الراكب." });
+      return;
+    }
     const token = getMemToken();
-    await fetch(`${BASE}/api/rides/${id}/complete`, { method: "PATCH", headers: { Authorization: `Bearer ${token}` } });
-    fetchRequests();
+    try {
+      const res = await fetch(`${BASE}/api/rides/${id}/complete`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ code: code.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast({
+          title: "🎉 تم إنهاء الرحلة بنجاح!",
+          description: data.commissionDeducted > 0
+            ? `تم خصم عمولة التطبيق بقيمة ${data.commissionDeducted} دج.`
+            : `الرحلة مجانية! متبقي لديك ${data.freeRidesLeft} رحلات مجانية.`,
+        });
+        fetchRequests();
+        fetchProfile();
+      } else {
+        toast({ variant: "destructive", title: "❌ خطأ في إنهاء الرحلة", description: data.error || "كود التأكيد خاطئ، يرجى مراجعة الراكب." });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "❌ خطأ", description: "تعذر الاتصال بالخادم." });
+    }
   };
 
   const handleCancel = async (id: string) => {
@@ -694,6 +777,21 @@ function DriverDashboard() {
 
         {profile && (
           <>
+            {profile.freeRidesLeft > 0 && (
+              <div className="mb-4 rounded-xl p-3 border border-yellow-500/30 bg-yellow-500/10 text-yellow-400">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-right">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-yellow-500/20 text-yellow-400"><Gift className="w-4 h-4" /></div>
+                    <div>
+                      <p className="text-xs font-black">🎁 عرض الـ 5 رحلات المجانية نشط!</p>
+                      <p className="text-[10px] text-yellow-500/80">لن يتم خصم عمولة رحلاتك حتى تكتمل الفترة التجريبية.</p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-black bg-yellow-500/20 px-2.5 py-1 rounded-full">{profile.freeRidesLeft} متبقية</span>
+                </div>
+              </div>
+            )}
+
             {isDriverTrialActive ? (
               <div className="mb-4 rounded-xl p-3 border bg-amber-500/8 border-amber-500/20">
                 <div className="flex items-center justify-between">
@@ -805,9 +903,29 @@ function DriverDashboard() {
                       <button onClick={() => handleNoShow(r.id)} className="px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 flex items-center gap-1 hover:bg-red-500/20"><AlertTriangle className="w-3 h-3" /> لم يأتِ</button>
                     </>
                   ) : r.status === "picked_up" ? (
-                    <>
-                      <button onClick={() => handleComplete(r.id)} className="flex-1 bg-green-500 text-white py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1"><CheckCircle className="w-3 h-3" /> انهاء الرحلة</button>
-                    </>
+                    <div className="w-full space-y-2 mt-1">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          maxLength={4}
+                          pattern="\d*"
+                          placeholder="كود إنهاء الرحلة (4 أرقام)"
+                          value={completionCodes[r.id] ?? ""}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, "");
+                            setCompletionCodes(prev => ({ ...prev, [r.id]: val }));
+                          }}
+                          className="flex-1 bg-background text-foreground border border-green-500/30 rounded-lg px-3 py-1.5 text-xs font-bold focus:outline-none focus:border-green-400 text-center tracking-widest placeholder:tracking-normal"
+                        />
+                        <button
+                          onClick={() => handleComplete(r.id, completionCodes[r.id] ?? "")}
+                          className="bg-green-500 hover:bg-green-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" /> إنهاء الكورسة
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground text-right font-medium">اطلب كود الأمان المكون من 4 أرقام من الراكب لإنهاء الرحلة بنجاح.</p>
+                    </div>
                   ) : null}
                 </div>
                 {/* خريطة تتبع موقع الراكب — للسائق (تُرسل موقعه تلقائياً) */}
@@ -836,6 +954,361 @@ function DriverDashboard() {
   );
 }
 
+// ── الأدمن: لوحة التحكم في الكورسا ───────────────────────────────────────────
+function AdminRidesDashboard() {
+  const { toast } = useToast();
+  const [destinations, setDestinations] = useState<any[]>([]);
+  const [destName, setDestName] = useState("");
+  const [destPrice, setDestPrice] = useState("");
+  
+  // Commission settings states
+  const [commissionRate, setCommissionRate] = useState("10");
+  const [commissionSubmitting, setCommissionSubmitting] = useState(false);
+
+  // Wallet states
+  const [walletUserId, setWalletUserId] = useState("");
+  const [walletAmount, setWalletAmount] = useState("");
+  const [walletAction, setWalletAction] = useState<"deposit" | "withdraw">("deposit");
+  const [walletSubmitting, setWalletSubmitting] = useState(false);
+
+  // Free rides states
+  const [driverIdForFree, setDriverIdForFree] = useState("");
+  const [freeRidesCount, setFreeRidesCount] = useState("5");
+  const [freeRidesSubmitting, setFreeRidesSubmitting] = useState(false);
+
+  const fetchDestinations = async () => {
+    const token = getMemToken();
+    try {
+      const res = await fetch(`${BASE}/api/admin/destinations`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (Array.isArray(data)) setDestinations(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchSettings = async () => {
+    const token = getMemToken();
+    try {
+      const res = await fetch(`${BASE}/api/admin/settings`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        const comm = data.find((s: any) => s.key === "commission_rate");
+        if (comm) setCommissionRate(comm.value);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchDestinations();
+    fetchSettings();
+  }, []);
+
+  const handleCommissionUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commissionRate || Number(commissionRate) < 0 || Number(commissionRate) > 100) {
+      toast({ variant: "destructive", title: "تنبيه", description: "يرجى إدخال نسبة صحيحة بين 0 و 100." });
+      return;
+    }
+    setCommissionSubmitting(true);
+    const token = getMemToken();
+    try {
+      const res = await fetch(`${BASE}/api/admin/settings/commission_rate`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ value: commissionRate }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: "✅ تم التحديث", description: `تم تحديث نسبة عمولة التطبيق لتصبح ${commissionRate}%.` });
+      } else {
+        toast({ variant: "destructive", title: "خطأ", description: data.error });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "خطأ", description: "تعذر الاتصال بالخادم" });
+    } finally {
+      setCommissionSubmitting(false);
+    }
+  };
+
+  const handleAddDestination = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!destName || !destPrice) {
+      toast({ variant: "destructive", title: "تنبيه", description: "يرجى تعبئة جميع الحقول" });
+      return;
+    }
+    const token = getMemToken();
+    try {
+      const res = await fetch(`${BASE}/api/admin/destinations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: destName, price: destPrice }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: "✅ تم الإضافة", description: "تم إضافة الوجهة بنجاح." });
+        setDestName("");
+        setDestPrice("");
+        fetchDestinations();
+      } else {
+        toast({ variant: "destructive", title: "خطأ", description: data.error });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "خطأ", description: "فشل الاتصال بالخادم" });
+    }
+  };
+
+  const handleDeleteDestination = async (id: string) => {
+    const token = getMemToken();
+    try {
+      const res = await fetch(`${BASE}/api/admin/destinations/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: "✅ تم الحذف", description: "تم حذف الوجهة بنجاح." });
+        fetchDestinations();
+      }
+    } catch {}
+  };
+
+  const handleWalletAdjust = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!walletUserId || !walletAmount || Number(walletAmount) <= 0) {
+      toast({ variant: "destructive", title: "تنبيه", description: "يرجى إدخال معرف مستخدم صحيح ومبلغ أكبر من صفر." });
+      return;
+    }
+    setWalletSubmitting(true);
+    const token = getMemToken();
+    try {
+      const res = await fetch(`${BASE}/api/admin/users/${walletUserId}/wallet`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ amount: walletAmount, action: walletAction }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: "✅ تم التعديل", description: `تم تعديل رصيد المحفظة بنجاح. الرصيد الجديد: ${data.newBalance} دج` });
+        setWalletAmount("");
+      } else {
+        toast({ variant: "destructive", title: "خطأ", description: data.error });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "خطأ", description: "تعذر الاتصال بالخادم" });
+    } finally {
+      setWalletSubmitting(false);
+    }
+  };
+
+  const handleFreeRidesUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!driverIdForFree || freeRidesCount === "") {
+      toast({ variant: "destructive", title: "تنبيه", description: "يرجى إدخال معرف السائق وعدد الرحلات المجانية." });
+      return;
+    }
+    setFreeRidesSubmitting(true);
+    const token = getMemToken();
+    try {
+      const res = await fetch(`${BASE}/api/admin/drivers/${driverIdForFree}/free-rides`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ freeRidesLeft: Number(freeRidesCount) }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: "✅ تم التحديث", description: "تم تحديث الرحلات المجانية للسائق بنجاح." });
+        setDriverIdForFree("");
+      } else {
+        toast({ variant: "destructive", title: "خطأ", description: data.error });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "خطأ", description: "تعذر الاتصال بالخادم" });
+    } finally {
+      setFreeRidesSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6 pb-6 text-right">
+      <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4">
+        <h2 className="font-black text-sm text-primary flex items-center gap-2">🛡️ لوحة الإدارة - نظام الرحلات والمحافظ</h2>
+        <p className="text-[11px] text-muted-foreground mt-1">تحكم كامل بالوجهات، شحن أرصدة المستخدمين والسائقين، وتخصيص الفترات التجريبية.</p>
+      </div>
+
+      {/* 1. إدارة الوجهات */}
+      <div className="bg-card border rounded-2xl p-4 space-y-4 shadow-lg shadow-primary/5">
+        <h3 className="font-bold text-sm text-foreground flex items-center gap-2">📍 إدارة الوجهات والأسعار المعتمدة</h3>
+        <form onSubmit={handleAddDestination} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <input
+            type="text"
+            placeholder="اسم الوجهة (مثال: الجزائر العاصمة)"
+            value={destName}
+            onChange={(e) => setDestName(e.target.value)}
+            className="bg-background text-foreground border rounded-xl px-3 py-2 text-xs font-bold"
+          />
+          <input
+            type="number"
+            placeholder="السعر المقدر بالدج (مثال: 500)"
+            value={destPrice}
+            onChange={(e) => setDestPrice(e.target.value)}
+            className="bg-background text-foreground border rounded-xl px-3 py-2 text-xs font-bold"
+          />
+          <button type="submit" className="bg-primary hover:bg-primary/90 text-white font-bold py-2 px-4 rounded-xl text-xs transition-colors">
+            إضافة وجهة جديدة
+          </button>
+        </form>
+
+        <div className="border-t border-border pt-3 space-y-2">
+          <p className="text-xs font-bold text-muted-foreground">الوجهات الحالية المضافة:</p>
+          {destinations.length === 0 ? (
+            <p className="text-xs text-muted-foreground">لا توجد وجهات مضافة بعد.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {destinations.map((d) => (
+                <div key={d.id} className="flex items-center justify-between bg-background border rounded-xl p-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-xs text-foreground">{d.name}</span>
+                    <span className="bg-primary/15 text-primary text-[10px] px-2 py-0.5 rounded-full font-black">{d.price} دج</span>
+                  </div>
+                  <button onClick={() => handleDeleteDestination(d.id)} className="text-red-400 hover:text-red-500 hover:bg-red-500/10 p-1.5 rounded-lg transition-all">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 2. نسبة ربح التطبيق (العمولة من السائق) */}
+      <div className="bg-card border rounded-2xl p-4 space-y-4 shadow-lg shadow-primary/5">
+        <h3 className="font-bold text-sm text-foreground flex items-center gap-2">🛠️ نسبة ربح التطبيق (العمولة من السائق)</h3>
+        <p className="text-[11px] text-muted-foreground">هذه النسبة يتم خصمها تلقائياً من محفظة السائق فور إنهاء كل رحلة (كورسة) بعد أن ينهي رحلاته التجريبية المجانية.</p>
+        <form onSubmit={handleCommissionUpdate} className="flex gap-3 max-w-md items-end">
+          <div className="space-y-1 flex-1">
+            <label className="text-[10px] text-muted-foreground font-bold">نسبة العمولة (%)</label>
+            <div className="relative">
+              <input
+                type="number"
+                min="0"
+                max="100"
+                placeholder="مثال: 10"
+                value={commissionRate}
+                onChange={(e) => setCommissionRate(e.target.value)}
+                className="w-full bg-background text-foreground border rounded-xl pl-8 pr-3 py-2 text-xs font-bold text-left"
+              />
+              <span className="absolute left-3 top-2 text-xs text-muted-foreground font-black">%</span>
+            </div>
+          </div>
+          <button
+            type="submit"
+            disabled={commissionSubmitting}
+            className="bg-primary hover:bg-primary/90 text-white font-bold py-2 px-6 rounded-xl text-xs transition-colors disabled:opacity-50 h-[34px]"
+          >
+            {commissionSubmitting ? "جاري الحفظ..." : "حفظ النسبة"}
+          </button>
+        </form>
+      </div>
+
+      {/* 3. شحن وخصم المحافظ */}
+      <div className="bg-card border rounded-2xl p-4 space-y-4 shadow-lg shadow-primary/5">
+        <h3 className="font-bold text-sm text-foreground flex items-center gap-2">💰 شحن وخصم المحافظ للسائقين والمستخدمين</h3>
+        <form onSubmit={handleWalletAdjust} className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-[10px] text-muted-foreground font-bold">معرّف المستخدم أو السائق (User ID)</label>
+              <input
+                type="text"
+                placeholder="أدخل معرف المستخدم"
+                value={walletUserId}
+                onChange={(e) => setWalletUserId(e.target.value)}
+                className="w-full bg-background text-foreground border rounded-xl px-3 py-2 text-xs font-bold"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] text-muted-foreground font-bold">المبلغ بالدينار (دج)</label>
+              <input
+                type="number"
+                placeholder="مثال: 1000"
+                value={walletAmount}
+                onChange={(e) => setWalletAmount(e.target.value)}
+                className="w-full bg-background text-foreground border rounded-xl px-3 py-2 text-xs font-bold"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex bg-background border rounded-xl p-1 overflow-hidden gap-1">
+              <button
+                type="button"
+                onClick={() => setWalletAction("deposit")}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${walletAction === "deposit" ? "bg-green-500 text-white" : "text-muted-foreground"}`}
+              >
+                شحن / إيداع رصيد
+              </button>
+              <button
+                type="button"
+                onClick={() => setWalletAction("withdraw")}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${walletAction === "withdraw" ? "bg-red-500 text-white" : "text-muted-foreground"}`}
+              >
+                خصم / سحب رصيد
+              </button>
+            </div>
+            <button
+              type="submit"
+              disabled={walletSubmitting}
+              className="bg-primary text-white font-bold py-2 px-6 rounded-xl text-xs transition-colors hover:bg-primary/95 disabled:opacity-50"
+            >
+              {walletSubmitting ? "جاري التحديث..." : "تأكيد العملية"}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* 4. التحكم بالرحلات المجانية */}
+      <div className="bg-card border rounded-2xl p-4 space-y-4 shadow-lg shadow-primary/5">
+        <h3 className="font-bold text-sm text-foreground flex items-center gap-2">🎁 التحكم في الرحلات التجريبية المجانية للسائقين</h3>
+        <form onSubmit={handleFreeRidesUpdate} className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-[10px] text-muted-foreground font-bold">معرّف السائق (Driver User ID)</label>
+              <input
+                type="text"
+                placeholder="أدخل معرف السائق"
+                value={driverIdForFree}
+                onChange={(e) => setDriverIdForFree(e.target.value)}
+                className="w-full bg-background text-foreground border rounded-xl px-3 py-2 text-xs font-bold"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] text-muted-foreground font-bold">عدد الرحلات المجانية المسموحة</label>
+              <input
+                type="number"
+                placeholder="مثال: 5"
+                value={freeRidesCount}
+                onChange={(e) => setFreeRidesCount(e.target.value)}
+                className="w-full bg-background text-foreground border rounded-xl px-3 py-2 text-xs font-bold"
+              />
+            </div>
+          </div>
+          <div className="text-left">
+            <button
+              type="submit"
+              disabled={freeRidesSubmitting}
+              className="bg-primary text-white font-bold py-2 px-6 rounded-xl text-xs transition-colors hover:bg-primary/95 disabled:opacity-50"
+            >
+              {freeRidesSubmitting ? "جاري التحديث..." : "تحديث عدد الرحلات"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── الصفحة الرئيسية ──────────────────────────────────────────────────────
 export default function RidesPage() {
   const { user } = useAuth();
@@ -852,7 +1325,7 @@ export default function RidesPage() {
   if (!user) {
     return (
       <AppLayout>
-        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <div className="flex flex-col items-col items-center justify-center min-h-[60vh] gap-4">
           <Car className="w-16 h-16 text-muted" />
           <p className="text-lg font-bold">سجل الدخول لاستخدام كورسا</p>
           <Link href="/login"><button className="bg-primary text-primary-foreground px-6 py-2 rounded-lg font-bold">تسجيل الدخول</button></Link>
@@ -877,16 +1350,24 @@ export default function RidesPage() {
       <div className="p-4 space-y-4" dir="rtl">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-black">🚕 كورسا</h1>
-          {hasDriverRole && hasPassengerRole && (
-            <div className="flex bg-card border rounded-lg overflow-hidden">
-              <button onClick={() => { setRole("passenger"); localStorage.setItem("gaytak_active_role", "passenger"); }} className={`px-3 py-1.5 text-xs font-bold ${role === "passenger" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>راكب</button>
-              <button onClick={() => { setRole("driver"); localStorage.setItem("gaytak_active_role", "driver"); }} className={`px-3 py-1.5 text-xs font-bold ${role === "driver" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>سائق</button>
-            </div>
-          )}
+          <div className="flex bg-card border rounded-lg overflow-hidden">
+            <button onClick={() => { setRole("passenger"); localStorage.setItem("gaytak_active_role", "passenger"); }} className={`px-3 py-1.5 text-xs font-bold ${role === "passenger" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>راكب</button>
+            <button onClick={() => { setRole("driver"); localStorage.setItem("gaytak_active_role", "driver"); }} className={`px-3 py-1.5 text-xs font-bold ${role === "driver" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>سائق</button>
+            {user?.role === "admin" && (
+              <button onClick={() => { setRole("admin"); localStorage.setItem("gaytak_active_role", "admin"); }} className={`px-3 py-1.5 text-xs font-bold ${role === "admin" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>الإدارة</button>
+            )}
+          </div>
         </div>
         {role === "driver" && trialDays && trialDays > 0 && <TrialCountdownBanner trialExpiresAt={driverSub?.trialExpiresAt} role="driver" />}
         {showWelcome && trialDays && trialDays > 0 && <TrialWelcomePopup role="driver" daysLeft={trialDays} onClose={() => setShowWelcome(false)} />}
-        {role === "driver" ? <DriverSubscriptionGate><DriverDashboard /></DriverSubscriptionGate> : <PassengerRequest />}
+        
+        {role === "admin" ? (
+          <AdminRidesDashboard />
+        ) : role === "driver" ? (
+          <DriverSubscriptionGate><DriverDashboard /></DriverSubscriptionGate>
+        ) : (
+          <PassengerRequest />
+        )}
       </div>
     </AppLayout>
   );

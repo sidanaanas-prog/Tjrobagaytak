@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, ridesTable, driverProfilesTable, userRolesTable, usersTable, subscriptionsTable, conversationsTable, messagesTable, walletsTable, walletTransactionsTable } from "@workspace/db";
+import { db, ridesTable, driverProfilesTable, userRolesTable, usersTable, subscriptionsTable, conversationsTable, messagesTable, walletsTable, walletTransactionsTable, destinationsTable, rideSettingsTable } from "@workspace/db";
 import { eq, desc, and, or, isNull, sql, inArray, gt } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { authenticate, requireAdmin } from "../lib/auth";
@@ -16,6 +16,7 @@ router.post("/rides", authenticate, async (req, res): Promise<void> => {
     const id = randomUUID();
     const now = new Date();
     const vType = vehicleType && ["car","ac","suv","van","truck"].includes(vehicleType) ? vehicleType : "car";
+    const completionCode = String(Math.floor(1000 + Math.random() * 9000)); // كود تأكيد عشوائي من 4 أرقام
 
     await db.insert(ridesTable).values({
       id,
@@ -31,6 +32,7 @@ router.post("/rides", authenticate, async (req, res): Promise<void> => {
       notes: notes ?? null,
       passengerCount: passengerCount ? Number(passengerCount) : 1,
       vehicleType: vType,
+      completionCode, // حفظ كود التأكيد
       createdAt: now,
       updatedAt: now,
     });
@@ -357,28 +359,113 @@ router.patch("/rides/:id/pickup", authenticate, async (req, res): Promise<void> 
 router.patch("/rides/:id/complete", authenticate, async (req, res): Promise<void> => {
   try {
     const driverId = (req as any).user.id;
+    const { code } = req.body;
+
     const [ride] = (await db.select().from(ridesTable).where(eq(ridesTable.id, req.params.id as string))) ?? [];
     if (!ride) { res.status(404).json({ error: "الرحلة غير موجودة" }); return; }
+    if (ride.driverId !== driverId) { res.status(403).json({ error: "ليس من صلاحياتك إنهاء هذه الرحلة" }); return; }
+    if (ride.status === "completed") { res.json({ success: true, message: "الرحلة منتهية بالفعل" }); return; }
+
+    // التحقق من رمز التأكيد لتفادي تحايل السائقين
+    if (!code) {
+      res.status(400).json({ error: "الرجاء إدخال رمز التأكيد المتكون من 4 أرقام المستلم من الراكب لإنهاء الرحلة" });
+      return;
+    }
+    if (ride.completionCode && ride.completionCode.trim() !== String(code).trim()) {
+      res.status(400).json({ error: "رمز التأكيد المدخل غير صحيح! الرجاء التأكد من الراكب." });
+      return;
+    }
 
     const now = new Date();
+
+    // 1. حساب وإضافة نقاط الوفاء للراكب لتشجيعه على إعطاء الرمز للسائق
+    const ridePrice = Number(ride.price || 0);
+    const pointsEarned = Math.max(1, Math.round(ridePrice / 10)); // نقطة واحدة لكل 10 دج
+    await db.update(usersTable)
+      .set({ points: sql`${usersTable.points} + ${pointsEarned}` })
+      .where(eq(usersTable.id, ride.passengerId));
+
+    // 2. تحديث حالة الرحلة إلى منتهية
     await db.update(ridesTable).set({
       status: "completed", completedAt: now, updatedAt: now,
     }).where(eq(ridesTable.id, req.params.id as string));
 
-    // تحديث إحصائيات السائق
-    await db.update(driverProfilesTable).set({
-      totalRides: sql`${driverProfilesTable.totalRides} + 1`,
-      totalEarnings: sql`${driverProfilesTable.totalEarnings} + ${ride.price}`,
-    }).where(eq(driverProfilesTable.userId, driverId));
+    // 3. جلب ملف السائق لمعالجة الرحلات المجانية الخمس والعمولة
+    const [driverProfile] = (await db.select().from(driverProfilesTable).where(eq(driverProfilesTable.userId, driverId))) ?? [];
+    const freeRidesCount = driverProfile?.freeRidesLeft ?? 0;
+
+    let commissionDeducted = 0;
+
+    if (freeRidesCount > 0) {
+      // السائق لا يزال في فترة الرحلات الخمس المجانية
+      await db.update(driverProfilesTable).set({
+        freeRidesLeft: sql`${driverProfilesTable.freeRidesLeft} - 1`,
+        totalRides: sql`${driverProfilesTable.totalRides} + 1`,
+        totalEarnings: sql`${driverProfilesTable.totalEarnings} + ${ride.price}`,
+      }).where(eq(driverProfilesTable.userId, driverId));
+    } else {
+      // السائق أكمل رحلاته المجانية ويجب خصم عمولة مخصصة من لوحة التحكم (الافتراضية 10%)
+      const [commissionRateSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_rate"));
+      const commissionRatePercent = commissionRateSetting?.value ? Number(commissionRateSetting.value) : 10;
+      
+      commissionDeducted = Math.round(ridePrice * (commissionRatePercent / 100));
+
+      // خصم من محفظة السائق وتسجيل المعاملة
+      const [driverWallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, driverId));
+      let walletId = driverWallet?.id;
+      let currentBalance = Number(driverWallet?.balance ?? 0);
+
+      if (!driverWallet) {
+        walletId = randomUUID();
+        await db.insert(walletsTable).values({
+          id: walletId,
+          userId: driverId,
+          balance: "0",
+        });
+        currentBalance = 0;
+      } else {
+        walletId = driverWallet.id;
+      }
+
+      const newBalance = currentBalance - commissionDeducted;
+      await db.update(walletsTable).set({
+        balance: String(newBalance),
+        updatedAt: now,
+      }).where(eq(walletsTable.id, walletId!));
+
+      // تسجيل المعاملة المالية في الأرشيف
+      await db.insert(walletTransactionsTable).values({
+        id: randomUUID(),
+        walletId: walletId!,
+        userId: driverId,
+        type: "penalty", // عمولة تطبيق
+        amount: String(-commissionDeducted),
+        balanceAfter: String(newBalance),
+        description: `عمولة الكورسة (${commissionRatePercent}%) من ${ride.fromAddress} إلى ${ride.toAddress}`,
+        rideId: ride.id,
+        status: "completed",
+      });
+
+      // تحديث إحصائيات السائق العامة
+      await db.update(driverProfilesTable).set({
+        totalRides: sql`${driverProfilesTable.totalRides} + 1`,
+        totalEarnings: sql`${driverProfilesTable.totalEarnings} + ${ride.price}`,
+      }).where(eq(driverProfilesTable.userId, driverId));
+    }
 
     await notifyUsers({
       userIds: [ride.passengerId],
-      title: "✅ وصلت!",
-      body: "نرجوك تقييم الرحلة",
-      data: { type: "ride_completed", rideId: ride.id },
+      title: "✅ وصلت بالسلامة!",
+      body: `لقد حصلت على ${pointsEarned} نقطة وفاء مجانية! نرجو منك تقييم الرحلة.`,
+      data: { type: "ride_completed", rideId: ride.id, pointsEarned },
     });
 
-    res.json({ success: true });
+    res.json({
+      success: true,
+      pointsEarned,
+      freeRidesLeft: Math.max(0, freeRidesCount - 1),
+      commissionDeducted
+    });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -814,6 +901,16 @@ router.get("/rides/:id/live", authenticate, async (req, res): Promise<void> => {
       toLat: ride.toLat, toLng: ride.toLng,
       fromAddress: ride.fromAddress, toAddress: ride.toAddress,
     });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── جلب كل الوجهات المتاحة للراكب والسائق ──────────────────────────
+router.get("/rides/destinations", authenticate, async (_req, res): Promise<void> => {
+  try {
+    const list = await db.select().from(destinationsTable).orderBy(desc(destinationsTable.createdAt));
+    res.json(list);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

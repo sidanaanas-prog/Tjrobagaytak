@@ -40,6 +40,7 @@ export const ridesTable = pgTable("rides", {
   paymentMethod: text("payment_method").default("cash"), // "cash" | "wallet"
   estimatedPrice: numeric("estimated_price", { precision: 12, scale: 2 }),
   actualPrice: numeric("actual_price", { precision: 12, scale: 2 }),
+  completionCode: text("completion_code"), // كود إنهاء الرحلة لتفادي التحايل
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -67,6 +68,7 @@ export const driverProfilesTable = pgTable("driver_profiles", {
   subscriptionExpiresAt: timestamp("subscription_expires_at", { withTimezone: true }),
   // سائق مجاني (يعمل بدون دفع اشتراك)
   isFree: boolean("is_free").notNull().default(false),
+  freeRidesLeft: integer("free_rides_left").notNull().default(5), // عدد الرحلات المجانية المتبقية للسائق (أول 5 رحلات مجانية)
   // تجربة مجانية 7 أيام للسائقين الجدد
   trialExpiresAt: timestamp("trial_expires_at", { withTimezone: true }),
   // وثائق السائق
@@ -82,3 +84,25 @@ export const driverProfilesTable = pgTable("driver_profiles", {
 
 export type DriverProfile = typeof driverProfilesTable.$inferSelect;
 export type InsertDriverProfile = typeof driverProfilesTable.$inferInsert;
+
+// وجهات مسبقة التعريف وأسعارها (لوحة التحكم)
+export const destinationsTable = pgTable("destinations", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(), // اسم الوجهة (مثل وسط المدينة، المطار، إلخ)
+  price: numeric("price", { precision: 12, scale: 2 }).notNull(), // السعر المقترح
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type Destination = typeof destinationsTable.$inferSelect;
+export type InsertDestination = typeof destinationsTable.$inferInsert;
+
+// إعدادات الرحلات والعمولة المخصصة
+export const rideSettingsTable = pgTable("ride_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type RideSetting = typeof rideSettingsTable.$inferSelect;
+export type InsertRideSetting = typeof rideSettingsTable.$inferInsert;
+

@@ -29,6 +29,7 @@ export const usersTable = pgTable("users", {
   noShowLastAt: timestamp("no_show_last_at", { withTimezone: true }),
   // حظر مؤقت الرحلات
   rideBannedUntil: timestamp("ride_banned_until", { withTimezone: true }),
+  points: integer("points").notNull().default(0), // نقاط الوفاء والمكافآت لتشجيع الركاب على إعطاء الرمز للسائق
 });
 
 export const insertUserSchema = createInsertSchema(usersTable).omit({ createdAt: true });
