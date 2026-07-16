@@ -6,6 +6,7 @@
     "dev": "PORT=3000 tsx artifacts/api-server/src/index.ts",
     "build": "npm run build --workspace=@workspace/db && npm run build --workspace=@workspace/api-server && BASE_PATH=/ npm run build --workspace=@workspace/marketplace && BASE_PATH=/admin/ npm run build --workspace=@workspace/admin-panel",
     "build:render": "npm run build --workspace=@workspace/api-server && PORT=3000 BASE_PATH=/ npm run build --workspace=@workspace/marketplace && BASE_PATH=/admin/ npm run build --workspace=@workspace/admin-panel",
+    "start": "node --enable-source-maps artifacts/api-server/dist/index.mjs",
     "typecheck:libs": "tsc --build || true",
     "typecheck": "npm run typecheck:libs && npm run typecheck --workspaces --if-present"
   },
