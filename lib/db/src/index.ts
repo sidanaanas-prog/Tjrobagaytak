@@ -123,7 +123,7 @@ function buildDb() {
           if (Array.isArray(stringsOrQuery)) {
             return await baseSql(stringsOrQuery as any, ...params);
           } else {
-            return await baseSql(stringsOrQuery, params[0]);
+            return await baseSql.query(stringsOrQuery, params[0], params[1]);
           }
         } catch (err: any) {
           attempts++;
@@ -141,6 +141,41 @@ function buildDb() {
           
           if (isSuspended && attempts < maxAttempts) {
             console.warn(`[DB Neon Wrapper] Neon database is suspended or inactive. Retrying in ${delay}ms... (Attempt ${attempts}/${maxAttempts})`);
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            delay = Math.min(delay * 1.5, 3000);
+          } else {
+            throw err;
+          }
+        }
+      }
+    };
+
+    // Copy original properties and wrap the `.query` method as well
+    Object.assign(wrappedSql, baseSql);
+    (wrappedSql as any).query = async (query: string, params?: any[], options?: any) => {
+      let attempts = 0;
+      const maxAttempts = 5;
+      let delay = 1000;
+      
+      while (attempts < maxAttempts) {
+        try {
+          return await baseSql.query(query, params, options);
+        } catch (err: any) {
+          attempts++;
+          const errMsg = (err?.message || "").toLowerCase();
+          const isSuspended = 
+            errMsg.includes("suspended") || 
+            errMsg.includes("inactive") || 
+            errMsg.includes("shutting down") || 
+            errMsg.includes("terminating connection") || 
+            errMsg.includes("admin command") ||
+            errMsg.includes("socket hang up") ||
+            errMsg.includes("closed") ||
+            err?.code === "57P01" ||
+            err?.code === "57P02";
+          
+          if (isSuspended && attempts < maxAttempts) {
+            console.warn(`[DB Neon Wrapper .query] Neon database is suspended or inactive. Retrying in ${delay}ms... (Attempt ${attempts}/${maxAttempts})`);
             await new Promise((resolve) => setTimeout(resolve, delay));
             delay = Math.min(delay * 1.5, 3000);
           } else {
