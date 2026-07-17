@@ -147,7 +147,6 @@ router.post("/auth/otp/verify", async (req, res): Promise<void> => {
 
       const id = randomUUID();
       const now = new Date();
-      const trialExpiry = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days trial
       // Neon HTTP driver لا يدعم .returning() → نستخدم select() بعد الإدخال
       await db.insert(usersTable).values({
         id,
@@ -157,7 +156,7 @@ router.post("/auth/otp/verify", async (req, res): Promise<void> => {
         passwordHash: randomUUID(),
         role: "user",
         banned: false,
-        trialExpiresAt: trialExpiry,
+        trialExpiresAt: null,
         referredBy: referrerUserId,
       });
       const [created] = await db.select().from(usersTable).where(eq(usersTable.id, id));
@@ -166,7 +165,7 @@ router.post("/auth/otp/verify", async (req, res): Promise<void> => {
       await db.insert(activityTable).values({
         id: randomUUID(),
         type: "user_registered",
-        description: `${userName} انضم عبر رقم الهاتف (تجربة 7 أيام)`,
+        description: `${userName} انضم عبر رقم الهاتف`,
         userId: id,
         userName: userName,
       });
