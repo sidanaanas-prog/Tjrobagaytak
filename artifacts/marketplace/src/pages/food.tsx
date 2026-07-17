@@ -304,17 +304,29 @@ export default function FoodPage() {
 
           {/* Quick Stats Grid */}
           <div className="grid grid-cols-2 gap-3 mb-6">
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col justify-between">
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col justify-between relative overflow-hidden">
+              {competition.status === "open" && (
+                <div className="absolute top-0 right-0 w-16 h-16 bg-yellow-500/5 rounded-full blur-xl pointer-events-none animate-pulse" />
+              )}
               <span className="text-xs text-white/40 flex items-center gap-1">
                 <Gift className="w-3.5 h-3.5 text-primary" /> الجائزة الكبرى
               </span>
               <span className="text-base font-black text-white mt-1.5">{competition.prize}</span>
             </div>
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col justify-between">
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col justify-between relative overflow-hidden">
+              {competition.status === "open" && (
+                <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/5 rounded-full blur-xl pointer-events-none animate-pulse" />
+              )}
               <span className="text-xs text-white/40 flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5 text-secondary" /> حالة المنافسة
               </span>
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-full border w-fit mt-2 ${statusBadgeColor}`}>
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full border w-fit mt-2 flex items-center gap-1.5 ${statusBadgeColor}`}>
+                {competition.status === "open" && (
+                  <span className="flex h-1.5 w-1.5 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400"></span>
+                  </span>
+                )}
                 {statusText}
               </span>
             </div>

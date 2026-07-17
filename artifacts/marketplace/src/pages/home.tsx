@@ -5,7 +5,7 @@ import { StoriesBar } from "@/components/Stories";
 import { HeroSlider } from "@/components/HeroSlider";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Zap, Clock, Flame, UtensilsCrossed, ChevronRight, Sparkles } from "lucide-react";
+import { Zap, Clock, Flame, UtensilsCrossed, ChevronRight, Sparkles, Trophy } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { SkeletonCard } from "@/components/SkeletonCard";
 import { getCachedData } from "@/hooks/use-cached-query";
@@ -107,6 +107,18 @@ export default function HomePage() {
   const { user } = useAuth();
   const { streakCount } = useStreak();
   const cachedCategories = getCachedData<any[]>("categories");
+  const [competition, setCompetition] = useState<{ enabled: boolean; status: string; prize: string } | null>(null);
+
+  useEffect(() => {
+    fetch(`${BASE}/api/competition/status`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data && data.enabled) {
+          setCompetition(data);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const { data: flashSale } = useQuery({
     queryKey: ["flash-sale-active"],
@@ -213,6 +225,64 @@ export default function HomePage() {
 
         {/* Image Slider Banner */}
         <HeroSlider />
+
+        {/* 🏆 مسابقة غايتك الكبرى (Active Competition Banner) */}
+        <AnimatePresence>
+          {competition && competition.enabled && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              className="mx-4 mt-4 rounded-2xl overflow-hidden border border-yellow-500/30 bg-gradient-to-r from-yellow-950/40 via-purple-950/40 to-background relative shadow-[0_0_20px_rgba(234,179,8,0.15)]"
+            >
+              {/* Glowing Ambient Light Background */}
+              <div className="absolute -right-12 -top-12 w-32 h-32 bg-yellow-500/10 rounded-full blur-2xl pointer-events-none animate-pulse" />
+              <div className="absolute -left-12 -bottom-12 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl pointer-events-none animate-pulse" />
+
+              <Link href="/food">
+                <div className="p-4 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    {/* Pulsing Trophy Icon Container */}
+                    <motion.div
+                      animate={{
+                        scale: [1, 1.1, 1],
+                        rotate: [0, -5, 5, 0]
+                      }}
+                      transition={{
+                        duration: 3,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                      }}
+                      className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-400/25 to-amber-500/10 border border-yellow-500/40 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(234,179,8,0.2)]"
+                    >
+                      <Trophy className="w-6 h-6 text-yellow-400" />
+                    </motion.div>
+
+                    <div className="text-right">
+                      <div className="flex items-center gap-1.5">
+                        <span className="flex h-2 w-2 relative">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+                        </span>
+                        <span className="text-[10px] font-bold text-yellow-400 uppercase tracking-wider">
+                          {competition.status === "open" ? "مسابقة نشطة الآن 🔥" : "المسابقة قيد التجهيز ⏳"}
+                        </span>
+                      </div>
+                      <h3 className="text-sm font-black text-white mt-1">مسابقة غايتك الكبرى</h3>
+                      <p className="text-[10px] text-white/50 mt-0.5 leading-relaxed">
+                        الجائزة: <span className="text-yellow-400 font-bold">{competition.prize}</span> • اضغط للتفاصيل والاشتراك
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                    <ChevronRight className="w-4 h-4 text-white/60 rotate-180" />
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ⚡ بانر العرض التنازلي */}
         <AnimatePresence>

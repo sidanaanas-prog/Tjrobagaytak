@@ -144,7 +144,33 @@ export function BottomNav() {
                   />
                 )}
                 <div className="relative">
-                  <Icon className={`w-5 h-5 transition-colors ${isActive ? "text-primary" : "text-white/40"}`} />
+                  {tab.href === "/food" && isCompetitionEnabled ? (
+                    <motion.div
+                      animate={{
+                        scale: [1, 1.15, 1],
+                        filter: [
+                          "drop-shadow(0 0 2px rgba(168,85,247,0.4))",
+                          "drop-shadow(0 0 10px rgba(168,85,247,0.8))",
+                          "drop-shadow(0 0 2px rgba(168,85,247,0.4))"
+                        ]
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                      }}
+                    >
+                      <Icon className={`w-5 h-5 ${isActive ? "text-primary" : "text-primary animate-pulse"}`} />
+                    </motion.div>
+                  ) : (
+                    <Icon className={`w-5 h-5 transition-colors ${isActive ? "text-primary" : "text-white/40"}`} />
+                  )}
+                  {tab.href === "/food" && isCompetitionEnabled && (
+                    <span className="absolute -top-1.5 -right-1.5 flex h-2.5 w-2.5 z-10">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400"></span>
+                    </span>
+                  )}
                   {showChatBadge && (
                     <motion.div
                       initial={{ scale: 0 }}
