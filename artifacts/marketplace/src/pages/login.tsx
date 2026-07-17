@@ -188,6 +188,30 @@ export default function LoginPage() {
   const [name, setName] = useState("");
   const [isNewUser, setIsNewUser] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
+  const [inviteCodeValid, setInviteCodeValid] = useState<boolean | null>(null);
+  const [inviteCodeLoading, setInviteCodeLoading] = useState(false);
+
+  useEffect(() => {
+    if (!inviteCode.trim()) {
+      setInviteCodeValid(null);
+      return;
+    }
+    const delayDebounceFn = setTimeout(async () => {
+      setInviteCodeLoading(true);
+      try {
+        const res = await fetch(`${BASE}/api/auth/validate-invite-code/${encodeURIComponent(inviteCode.trim())}`);
+        const data = await res.json();
+        setInviteCodeValid(data.valid);
+      } catch (err) {
+        console.error(err);
+        setInviteCodeValid(null);
+      } finally {
+        setInviteCodeLoading(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [inviteCode]);
   const [loading, setLoading] = useState(false);
   const [serverWaking, setServerWaking] = useState(false);
   const [preWarming, setPreWarming] = useState(false);
@@ -295,6 +319,10 @@ export default function LoginPage() {
     if (!otp.trim()) return;
     if (isNewUser && !name.trim()) {
       toast({ variant: "destructive", title: "أدخل اسمك" });
+      return;
+    }
+    if (isNewUser && inviteCode.trim() && inviteCodeValid === false) {
+      toast({ variant: "destructive", title: "خطأ في كود الإحالة", description: "كود الإحالة المكتوب غير صحيح. يرجى تعديله أو مسحه بالكامل." });
       return;
     }
     setLoading(true);
@@ -508,10 +536,18 @@ export default function LoginPage() {
                         />
                       </div>
 
-                      <div className="space-y-2">
+                       <div className="space-y-2">
                         <label className="text-xs text-white/50 uppercase tracking-wider font-bold flex items-center justify-between">
                           <span>كود الإحالة / الدعوة (اختياري)</span>
-                          {inviteCode && <span className="text-[10px] text-emerald-400">تم التعرف عليه تلقائياً ✓</span>}
+                          {inviteCode.trim() && (
+                            inviteCodeLoading ? (
+                              <span className="text-[10px] text-amber-400 animate-pulse">جاري التحقق...</span>
+                            ) : inviteCodeValid ? (
+                              <span className="text-[10px] text-emerald-400 font-bold">تم التعرف عليه بنجاح ✓</span>
+                            ) : (
+                              <span className="text-[10px] text-rose-400 font-bold">كود إحالة غير صحيح أو غير موجود ❌</span>
+                            )
+                          )}
                         </label>
                         <input
                           type="text"
@@ -521,7 +557,13 @@ export default function LoginPage() {
                             localStorage.setItem("gaytak_referred_by", e.target.value);
                           }}
                           placeholder="مثال: GT-AMINE8"
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 h-12 text-white placeholder:text-white/20 focus:outline-none focus:border-primary/50 transition-all text-left font-mono"
+                          className={`w-full bg-white/5 border rounded-2xl px-4 h-12 text-white placeholder:text-white/20 focus:outline-none transition-all text-left font-mono ${
+                            inviteCode.trim()
+                              ? inviteCodeValid
+                                ? "border-emerald-500/50 focus:border-emerald-500"
+                                : "border-rose-500/50 focus:border-rose-500"
+                              : "border-white/10 focus:border-primary/50"
+                          }`}
                           dir="ltr"
                         />
                         <p className="text-[10px] text-white/40 leading-relaxed text-right">

@@ -721,9 +721,16 @@ router.post("/driver/profile", authenticate, async (req, res): Promise<void> => 
     const [existing] = (await db.select().from(driverProfilesTable).where(eq(driverProfilesTable.userId, driverId))) ?? [];
 
     const isFirstSubmit = !existing?.documentsSubmittedAt;
+    const hasDocsNow = !!(licenseImage || idCardImage || vehicleDocImage);
+    let documentsStatus = existing ? existing.documentsStatus : null;
+
+    if (hasDocsNow) {
+      if (isFirstSubmit || !existing || existing.documentsStatus === "rejected" || !existing.documentsStatus) {
+        documentsStatus = "pending";
+      }
+    }
 
     if (existing) {
-      const hasDocsNow = !!(licenseImage || idCardImage || vehicleDocImage);
       await db.update(driverProfilesTable).set({
         vehicleType: vehicleType ?? existing.vehicleType,
         vehicleModel: vehicleModel ?? existing.vehicleModel,
@@ -733,12 +740,11 @@ router.post("/driver/profile", authenticate, async (req, res): Promise<void> => 
         idCardImage: idCardImage ?? existing.idCardImage,
         vehicleDocImage: vehicleDocImage ?? existing.vehicleDocImage,
         documentsSubmittedAt: hasDocsNow ? now : existing.documentsSubmittedAt,
-        documentsStatus: isFirstSubmit ? "pending" : existing.documentsStatus,
+        documentsStatus,
         trialExpiresAt: null, // No more 7 days free trial
         updatedAt: now,
       }).where(eq(driverProfilesTable.userId, driverId));
     } else {
-      const hasDocs = !!(licenseImage || idCardImage || vehicleDocImage);
       await db.insert(driverProfilesTable).values({
         id: randomUUID(),
         userId: driverId,
@@ -751,11 +757,33 @@ router.post("/driver/profile", authenticate, async (req, res): Promise<void> => 
         vehicleDocImage: vehicleDocImage ?? null,
         trialExpiresAt: null, // No more 7 days free trial
         freeRidesLeft: 0, // Starts with 0 free rides until verified by admin
-        documentsSubmittedAt: hasDocs ? now : null,
-        documentsStatus: hasDocs ? "pending" : null,
+        documentsSubmittedAt: hasDocsNow ? now : null,
+        documentsStatus: hasDocsNow ? "pending" : null,
         createdAt: now,
         updatedAt: now,
       });
+    }
+
+    // إرسال إشعار للأدمن عند رفع الوثائق
+    if (hasDocsNow && documentsStatus === "pending") {
+      try {
+        const [admin] = (await db.select({ id: usersTable.id })
+          .from(usersTable)
+          .where(eq(usersTable.email, "admin@gaytak.com"))) ?? [];
+        if (admin?.id) {
+          const [driverUser] = (await db.select({ name: usersTable.name })
+            .from(usersTable)
+            .where(eq(usersTable.id, driverId))) ?? [];
+          await notifyUsers({
+            userIds: [admin.id],
+            title: "📄 وثائق سائق جديدة قيد المراجعة",
+            body: `قام السائق "${driverUser?.name || 'مجهول'}" برفع وثائقه للمراجعة والتوثيق.`,
+            data: { type: "driver_docs_pending", driverId },
+          });
+        }
+      } catch (err) {
+        console.error("Error notifying admin:", err);
+      }
     }
 
     res.json({ success: true });

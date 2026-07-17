@@ -4,6 +4,7 @@ import { db, usersTable, productsTable, conversationsTable, messagesTable, activ
 import { count, eq, and, or, ne, gte, sql, desc, inArray, isNotNull } from "drizzle-orm";
 import { authenticate, requireAdmin } from "../lib/auth";
 import { notifyUsers, sendNotification } from "../lib/notifications";
+import { sendWasenderText } from "../lib/wasender";
 
 // إرسال إشعار لمستخدم واحد من users.pushToken (نفس أسلوب الدردشة)
 async function pushToUser(
@@ -226,7 +227,7 @@ router.get("/admin/seller-orders/:sellerId", authenticate, requireAdmin, async (
 // ── بث رسالة جماعية لجميع المستخدمين ─────────────────────
 router.post("/admin/broadcast", authenticate, requireAdmin, async (req, res): Promise<void> => {
   const adminId = req.user!.id;
-  const { message } = req.body;
+  const { message, sendWhatsApp } = req.body;
 
   if (!message?.trim()) {
     res.status(400).json({ error: "الرسالة مطلوبة" });
@@ -234,7 +235,7 @@ router.post("/admin/broadcast", authenticate, requireAdmin, async (req, res): Pr
   }
 
   const allUsers = await db
-    .select({ id: usersTable.id })
+    .select({ id: usersTable.id, phone: usersTable.phone })
     .from(usersTable)
     .where(and(ne(usersTable.role, "admin"), eq(usersTable.banned, false)));
 
@@ -313,6 +314,25 @@ router.post("/admin/broadcast", authenticate, requireAdmin, async (req, res): Pr
     } catch (e: any) {
       console.warn("[Broadcast] Push notifications failed:", e.message);
     }
+  }
+
+  // إرسال رسائل WhatsApp جماعية في الخلفية إذا تم تحديد ذلك
+  if (sendWhatsApp && allUsers.length > 0) {
+    (async () => {
+      console.log(`[Broadcast] Starting background WhatsApp broadcast to ${allUsers.length} users`);
+      for (const user of allUsers) {
+        if (user.phone?.trim()) {
+          try {
+            await sendWasenderText(user.phone.trim(), message.trim());
+            // تأخير بسيط 300ms لتفادي حظر الحساب أو الضغط الزائد
+            await new Promise((resolve) => setTimeout(resolve, 300));
+          } catch (err: any) {
+            console.error(`[Broadcast-WA] Failed for ${user.phone}:`, err.message);
+          }
+        }
+      }
+      console.log(`[Broadcast] Finished background WhatsApp broadcast`);
+    })().catch((err) => console.error("[Broadcast-WA] Async loop error:", err));
   }
 
   res.json({ broadcastId, sent, failed, total: allUsers.length });

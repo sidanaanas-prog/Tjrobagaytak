@@ -12,7 +12,7 @@ import {
   Car, MapPin, Clock, Star, CheckCircle, XCircle, Phone,
   ChevronLeft, Loader2, Navigation, User, Circle, Flag, AlertTriangle,
   Plus, Trash2, TrendingUp, Shield, Gift, Wallet, CreditCard, Coins,
-  LocateFixed, Siren, ChevronRight, RotateCw,
+  LocateFixed, Siren, ChevronRight, RotateCw, Megaphone, Eye, Send, MessageSquare,
 } from "lucide-react";
 
 const RideMap = lazy(() => import("@/components/RideMap"));
@@ -1036,6 +1036,10 @@ function AdminRidesDashboard() {
   const [destName, setDestName] = useState("");
   const [destPrice, setDestPrice] = useState("");
   
+  // Drivers verification / subscription states
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [loadingDrivers, setLoadingDrivers] = useState(false);
+
   // Commission & Pricing settings states
   const [commissionRate, setCommissionRate] = useState("10");
   const [pricingMode, setPricingMode] = useState("flexible"); // "fixed" | "flexible"
@@ -1053,6 +1057,93 @@ function AdminRidesDashboard() {
   const [driverIdForFree, setDriverIdForFree] = useState("");
   const [freeRidesCount, setFreeRidesCount] = useState("5");
   const [freeRidesSubmitting, setFreeRidesSubmitting] = useState(false);
+
+  // Broadcast states
+  const [broadcastText, setBroadcastText] = useState("");
+  const [sendWhatsApp, setSendWhatsApp] = useState(false);
+  const [broadcastSubmitting, setBroadcastSubmitting] = useState(false);
+  const [previousBroadcasts, setPreviousBroadcasts] = useState<any[]>([]);
+  const [selectedBroadcastId, setSelectedBroadcastId] = useState<string | null>(null);
+  const [readersList, setReadersList] = useState<any[]>([]);
+  const [loadingReaders, setLoadingReaders] = useState(false);
+  const [showReadersModal, setShowReadersModal] = useState(false);
+
+  const fetchDrivers = async () => {
+    setLoadingDrivers(true);
+    const token = getMemToken();
+    try {
+      const res = await fetch(`${BASE}/api/admin/drivers`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setDrivers(data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingDrivers(false);
+    }
+  };
+
+  const fetchBroadcasts = async () => {
+    const token = getMemToken();
+    try {
+      const res = await fetch(`${BASE}/api/admin/broadcasts`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (Array.isArray(data)) setPreviousBroadcasts(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSendBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!broadcastText.trim()) {
+      toast({ variant: "destructive", title: "تنبيه", description: "يرجى كتابة نص الرسالة أولاً." });
+      return;
+    }
+    setBroadcastSubmitting(true);
+    const token = getMemToken();
+    try {
+      const res = await fetch(`${BASE}/api/admin/broadcast`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ message: broadcastText, sendWhatsApp }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "📢 تم إرسال الرسالة الجماعية", description: `تم الإرسال بنجاح لـ ${data.sent} مستخدم.` });
+        setBroadcastText("");
+        fetchBroadcasts();
+      } else {
+        toast({ variant: "destructive", title: "خطأ", description: data.error || "فشل إرسال البث" });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "خطأ", description: "تعذر الاتصال بالخادم" });
+    } finally {
+      setBroadcastSubmitting(false);
+    }
+  };
+
+  const fetchReaders = async (broadcastId: string) => {
+    setSelectedBroadcastId(broadcastId);
+    setLoadingReaders(true);
+    setShowReadersModal(true);
+    const token = getMemToken();
+    try {
+      const res = await fetch(`${BASE}/api/admin/broadcasts/${broadcastId}/readers`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setReadersList(data);
+      } else {
+        setReadersList([]);
+      }
+    } catch (err) {
+      console.error(err);
+      setReadersList([]);
+    } finally {
+      setLoadingReaders(false);
+    }
+  };
 
   const fetchDestinations = async () => {
     const token = getMemToken();
@@ -1091,6 +1182,8 @@ function AdminRidesDashboard() {
   useEffect(() => {
     fetchDestinations();
     fetchSettings();
+    fetchBroadcasts();
+    fetchDrivers();
   }, []);
 
   const handleSaveAllSettings = async (e: React.FormEvent) => {
@@ -1237,6 +1330,163 @@ function AdminRidesDashboard() {
       <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4">
         <h2 className="font-black text-sm text-primary flex items-center gap-2">🛡️ لوحة الإدارة - نظام الرحلات والمحافظ</h2>
         <p className="text-[11px] text-muted-foreground mt-1">تحكم كامل بالوجهات، شحن أرصدة المستخدمين والسائقين، وتخصيص الفترات التجريبية.</p>
+      </div>
+
+      {/* طلبات توثيق السائقين واشتراكات الكورسا المعلقة */}
+      <div className="bg-card border rounded-2xl p-4 space-y-4 shadow-lg shadow-primary/5">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+            🗂️ طلبات توثيق السائقين واشتراكات الكورسا
+            {drivers.filter((d) => d.documentsStatus === "pending").length > 0 && (
+              <span className="bg-red-500 text-white font-black text-[10px] px-2 py-0.5 rounded-full animate-pulse">
+                {drivers.filter((d) => d.documentsStatus === "pending").length} معلق
+              </span>
+            )}
+          </h3>
+          <button
+            onClick={fetchDrivers}
+            className="w-8 h-8 rounded-full bg-secondary/10 hover:bg-secondary/20 flex items-center justify-center transition-all"
+            title="تحديث القائمة"
+          >
+            <RotateCw className={`w-3.5 h-3.5 text-secondary ${loadingDrivers ? "animate-spin" : ""}`} />
+          </button>
+        </div>
+
+        {loadingDrivers ? (
+          <div className="flex flex-col items-center justify-center py-8 gap-2 text-muted-foreground text-xs">
+            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+            <span>جاري تحميل طلبات السائقين...</span>
+          </div>
+        ) : drivers.filter((d) => d.documentsStatus === "pending").length === 0 ? (
+          <p className="text-xs text-muted-foreground py-4 text-center">لا توجد طلبات توثيق سائقين معلقة حالياً.</p>
+        ) : (
+          <div className="space-y-4">
+            {drivers
+              .filter((d) => d.documentsStatus === "pending")
+              .map((d) => (
+                <div key={d.id} className="bg-background border rounded-xl p-4 space-y-3 relative overflow-hidden">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full overflow-hidden border bg-muted shrink-0 flex items-center justify-center">
+                        {d.avatar ? (
+                          <img src={d.avatar} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-xs font-black text-muted-foreground">{d.name?.[0] || "D"}</span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-foreground">{d.name}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{d.phone || "بدون رقم هاتف"} • {d.email || "بدون بريد"}</p>
+                      </div>
+                    </div>
+                    <div className="text-left">
+                      <span className="text-[9px] px-2 py-1 rounded-md bg-yellow-500/10 text-yellow-500 font-bold border border-yellow-500/20">
+                        ⏳ في المراجعة
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* بيانات السيارة */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px] bg-muted/30 p-2.5 rounded-lg border">
+                    <div>
+                      <span className="text-muted-foreground block">نوع المركبة:</span>
+                      <span className="font-bold text-foreground">{d.vehicleType || "غير محدد"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block">موديل المركبة:</span>
+                      <span className="font-bold text-foreground">{d.vehicleModel || "غير محدد"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block">رقم اللوحة:</span>
+                      <span className="font-bold text-foreground font-mono">{d.vehiclePlate || "غير محدد"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block">لون المركبة:</span>
+                      <span className="font-bold text-foreground">{d.vehicleColor || "غير محدد"}</span>
+                    </div>
+                  </div>
+
+                  {/* صور الوثائق */}
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] text-muted-foreground font-bold">الوثائق المرفوعة:</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {d.licenseImage && (
+                        <div className="group relative border rounded-lg overflow-hidden bg-black/20 aspect-video flex flex-col justify-end">
+                          <img src={d.licenseImage} alt="رخصة السياقة" className="w-full h-full object-cover absolute inset-0" />
+                          <a href={d.licenseImage} target="_blank" rel="noreferrer" className="block text-center text-[9px] py-1 bg-black/70 text-white font-bold opacity-90 group-hover:opacity-100 transition-opacity z-10">رخصة السياقة ↗</a>
+                        </div>
+                      )}
+                      {d.idCardImage && (
+                        <div className="group relative border rounded-lg overflow-hidden bg-black/20 aspect-video flex flex-col justify-end">
+                          <img src={d.idCardImage} alt="بطاقة الهوية" className="w-full h-full object-cover absolute inset-0" />
+                          <a href={d.idCardImage} target="_blank" rel="noreferrer" className="block text-center text-[9px] py-1 bg-black/70 text-white font-bold opacity-90 group-hover:opacity-100 transition-opacity z-10">بطاقة الهوية ↗</a>
+                        </div>
+                      )}
+                      {d.vehicleDocImage && (
+                        <div className="group relative border rounded-lg overflow-hidden bg-black/20 aspect-video flex flex-col justify-end">
+                          <img src={d.vehicleDocImage} alt="البطاقة الرمادية" className="w-full h-full object-cover absolute inset-0" />
+                          <a href={d.vehicleDocImage} target="_blank" rel="noreferrer" className="block text-center text-[9px] py-1 bg-black/70 text-white font-bold opacity-90 group-hover:opacity-100 transition-opacity z-10">البطاقة الرمادية ↗</a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* أزرار الإجراءات */}
+                  <div className="flex items-center gap-2 pt-1 justify-end">
+                    <button
+                      onClick={async () => {
+                        if (!window.confirm(`هل أنت متأكد من تفعيل اشتراك وقبول وثائق السائق ${d.name}؟`)) return;
+                        const token = getMemToken();
+                        try {
+                          const res = await fetch(`${BASE}/api/admin/drivers/${d.id}/verify-documents`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                            body: JSON.stringify({ status: "verified" }),
+                          });
+                          if (res.ok) {
+                            toast({ title: "✅ تم قبول السائق وتوثيق وثائقه", description: "تم تفعيل الحساب ومنحه 5 رحلات تجريبية." });
+                            fetchDrivers();
+                          } else {
+                            toast({ variant: "destructive", title: "خطأ", description: "فشل تحديث الحالة" });
+                          }
+                        } catch {
+                          toast({ variant: "destructive", title: "خطأ", description: "تعذر الاتصال بالخادم" });
+                        }
+                      }}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold px-4 py-2 rounded-lg transition-all"
+                    >
+                      قبول وتوثيق السائق (منح 5 كورسات) ✓
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const reason = window.prompt("اكتب سبب الرفض (اختياري):");
+                        if (reason === null) return;
+                        const token = getMemToken();
+                        try {
+                          const res = await fetch(`${BASE}/api/admin/drivers/${d.id}/verify-documents`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                            body: JSON.stringify({ status: "rejected", reason }),
+                          });
+                          if (res.ok) {
+                            toast({ title: "❌ تم رفض وثائق السائق", description: "تم إرسال إشعار بالرفض لتعديل الوثائق." });
+                            fetchDrivers();
+                          } else {
+                            toast({ variant: "destructive", title: "خطأ", description: "فشل تحديث الحالة" });
+                          }
+                        } catch {
+                          toast({ variant: "destructive", title: "خطأ", description: "تعذر الاتصال بالخادم" });
+                        }
+                      }}
+                      className="bg-red-500/10 hover:bg-red-500/25 text-red-500 border border-red-500/20 text-[10px] font-bold px-4 py-2 rounded-lg transition-all"
+                    >
+                      رفض الوثائق ✗
+                    </button>
+                  </div>
+                </div>
+              ))}
+          </div>
+        )}
       </div>
 
       {/* 1. إدارة الوجهات */}
@@ -1442,6 +1692,153 @@ function AdminRidesDashboard() {
           </div>
         </form>
       </div>
+
+      {/* 5. إرسال رسالة جماعية وترويجية (بث) */}
+      <div className="bg-card border rounded-2xl p-4 space-y-4 shadow-lg shadow-primary/5">
+        <h3 className="font-bold text-sm text-foreground flex items-center gap-2">📢 إرسال رسائل جماعية وترويجية لجميع المستخدمين</h3>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          أرسل رسالة فورية جماعية (بث) لجميع ركاب وسائقي التطبيق دفعة واحدة. تظهر الرسالة كدردشة مباشرة مع الإدارة، مع إرسال إشعار فوري على الهواتف. يمكنك تفعيل خيار الإرسال عبر WhatsApp أيضاً لضمان استلامها خارج التطبيق.
+        </p>
+
+        <form onSubmit={handleSendBroadcast} className="space-y-3">
+          <div className="space-y-1">
+            <label className="text-[10px] text-muted-foreground font-bold">نص الرسالة الترويجية أو الإعلانية</label>
+            <textarea
+              rows={4}
+              placeholder="اكتب رسالتك هنا... (مثال: 🎉 مسابقة Gaytak الكبرى! شاركوا الآن واربحوا رصيداً مجانياً...)"
+              value={broadcastText}
+              onChange={(e) => setBroadcastText(e.target.value)}
+              className="w-full bg-background text-foreground border rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:border-primary resize-y"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 bg-primary/5 border border-primary/10 rounded-xl p-3">
+            <input
+              type="checkbox"
+              id="sendWhatsApp"
+              checked={sendWhatsApp}
+              onChange={(e) => setSendWhatsApp(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary shrink-0 cursor-pointer"
+            />
+            <label htmlFor="sendWhatsApp" className="text-xs font-bold text-foreground cursor-pointer select-none leading-normal">
+              🟢 إرسال الإشعار والرسالة عبر WhatsApp أيضاً (لضمان وصولها لجميع المستخدمين خارج التطبيق)
+            </label>
+          </div>
+
+          <div className="text-left">
+            <button
+              type="submit"
+              disabled={broadcastSubmitting}
+              className="bg-primary hover:bg-primary/90 text-white font-bold py-2.5 px-6 rounded-xl text-xs transition-colors disabled:opacity-50 flex items-center gap-2 justify-center mr-auto"
+            >
+              {broadcastSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>جاري إرسال البث...</span>
+                </>
+              ) : (
+                <>
+                  <span>إرسال الرسالة الجماعية الآن 🚀</span>
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+
+        {/* قائمة الرسائل السابقة ومتابعة المشاهدات */}
+        <div className="border-t border-border pt-4 space-y-3">
+          <h4 className="font-bold text-xs text-foreground flex items-center gap-2">📊 سجل الرسائل الجماعية السابقة ومتابعة من شاهدها</h4>
+          
+          {previousBroadcasts.length === 0 ? (
+            <p className="text-xs text-muted-foreground">لا توجد رسائل جماعية مرسلة سابقاً.</p>
+          ) : (
+            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+              {previousBroadcasts.map((b) => (
+                <div key={b.id} className="bg-background border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-right">
+                  <div className="space-y-1 max-w-[70%]">
+                    <p className="text-xs font-black text-foreground break-words line-clamp-2">{b.message}</p>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+                      <span>📅 {new Date(b.createdAt).toLocaleString("ar-DZ")}</span>
+                      <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded-md font-bold">👤 المستلمون: {b.recipientCount}</span>
+                      <span className="bg-green-500/10 text-green-500 px-1.5 py-0.5 rounded-md font-bold">👁️ المشاهدات: {b.readCount}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => fetchReaders(b.id)}
+                    className="shrink-0 bg-secondary/10 hover:bg-secondary/20 text-secondary border border-secondary/20 px-3 py-1.5 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1.5 transition-all self-start sm:self-center"
+                  >
+                    <span>تتبع من قرأ الرسالة 👁️</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* نافذة عرض من شاهد الرسالة */}
+      <AnimatePresence>
+        {showReadersModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" dir="rtl">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-card border rounded-3xl w-full max-w-md max-h-[80vh] overflow-hidden shadow-2xl flex flex-col text-right"
+            >
+              <div className="p-4 border-b border-border flex items-center justify-between">
+                <h3 className="font-bold text-sm text-foreground">👥 تفاصيل المشاهدة والقراءة</h3>
+                <button
+                  onClick={() => setShowReadersModal(false)}
+                  className="text-muted-foreground hover:text-foreground text-xs font-bold bg-background border rounded-lg px-2.5 py-1"
+                >
+                  إغلاق
+                </button>
+              </div>
+
+              <div className="p-4 overflow-y-auto flex-1 space-y-3">
+                {loadingReaders ? (
+                  <div className="flex flex-col items-center justify-center py-12 gap-2 text-muted-foreground">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                    <p className="text-xs">جاري تحميل قائمة القراء...</p>
+                  </div>
+                ) : readersList.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <p className="text-xs">لا توجد قراءات مسجلة بعد لهذه الرسالة.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-muted-foreground font-bold">المستخدمون الذين شاهدوا الرسالة ({readersList.length}):</p>
+                    <div className="space-y-1.5">
+                      {readersList.map((r, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-background border border-border/60">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-full overflow-hidden border bg-muted shrink-0 flex items-center justify-center">
+                              {r.avatar ? (
+                                <img src={r.avatar} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-xs font-black text-muted-foreground">{r.name?.[0] || "U"}</span>
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-foreground">{r.name}</p>
+                              <p className="text-[9px] text-muted-foreground">{r.phone || "بدون رقم هاتف"}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 text-green-500">
+                            <span className="text-[10px] font-bold">قرأها</span>
+                            <CheckCircle className="w-3.5 h-3.5" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1452,12 +1849,25 @@ export default function RidesPage() {
   const [role, setRole] = useState<string | null>(getRole());
   const [hasDriverRole, setHasDriverRole] = useState(false);
   const [hasPassengerRole, setHasPassengerRole] = useState(false);
+  const [pendingDriversCount, setPendingDriversCount] = useState(0);
 
   useEffect(() => {
     const token = getMemToken(); if (!token) return;
     fetch(`${BASE}/api/user/roles`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json()).then((roles: string[]) => { setHasDriverRole(roles.includes("driver")); setHasPassengerRole(roles.includes("passenger")); });
-  }, []);
+
+    if (user?.role === "admin") {
+      fetch(`${BASE}/api/admin/drivers`, { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => r.json())
+        .then((data) => {
+          if (Array.isArray(data)) {
+            const pending = data.filter((d: any) => d.documentsStatus === "pending");
+            setPendingDriversCount(pending.length);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [user]);
 
   if (!user) {
     return (
@@ -1491,7 +1901,15 @@ export default function RidesPage() {
             <button onClick={() => { setRole("passenger"); localStorage.setItem("gaytak_active_role", "passenger"); }} className={`px-3 py-1.5 text-xs font-bold ${role === "passenger" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>راكب</button>
             <button onClick={() => { setRole("driver"); localStorage.setItem("gaytak_active_role", "driver"); }} className={`px-3 py-1.5 text-xs font-bold ${role === "driver" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>سائق</button>
             {user?.role === "admin" && (
-              <button onClick={() => { setRole("admin"); localStorage.setItem("gaytak_active_role", "admin"); }} className={`px-3 py-1.5 text-xs font-bold ${role === "admin" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>الإدارة</button>
+              <button
+                onClick={() => { setRole("admin"); localStorage.setItem("gaytak_active_role", "admin"); }}
+                className={`relative px-3 py-1.5 text-xs font-bold ${role === "admin" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+              >
+                <span>الإدارة</span>
+                {pendingDriversCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                )}
+              </button>
             )}
           </div>
         </div>

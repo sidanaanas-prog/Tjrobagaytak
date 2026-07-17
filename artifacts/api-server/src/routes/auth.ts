@@ -35,6 +35,9 @@ router.post("/auth/register", async (req, res): Promise<void> => {
         if (participant) {
           referrerUserId = participant.userId;
           console.log(`Resolved invite code ${referredBy} to referrer userId ${referrerUserId}`);
+        } else {
+          res.status(400).json({ error: "كود الإحالة غير صحيح أو غير موجود" });
+          return;
         }
       } catch (err) {
         console.error("Error resolving invite code in email registration:", err);
@@ -220,6 +223,27 @@ router.post("/auth/pin/remove", authenticate, async (req, res): Promise<void> =>
   await db.update(usersTable).set({ pinHash: null }).where(eq(usersTable.id, req.user!.id));
   pinAttempts.delete(req.user!.id);
   res.json({ ok: true });
+});
+
+router.get("/auth/validate-invite-code/:code", async (req, res): Promise<void> => {
+  try {
+    const { code } = req.params;
+    if (!code) {
+      res.status(400).json({ valid: false, error: "الكود مطلوب" });
+      return;
+    }
+    const [participant] = await db
+      .select()
+      .from(competitionParticipantsTable)
+      .where(eq(competitionParticipantsTable.inviteCode, code));
+    if (participant) {
+      res.json({ valid: true, code });
+    } else {
+      res.json({ valid: false, error: "كود الإحالة غير صحيح أو غير موجود" });
+    }
+  } catch (err: any) {
+    res.status(500).json({ valid: false, error: err.message });
+  }
 });
 
 export default router;

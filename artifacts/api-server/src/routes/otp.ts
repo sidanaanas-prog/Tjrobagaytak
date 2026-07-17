@@ -139,6 +139,9 @@ router.post("/auth/otp/verify", async (req, res): Promise<void> => {
           if (participant) {
             referrerUserId = participant.userId;
             console.log(`Resolved invite code ${referredBy} to referrer userId ${referrerUserId}`);
+          } else {
+            res.status(400).json({ error: "كود الإحالة غير صحيح أو غير موجود" });
+            return;
           }
         } catch (err) {
           console.error("Error resolving invite code in OTP verification:", err);
