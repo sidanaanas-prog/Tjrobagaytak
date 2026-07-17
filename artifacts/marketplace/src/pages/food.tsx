@@ -203,12 +203,11 @@ export default function FoodPage() {
   };
 
   const handleCopyLink = (code: string) => {
-    const url = `${window.location.origin}/login?ref=${code}`;
-    navigator.clipboard.writeText(url);
+    navigator.clipboard.writeText(code);
     setCopied(true);
     toast({
-      title: "تم نسخ رابط الإحالة! 📋",
-      description: "شاركه الآن لجلب ركاب والحصول على نقاط المسابقة."
+      title: "تم نسخ كود الإحالة! 📋",
+      description: "شاركه الآن مع أصدقائك الركاب للحصول على نقاط المسابقة."
     });
     setTimeout(() => setCopied(false), 2000);
   };
@@ -462,19 +461,19 @@ export default function FoodPage() {
                 </div>
 
                 <div>
-                  <p className="text-xs font-bold text-white/80 mb-2">رابط الإحالة ومشاركة التطبيق</p>
+                  <p className="text-xs font-bold text-white/80 mb-2">كود الإحالة الخاص بك</p>
                   <p className="text-[10px] text-white/40 mb-3 leading-relaxed">
-                    انسخ هذا الرابط وأرسله لأصدقائك الركاب. بمجرد أن يسجلوا من خلاله ويقوموا بإتمام أول رحلة لهم (كورسا)، ستضاف نقطة واحدة تلقائياً إلى محفظتك في هذه المسابقة!
+                    انسخ كود الإحالة الخاص بك وأرسله لأصدقائك الركاب. بمجرد أن يسجلوا باستخدامه ويقوموا بإتمام أول رحلة لهم (كورسا)، ستضاف نقطة واحدة تلقائياً إلى محفظتك في هذه المسابقة!
                   </p>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-xs font-mono text-white/70 select-all truncate text-left" dir="ltr">
-                      {`${window.location.origin}/login?ref=${userPart.inviteCode}`}
+                      {userPart.inviteCode}
                     </div>
                     <motion.button
                       whileTap={{ scale: 0.9 }}
                       onClick={() => handleCopyLink(userPart.inviteCode)}
                       className="p-2.5 rounded-xl bg-primary/20 border border-primary/30 text-primary hover:bg-primary/30 transition-colors shrink-0"
-                      title="نسخ الرابط"
+                      title="نسخ كود الإحالة"
                     >
                       <Copy className="w-4 h-4" />
                     </motion.button>
