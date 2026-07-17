@@ -179,12 +179,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <TooltipProvider>
-          <RideAlertProvider>
-            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <RideAlertProvider>
               <Router />
-            </WouterRouter>
-            <Toaster />
-          </RideAlertProvider>
+              <Toaster />
+            </RideAlertProvider>
+          </WouterRouter>
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>

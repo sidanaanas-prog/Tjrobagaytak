@@ -281,6 +281,21 @@ export default function Users() {
                             )}
                           </p>
                           <p className="text-xs text-muted-foreground font-mono">{user.email}</p>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className="text-[10px] text-muted-foreground bg-muted/50 border border-border px-1.5 py-0.5 rounded font-mono select-all">
+                              ID: {user.id}
+                            </span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(user.id);
+                                toast({ title: "تم نسخ معرف المستخدم بنجاح ✅", description: "تم نسخ معرف المستخدم (User ID) إلى الحافظة" });
+                              }}
+                              className="text-muted-foreground hover:text-primary transition-colors"
+                              title="نسخ معرف المستخدم"
+                            >
+                              <Copy className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </TableCell>

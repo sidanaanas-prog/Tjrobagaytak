@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/lib/api-url";
 import {
   Loader2, Car, MapPin, Clock, CheckCircle, XCircle, Star, User, Phone,
-  Settings, Trash2, ShieldAlert, Wallet, Sparkles, Map, Sliders, DollarSign
+  Settings, Trash2, ShieldAlert, Wallet, Sparkles, Map, Sliders, DollarSign, Copy
 } from "lucide-react";
 
 const BASE = getApiUrl("");
@@ -17,8 +17,10 @@ type Ride = {
   price: string;
   passengerName: string;
   passengerPhone: string | null;
+  passengerId: string;
   driverName: string | null;
   driverPhone: string | null;
+  driverId: string | null;
   vehicleType?: string | null;
   vehicleModel?: string | null;
   vehiclePlate?: string | null;
@@ -30,6 +32,8 @@ type Ride = {
   pickedUpAt: string | null;
   completedAt: string | null;
   cancelledAt: string | null;
+  commissionDeducted?: number;
+  expectedCommission?: number;
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -424,6 +428,31 @@ export default function RidesAdmin() {
                               {r.passengerPhone}
                             </p>
                           )}
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className="text-[10px] text-muted-foreground bg-muted/60 border border-border px-1.5 py-0.5 rounded font-mono select-all">
+                              ID: {r.passengerId}
+                            </span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(r.passengerId);
+                                toast({ title: "تم النسخ بنجاح ✅", description: "تم نسخ معرف الراكب إلى الحافظة" });
+                              }}
+                              className="text-muted-foreground hover:text-primary transition-colors"
+                              title="نسخ المعرف"
+                            >
+                              <Copy className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setWalletUserId(r.passengerId);
+                                setActiveTab("settings");
+                                toast({ title: "تم التوجيه 📥", description: "تم ملء معرف الراكب في نموذج تعديل المحفظة بالأسفل" });
+                              }}
+                              className="text-[10px] text-primary hover:underline font-bold mr-1.5"
+                            >
+                              شحن/خصم المحفظة
+                            </button>
+                          </div>
                         </div>
                       </div>
 
@@ -464,26 +493,87 @@ export default function RidesAdmin() {
                       {r.cancelledAt && <span>· أُلغِيت {new Date(r.cancelledAt).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}</span>}
                     </div>
 
-                    {/* Driver info */}
-                    {r.driverName && (
-                      <div className="flex items-center gap-2 text-xs bg-blue-500/5 border border-blue-500/10 rounded-lg p-2">
-                        <Car className="w-3.5 h-3.5 text-blue-400" />
-                        <span className="text-foreground font-medium">{r.driverName}</span>
-                        {r.driverPhone && (
-                          <span className="text-muted-foreground" dir="ltr">{r.driverPhone}</span>
-                        )}
-                      </div>
-                    )}
+                     {/* Driver info */}
+                     {r.driverName && (
+                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs bg-blue-500/5 border border-blue-500/10 rounded-lg p-2.5">
+                         <div className="flex items-center gap-2">
+                           <Car className="w-3.5 h-3.5 text-blue-400" />
+                           <span className="text-foreground font-medium">{r.driverName}</span>
+                           {r.driverPhone && (
+                             <span className="text-muted-foreground" dir="ltr">{r.driverPhone}</span>
+                           )}
+                         </div>
+                         <div className="flex items-center gap-2 flex-wrap">
+                           {r.driverId && (
+                             <>
+                               <span className="text-[10px] text-muted-foreground bg-muted border border-border px-1.5 py-0.5 rounded font-mono select-all">
+                                 ID: {r.driverId}
+                               </span>
+                               <button
+                                 onClick={() => {
+                                   if (r.driverId) {
+                                     navigator.clipboard.writeText(r.driverId);
+                                     toast({ title: "تم النسخ بنجاح ✅", description: "تم نسخ معرف السائق إلى الحافظة" });
+                                   }
+                                 }}
+                                 className="text-muted-foreground hover:text-primary transition-colors"
+                                 title="نسخ المعرف"
+                               >
+                                 <Copy className="w-3.5 h-3.5" />
+                               </button>
+                               <button
+                                 onClick={() => {
+                                   if (r.driverId) {
+                                     setWalletUserId(r.driverId);
+                                     setActiveTab("settings");
+                                     toast({ title: "تم التوجيه 📥", description: "تم ملء معرف السائق في نموذج تعديل المحفظة بالأسفل" });
+                                   }
+                                 }}
+                                 className="text-[10px] text-primary hover:underline font-bold mr-1"
+                               >
+                                 شحن/خصم المحفظة
+                               </button>
+                               <button
+                                 onClick={() => {
+                                   if (r.driverId) {
+                                     setDriverIdForFree(r.driverId);
+                                     setActiveTab("settings");
+                                     toast({ title: "تم التوجيه 🌟", description: "تم ملء معرف السائق في نموذج الرحلات المجانية بالأسفل" });
+                                   }
+                                 }}
+                                 className="text-[10px] text-yellow-500 hover:underline font-bold mr-1"
+                               >
+                                 تعديل الرحلات المجانية
+                               </button>
+                             </>
+                           )}
+                         </div>
+                       </div>
+                     )}
 
                     {/* Info grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                       <div className="bg-muted/30 rounded-lg p-2.5 text-center">
                         <p className="text-[10px] text-muted-foreground">السعر</p>
                         <p className="text-sm font-bold text-foreground mt-0.5">{Number(r.price).toFixed(0)} ألف دورو</p>
                       </div>
+                      <div className="bg-[#0c0c14] border border-primary/20 rounded-lg p-2.5 text-center flex flex-col justify-center">
+                        <p className="text-[10px] text-primary font-bold">ربح التطبيق (العمولة)</p>
+                        <p className="text-xs font-black text-primary mt-0.5">
+                          {r.status === "completed" ? (
+                            r.commissionDeducted !== undefined && r.commissionDeducted > 0 ? (
+                              `${r.commissionDeducted} ألف دورو`
+                            ) : (
+                              <span className="text-xs text-yellow-500 font-bold">0 (رحلة تجريبية 🎁)</span>
+                            )
+                          ) : (
+                            <span className="text-[9px] text-muted-foreground font-medium">قيد الانتظار (يتوقع: {r.expectedCommission} ألف دورو)</span>
+                          )}
+                        </p>
+                      </div>
                       <div className="bg-muted/30 rounded-lg p-2.5 text-center">
                         <p className="text-[10px] text-muted-foreground">السائق</p>
-                        <p className="text-sm font-bold text-foreground mt-0.5">{r.driverName || "—"}</p>
+                        <p className="text-sm font-bold text-foreground mt-0.5 truncate max-w-[80px] mx-auto">{r.driverName || "—"}</p>
                       </div>
                       <div className="bg-muted/30 rounded-lg p-2.5 text-center">
                         <p className="text-[10px] text-muted-foreground">التقييم</p>

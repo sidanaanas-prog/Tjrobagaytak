@@ -30,8 +30,18 @@ export const usersTable = pgTable("users", {
   // حظر مؤقت الرحلات
   rideBannedUntil: timestamp("ride_banned_until", { withTimezone: true }),
   points: integer("points").notNull().default(0), // نقاط الوفاء والمكافآت لتشجيع الركاب على إعطاء الرمز للسائق
+  referredBy: text("referred_by"), // معرف المستخدم الذي قام بدعوة هذا الراكب
+});
+
+export const competitionParticipantsTable = pgTable("competition_participants", {
+  userId: text("user_id").primaryKey(), // معرف المشترك
+  inviteCode: text("invite_code").notNull().unique(), // كود الإحالة الخاص به
+  points: integer("points").notNull().default(0), // عدد النقاط المجمعة (الرحلات المكتملة المدعوة)
+  joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const insertUserSchema = createInsertSchema(usersTable).omit({ createdAt: true });
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof usersTable.$inferSelect;
+export type CompetitionParticipant = typeof competitionParticipantsTable.$inferSelect;
+export type InsertCompetitionParticipant = typeof competitionParticipantsTable.$inferInsert;

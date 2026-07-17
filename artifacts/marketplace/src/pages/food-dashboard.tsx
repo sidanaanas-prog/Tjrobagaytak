@@ -5,7 +5,7 @@ import {
   ArrowRight, ChefHat, Clock, CheckCircle2, XCircle, Loader2,
   Settings, PackageCheck, Bike, ShoppingBag, Bell, ToggleLeft, ToggleRight,
   DollarSign, Save, RefreshCw, CreditCard, Crown, Camera, X,
-  Banknote, CalendarDays, CheckCircle,
+  Banknote, CalendarDays, CheckCircle, Trophy, Trash2, Edit3, HelpCircle, AlertTriangle
 } from "lucide-react";
 import { getApiUrl } from "@/lib/api-url";
 import { getMemToken, useAuth } from "@/hooks/use-auth";
@@ -423,7 +423,7 @@ export default function FoodDashboard() {
   const { toast } = useToast();
   const token = getMemToken();
 
-  const [tab, setTab] = useState<"orders" | "settings" | "subscription">("orders");
+  const [tab, setTab] = useState<"orders" | "settings" | "subscription" | "competition">("orders");
   const [orders, setOrders]         = useState<Order[]>([]);
   const [restaurant, setRestaurant] = useState<Restaurant | null | undefined>(undefined);
   const [loading, setLoading]       = useState(true);
@@ -434,6 +434,37 @@ export default function FoodDashboard() {
   const [minOrder, setMinOrder]   = useState("0");
   const [estTime, setEstTime]     = useState("30");
   const [savingSettings, setSavingSettings] = useState(false);
+
+  // إعدادات المسابقات (Competition Admin Settings)
+  const [compEnabled, setCompEnabled] = useState(false);
+  const [compStatus, setCompStatus] = useState("preparing");
+  const [compPrize, setCompPrize] = useState("50 ألف دورو");
+  const [compTerms, setCompTerms] = useState("");
+  const [compEndTime, setCompEndTime] = useState("");
+  const [compWinnerId, setCompWinnerId] = useState("");
+  const [compLeaderboard, setCompLeaderboard] = useState<any[]>([]);
+  const [savingComp, setSavingComp] = useState(false);
+  const [resettingComp, setResettingComp] = useState(false);
+
+  const fetchCompetitionAdmin = async () => {
+    try {
+      const res = await fetch(`${BASE}/api/competition/status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCompEnabled(data.enabled);
+        setCompStatus(data.status);
+        setCompPrize(data.prize);
+        setCompTerms(data.terms);
+        setCompEndTime(data.endTime);
+        setCompWinnerId(data.winnerId || "");
+        setCompLeaderboard(data.leaderboard || []);
+      }
+    } catch (e) {
+      console.error("Error loading competition settings:", e);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -465,7 +496,11 @@ export default function FoodDashboard() {
       return;
     }
     fetchData();
-    const iv = setInterval(fetchData, 15_000);
+    fetchCompetitionAdmin();
+    const iv = setInterval(() => {
+      fetchData();
+      fetchCompetitionAdmin();
+    }, 15_000);
     return () => clearInterval(iv);
   }, [user]);
 
@@ -583,6 +618,7 @@ export default function FoodDashboard() {
             { v: "orders",       l: "الطلبات",    icon: ShoppingBag },
             { v: "settings",     l: "الإعدادات",  icon: Settings },
             { v: "subscription", l: "الاشتراك",   icon: Crown },
+            { v: "competition",  l: "المسابقات",  icon: Trophy },
           ].map(({ v, l, icon: Icon }) => (
             <button
               key={v}
@@ -746,6 +782,236 @@ export default function FoodDashboard() {
 
         {/* ── SUBSCRIPTION TAB ── */}
         {tab === "subscription" && <SubscriptionTab restaurant={restaurant} />}
+
+        {/* ── COMPETITION TAB ── */}
+        {tab === "competition" && (
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-white/5">
+                <Trophy className="w-5 h-5 text-primary" />
+                <p className="text-white font-semibold text-sm">إعدادات المسابقة</p>
+              </div>
+
+              {/* تفعيل المسابقة */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-xs text-white/80 font-bold block">تفعيل المسابقات</label>
+                  <span className="text-[10px] text-white/40">عند التعطيل، يرجع التطبيق لعرض "المناسبات" الأصلية</span>
+                </div>
+                <button
+                  onClick={() => setCompEnabled(!compEnabled)}
+                  className="text-primary hover:text-primary-hover transition-colors"
+                >
+                  {compEnabled ? (
+                    <ToggleRight className="w-10 h-10 text-primary" />
+                  ) : (
+                    <ToggleLeft className="w-10 h-10 text-white/20" />
+                  )}
+                </button>
+              </div>
+
+              {/* حالة المسابقة */}
+              <div>
+                <label className="text-xs text-white/50 block mb-1.5">حالة المسابقة الحالية</label>
+                <select
+                  value={compStatus}
+                  onChange={(e) => setCompStatus(e.target.value)}
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-primary/50"
+                >
+                  <option value="preparing" className="bg-background">⏳ قيد التجهيز / التحضير</option>
+                  <option value="open" className="bg-background">🔥 مفتوحة ونشطة</option>
+                  <option value="finished" className="bg-background">🏁 منتهية ومغلقة</option>
+                </select>
+              </div>
+
+              {/* جائزة المسابقة */}
+              <div>
+                <label className="text-xs text-white/50 block mb-1.5">الجائزة المعروضة</label>
+                <input
+                  type="text"
+                  value={compPrize}
+                  onChange={(e) => setCompPrize(e.target.value)}
+                  placeholder="50 ألف دورو"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-primary/50"
+                />
+              </div>
+
+              {/* شروط المسابقة */}
+              <div>
+                <label className="text-xs text-white/50 block mb-1.5">شروط المسابقة والتفاصيل (تظهر للمشتركين)</label>
+                <textarea
+                  value={compTerms}
+                  onChange={(e) => setCompTerms(e.target.value)}
+                  rows={4}
+                  placeholder="اكتب شروط وقواعد المسابقة هنا..."
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white placeholder:text-white/20 outline-none focus:border-primary/50 leading-relaxed resize-none"
+                />
+              </div>
+
+              {/* تاريخ النهاية */}
+              <div>
+                <label className="text-xs text-white/50 block mb-1.5">تاريخ نهاية المسابقة (تنسيق نصي)</label>
+                <input
+                  type="text"
+                  value={compEndTime}
+                  onChange={(e) => setCompEndTime(e.target.value)}
+                  placeholder="مثال: 31 يوليو 2026 الساعة 12:00 م"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-primary/50"
+                />
+              </div>
+
+              {/* معرف الفائز */}
+              {compStatus === "finished" && (
+                <div>
+                  <label className="text-xs text-white/50 block mb-1.5">المستخدم الفائز (حدد من القائمة أو اكتب الـ ID)</label>
+                  <select
+                    value={compWinnerId}
+                    onChange={(e) => setCompWinnerId(e.target.value)}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-primary/50"
+                  >
+                    <option value="" className="bg-background">-- اختر الفائز --</option>
+                    {compLeaderboard.map((item) => (
+                      <option key={item.userId} value={item.userId} className="bg-background">
+                        {item.name} ({item.points} نقطة) - ID: {item.userId.substring(0, 8)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* حفظ إعدادات المسابقة */}
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={async () => {
+                  setSavingComp(true);
+                  try {
+                    const updateSetting = async (key: string, value: any) => {
+                      const res = await fetch(`${BASE}/api/admin/settings/${key}`, {
+                        method: "PATCH",
+                        headers: {
+                          "Content-Type": "application/json",
+                          Authorization: `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ value })
+                      });
+                      if (!res.ok) throw new Error();
+                    };
+
+                    await updateSetting("competition_enabled", compEnabled ? "true" : "false");
+                    await updateSetting("competition_status", compStatus);
+                    await updateSetting("competition_prize", compPrize);
+                    await updateSetting("competition_terms", compTerms);
+                    await updateSetting("competition_end_time", compEndTime);
+                    await updateSetting("competition_winner_id", compWinnerId);
+
+                    toast({ title: "✅ تم حفظ إعدادات المسابقة" });
+                    fetchCompetitionAdmin();
+                  } catch {
+                    toast({ variant: "destructive", title: "خطأ", description: "فشل الحفظ" });
+                  } finally {
+                    setSavingComp(false);
+                  }
+                }}
+                disabled={savingComp}
+                className="w-full py-3.5 rounded-2xl bg-primary font-bold text-white text-sm shadow-[0_0_20px_rgba(168,85,247,0.4)] disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {savingComp ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> جاري الحفظ...</>
+                ) : (
+                  <><Save className="w-4 h-4" /> حفظ إعدادات المسابقة</>
+                )}
+              </motion.button>
+            </div>
+
+            {/* لائحة المشاركين مع إمكانية تعديل نقاطهم يدوياً */}
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-white/5">
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-secondary" />
+                  <p className="text-white font-semibold text-sm">المشتركون الحاليون ({compLeaderboard.length})</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!window.confirm("هل أنت متأكد من رغبتك في تصفير المسابقة؟ سيتم حذف كافة المشتركين ونقاطهم ولا يمكن التراجع عن هذا!")) return;
+                    setResettingComp(true);
+                    try {
+                      const res = await fetch(`${BASE}/api/admin/competition/reset`, {
+                        method: "POST",
+                        headers: { Authorization: `Bearer ${token}` }
+                      });
+                      if (!res.ok) throw new Error();
+                      toast({ title: "🎉 تم تصفير المسابقة" });
+                      fetchCompetitionAdmin();
+                    } catch {
+                      toast({ variant: "destructive", title: "خطأ في تصفير المسابقة" });
+                    } finally {
+                      setResettingComp(false);
+                    }
+                  }}
+                  disabled={resettingComp}
+                  className="px-3 py-1.5 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-bold hover:bg-red-500/25 transition-all flex items-center gap-1"
+                >
+                  {resettingComp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  تصفير المسابقة
+                </button>
+              </div>
+
+              {compLeaderboard.length === 0 ? (
+                <p className="text-xs text-white/30 text-center py-6">لا يوجد مشتركون في المسابقة حالياً</p>
+              ) : (
+                <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                  {compLeaderboard.map((item) => (
+                    <div key={item.userId} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full overflow-hidden border border-white/10 bg-black/40 shrink-0">
+                          {item.avatar ? (
+                            <img src={item.avatar} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-white/5 text-white/60 text-[10px] font-black">
+                              {item.name[0]}
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-white leading-tight">{item.name}</p>
+                          <p className="text-[10px] text-white/30 mt-0.5">كود: {item.inviteCode}</p>
+                        </div>
+                      </div>
+
+                      {/* تعديل النقاط */}
+                      <div className="flex items-center gap-1.5 shrink-0" dir="ltr">
+                        <input
+                          type="number"
+                          defaultValue={item.points}
+                          onBlur={async (e) => {
+                            const newPoints = Number(e.target.value);
+                            if (isNaN(newPoints)) return;
+                            try {
+                              const res = await fetch(`${BASE}/api/admin/competition/participants/${item.userId}/points`, {
+                                method: "PATCH",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                  Authorization: `Bearer ${token}`
+                                },
+                                body: JSON.stringify({ points: newPoints })
+                              });
+                              if (!res.ok) throw new Error();
+                              toast({ title: "✅ تم تحديث النقاط" });
+                            } catch {
+                              toast({ variant: "destructive", title: "فشل تعديل النقاط" });
+                            }
+                          }}
+                          className="w-14 bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-center text-xs text-white font-bold font-mono outline-none focus:border-primary/50"
+                        />
+                        <span className="text-[10px] text-white/40 font-bold shrink-0">ن</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

@@ -45,10 +45,40 @@ export function BottomNav() {
   const { user } = useAuth();
   const activeRole = getActiveRole();
   const [pendingOrders, setPendingOrders] = useState(0);
+  const [isCompetitionEnabled, setIsCompetitionEnabled] = useState(false);
+
+  useEffect(() => {
+    const checkCompetition = () => {
+      const headers: Record<string, string> = {};
+      const token = getMemToken();
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      fetch(`${BASE}/api/competition/status`, { headers })
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => {
+          if (data && data.enabled) {
+            setIsCompetitionEnabled(true);
+          } else {
+            setIsCompetitionEnabled(false);
+          }
+        })
+        .catch(() => {});
+    };
+
+    checkCompetition();
+    const interval = setInterval(checkCompetition, 30_000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   const tabs = ALL_TABS.filter((t) => {
     if (!t.roles) return true;
     return t.roles.includes(activeRole);
+  }).map((t) => {
+    if (t.href === "/food" && isCompetitionEnabled) {
+      return { ...t, label: "المسابقات" };
+    }
+    return t;
   });
 
   const { data: conversations } = useListConversations({

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { randomUUID } from "crypto";
-import { db, usersTable, activityTable } from "@workspace/db";
+import { db, usersTable, activityTable, competitionParticipantsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { signToken } from "../lib/auth";
 import { sendOtp as sendWasenderOtp, verifyOtp as verifyWasenderOtp } from "../lib/wasender";
@@ -103,7 +103,7 @@ const MAGIC_PHONE = "+966500000000";
 
 router.post("/auth/otp/verify", async (req, res): Promise<void> => {
   try {
-    const { phone, code, name } = req.body;
+    const { phone, code, name, referredBy } = req.body;
     if (!phone || !code) {
       res.status(400).json({ error: "رقم الهاتف والرمز مطلوبان" });
       return;
@@ -129,6 +129,22 @@ router.post("/auth/otp/verify", async (req, res): Promise<void> => {
     const userName = name?.trim() || DEFAULT_NAME;
 
     if (!user) {
+      let referrerUserId: string | null = null;
+      if (referredBy) {
+        try {
+          const [participant] = await db
+            .select()
+            .from(competitionParticipantsTable)
+            .where(eq(competitionParticipantsTable.inviteCode, referredBy));
+          if (participant) {
+            referrerUserId = participant.userId;
+            console.log(`Resolved invite code ${referredBy} to referrer userId ${referrerUserId}`);
+          }
+        } catch (err) {
+          console.error("Error resolving invite code in OTP verification:", err);
+        }
+      }
+
       const id = randomUUID();
       const now = new Date();
       const trialExpiry = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days trial
@@ -142,6 +158,7 @@ router.post("/auth/otp/verify", async (req, res): Promise<void> => {
         role: "user",
         banned: false,
         trialExpiresAt: trialExpiry,
+        referredBy: referrerUserId,
       });
       const [created] = await db.select().from(usersTable).where(eq(usersTable.id, id));
       user = created;

@@ -24,6 +24,15 @@ export default function RegisterPage() {
   const { login: setAuthToken } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+
+  // حفظ كود الإحالة إذا وجد في الرابط
+  useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+    if (ref) {
+      localStorage.setItem("gaytak_referred_by", ref);
+    }
+  });
   
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -37,7 +46,8 @@ export default function RegisterPage() {
   const registerMutation = useRegister();
 
   const onSubmit = (data: RegisterFormValues) => {
-    registerMutation.mutate({ data }, {
+    const referredBy = localStorage.getItem("gaytak_referred_by") || undefined;
+    registerMutation.mutate({ data: { ...data, referredBy } }, {
       onSuccess: (response) => {
         setAuthToken(response.token);
         toast({

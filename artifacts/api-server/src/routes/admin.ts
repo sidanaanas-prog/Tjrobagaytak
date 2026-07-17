@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { randomUUID } from "crypto";
-import { db, usersTable, productsTable, conversationsTable, messagesTable, activityTable, ordersTable, broadcastsTable, ridesTable, driverProfilesTable, destinationsTable, walletsTable, walletTransactionsTable, rideSettingsTable } from "@workspace/db";
+import { db, usersTable, productsTable, conversationsTable, messagesTable, activityTable, ordersTable, broadcastsTable, ridesTable, driverProfilesTable, destinationsTable, walletsTable, walletTransactionsTable, rideSettingsTable, competitionParticipantsTable } from "@workspace/db";
 import { count, eq, and, or, ne, gte, sql, desc, inArray, isNotNull } from "drizzle-orm";
 import { authenticate, requireAdmin } from "../lib/auth";
 import { notifyUsers, sendNotification } from "../lib/notifications";
@@ -581,10 +581,50 @@ router.get("/admin/rides", authenticate, requireAdmin, async (_req, res): Promis
     : [];
   const dProfMap = Object.fromEntries(driverProfiles.map((d) => [d.userId, d]));
 
+  // Fetch settings for expected commission calculations
+  const [typeSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_type"));
+  const [valSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_value"));
+  const [rateSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_rate"));
+
+  const commType = typeSetting?.value || "percentage";
+  const commVal = Number(valSetting?.value || rateSetting?.value || "10");
+
+  // Fetch actual commission penalties deducted from driver wallets
+  const rideIds = rides.map(r => r.id);
+  const commissionTxList = rideIds.length > 0
+    ? await db.select({
+        rideId: walletTransactionsTable.rideId,
+        amount: walletTransactionsTable.amount,
+      })
+      .from(walletTransactionsTable)
+      .where(
+        and(
+          eq(walletTransactionsTable.type, "penalty"),
+          inArray(walletTransactionsTable.rideId, rideIds)
+        )
+      )
+    : [];
+
+  const commissionMap = Object.fromEntries(
+    commissionTxList
+      .filter(tx => tx.rideId !== null)
+      .map(tx => [tx.rideId!, Math.abs(Number(tx.amount))])
+  );
+
   res.json(rides.map(r => {
     const passenger = userMap[r.passengerId];
     const driver = r.driverId ? userMap[r.driverId] : null;
     const dProf = r.driverId ? dProfMap[r.driverId] : null;
+
+    const priceNum = Number(r.price || 0);
+    let expectedCommission = 0;
+    if (commType === "fixed") {
+      expectedCommission = commVal;
+    } else {
+      expectedCommission = Math.round(priceNum * (commVal / 100));
+    }
+    const commissionDeducted = commissionMap[r.id] ?? 0;
+
     return {
       id: r.id,
       status: r.status,
@@ -597,8 +637,10 @@ router.get("/admin/rides", authenticate, requireAdmin, async (_req, res): Promis
       vehicleColor: dProf?.vehicleColor ?? null,
       passengerName: passenger?.name || "—",
       passengerPhone: passenger?.phone || null,
+      passengerId: r.passengerId,
       driverName: driver?.name || null,
       driverPhone: driver?.phone || null,
+      driverId: r.driverId,
       rating: r.driverRating,
       driverRating: r.passengerRating,
       createdAt: r.createdAt.toISOString(),
@@ -607,6 +649,8 @@ router.get("/admin/rides", authenticate, requireAdmin, async (_req, res): Promis
       pickedUpAt: r.pickedUpAt?.toISOString() ?? null,
       completedAt: r.completedAt?.toISOString() ?? null,
       cancelledAt: r.cancelledAt?.toISOString() ?? null,
+      commissionDeducted,
+      expectedCommission,
     };
   }));
 });
@@ -796,6 +840,50 @@ router.patch("/admin/settings/:key", authenticate, requireAdmin, async (req, res
       });
 
     res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── إدمن: تصفير المسابقة الحالية (حذف جميع المشتركين للبدء من جديد) ────────
+router.post("/admin/competition/reset", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    await db.delete(competitionParticipantsTable);
+
+    // تحديث الإعدادات الافتراضية للمسابقة الجديدة
+    const defaultSettings = [
+      { key: "competition_status", value: "preparing" },
+      { key: "competition_winner_id", value: "" },
+      { key: "competition_end_time", value: "" }
+    ];
+
+    for (const s of defaultSettings) {
+      await db.insert(rideSettingsTable)
+        .values({ key: s.key, value: s.value, updatedAt: new Date() })
+        .onConflictDoUpdate({
+          target: rideSettingsTable.key,
+          set: { value: s.value, updatedAt: new Date() }
+        });
+    }
+
+    res.json({ success: true, message: "تم تصفير المسابقة وحذف كافة المشتركين بنجاح" });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── إدمن: تعديل نقاط مشترك يدوياً ───────────────────────────
+router.patch("/admin/competition/participants/:userId/points", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const userId = req.params.userId;
+    const { points } = req.body;
+    if (points === undefined) { res.status(400).json({ error: "الرجاء تحديد عدد النقاط" }); return; }
+
+    await db.update(competitionParticipantsTable)
+      .set({ points: Number(points) })
+      .where(eq(competitionParticipantsTable.userId, userId));
+
+    res.json({ success: true, message: "تم تحديث نقاط المشترك بنجاح" });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

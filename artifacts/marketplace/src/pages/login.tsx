@@ -187,6 +187,7 @@ export default function LoginPage() {
   const [otp, setOtp] = useState("");
   const [name, setName] = useState("");
   const [isNewUser, setIsNewUser] = useState(false);
+  const [inviteCode, setInviteCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [serverWaking, setServerWaking] = useState(false);
   const [preWarming, setPreWarming] = useState(false);
@@ -244,6 +245,21 @@ export default function LoginPage() {
     return () => { cancelled = true; };
   }, []);
 
+  // حفظ كود الإحالة إذا وجد في الرابط أو المستودع المحلي
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+    if (ref) {
+      localStorage.setItem("gaytak_referred_by", ref);
+      setInviteCode(ref);
+    } else {
+      const stored = localStorage.getItem("gaytak_referred_by");
+      if (stored) {
+        setInviteCode(stored);
+      }
+    }
+  }, []);
+
   const selectedCountry = COUNTRIES.find(c => c.code === countryCode) || COUNTRIES[0];
   const fullPhone = countryCode + phone.replace(/^0+/, "");
 
@@ -284,9 +300,19 @@ export default function LoginPage() {
     setLoading(true);
     setServerWaking(false);
     try {
+      const referredBy = inviteCode.trim() || localStorage.getItem("gaytak_referred_by") || undefined;
       const { res, data } = await apiFetch(
         `${BASE}/api/auth/otp/verify`,
-        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: fullPhone, code: otp.trim(), name: name.trim() || undefined }) },
+        { 
+          method: "POST", 
+          headers: { "Content-Type": "application/json" }, 
+          body: JSON.stringify({ 
+            phone: fullPhone, 
+            code: otp.trim(), 
+            name: name.trim() || undefined,
+            referredBy
+          }) 
+        },
         setServerWaking,
       );
       if (!res.ok) throw new Error(data.error || "الرمز غير صحيح");
@@ -468,17 +494,40 @@ export default function LoginPage() {
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
-                      className="space-y-2"
+                      className="space-y-4"
                     >
-                      <label className="text-xs text-white/50 uppercase tracking-wider font-bold">اسمك (حساب جديد)</label>
-                      <input
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="أدخل اسمك الكامل"
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 h-12 text-white placeholder:text-white/20 focus:outline-none focus:border-primary/50 transition-all text-right"
-                        required
-                      />
+                      <div className="space-y-2">
+                        <label className="text-xs text-white/50 uppercase tracking-wider font-bold">اسمك (حساب جديد)</label>
+                        <input
+                          type="text"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          placeholder="أدخل اسمك الكامل"
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 h-12 text-white placeholder:text-white/20 focus:outline-none focus:border-primary/50 transition-all text-right"
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs text-white/50 uppercase tracking-wider font-bold flex items-center justify-between">
+                          <span>كود الإحالة / الدعوة (اختياري)</span>
+                          {inviteCode && <span className="text-[10px] text-emerald-400">تم التعرف عليه تلقائياً ✓</span>}
+                        </label>
+                        <input
+                          type="text"
+                          value={inviteCode}
+                          onChange={(e) => {
+                            setInviteCode(e.target.value);
+                            localStorage.setItem("gaytak_referred_by", e.target.value);
+                          }}
+                          placeholder="مثال: GT-AMINE8"
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 h-12 text-white placeholder:text-white/20 focus:outline-none focus:border-primary/50 transition-all text-left font-mono"
+                          dir="ltr"
+                        />
+                        <p className="text-[10px] text-white/40 leading-relaxed text-right">
+                          إذا أرسل لك صديقك كود إحالة أو رابط دعوة عبر واتساب، يمكنك كتابة الكود هنا ليحصل على نقاط عند إتمام أول رحلة لك.
+                        </p>
+                      </div>
                     </motion.div>
                   )}
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/lib/api-url";
-import { Loader2, CheckCircle, XCircle, Clock, Navigation, User, Phone, Calendar, CreditCard, Car, Shield, FileCheck, AlertTriangle, Eye, Gift } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Clock, Navigation, User, Phone, Calendar, CreditCard, Car, Shield, FileCheck, AlertTriangle, Eye, Gift, Copy } from "lucide-react";
 
 const BASE = getApiUrl("");
 
@@ -208,6 +208,21 @@ export default function DriverSubscriptions() {
                       <Phone className="w-3 h-3" />
                       {driver.phone || driver.email}
                     </p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-[10px] text-muted-foreground bg-muted/50 border border-border px-2 py-0.5 rounded font-mono select-all">
+                        ID: {driver.userId}
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(driver.userId);
+                          toast({ title: "تم النسخ بنجاح ✅", description: "تم نسخ معرف السائق (User ID) إلى الحافظة" });
+                        }}
+                        className="text-muted-foreground hover:text-primary p-0.5 transition-colors"
+                        title="نسخ المعرف"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                 </div>
 

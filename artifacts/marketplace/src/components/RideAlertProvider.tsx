@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
+import { useLocation } from "wouter";
 import { useAuth, getMemToken } from "@/hooks/use-auth";
 import { useDriverSubscription } from "@/hooks/use-driver-subscription";
 import { getApiUrl } from "@/lib/api-url";
@@ -126,6 +127,7 @@ function getRole(): string | null {
 export function RideAlertProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [_, setLocation] = useLocation();
 
   const { status: subStatus } = useDriverSubscription();
 
@@ -360,6 +362,7 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
                     const ok = await handleAccept(alertState.ride!.id);
                     if (ok) {
                       toast({ title: "✅ تم القبول!", description: "الراكب ينتظرك" });
+                      setLocation("/rides");
                     } else {
                       toast({ title: "❌ تم القبول من سائق آخر", description: "لم تفوت هنالك", variant: "destructive" });
                     }

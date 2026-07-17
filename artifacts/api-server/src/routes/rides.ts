@@ -1,8 +1,8 @@
 import { Router, type IRouter } from "express";
-import { db, ridesTable, driverProfilesTable, userRolesTable, usersTable, subscriptionsTable, conversationsTable, messagesTable, walletsTable, walletTransactionsTable, destinationsTable, rideSettingsTable } from "@workspace/db";
+import { db, ridesTable, driverProfilesTable, userRolesTable, usersTable, subscriptionsTable, conversationsTable, messagesTable, walletsTable, walletTransactionsTable, destinationsTable, rideSettingsTable, competitionParticipantsTable } from "@workspace/db";
 import { eq, desc, and, or, isNull, sql, inArray, gt } from "drizzle-orm";
 import { randomUUID } from "crypto";
-import { authenticate, requireAdmin } from "../lib/auth";
+import { authenticate, optionalAuthenticate, requireAdmin } from "../lib/auth";
 import { notifyUsers } from "../lib/notifications";
 
 const router: IRouter = Router();
@@ -508,6 +508,28 @@ router.patch("/rides/:id/complete", authenticate, async (req, res): Promise<void
       }).where(eq(driverProfilesTable.userId, driverId));
     }
 
+    // 1.5. التحقق من الإحالة لإضافة نقاط في المسابقة
+    try {
+      const [passenger] = await db.select().from(usersTable).where(eq(usersTable.id, ride.passengerId));
+      if (passenger?.referredBy) {
+        // التحقق من تفعيل المسابقة وحالتها
+        const [enabledSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "competition_enabled"));
+        const [statusSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "competition_status"));
+        
+        if (enabledSetting?.value === "true" && statusSetting?.value === "open") {
+          const [participant] = await db.select().from(competitionParticipantsTable).where(eq(competitionParticipantsTable.userId, passenger.referredBy));
+          if (participant) {
+            await db.update(competitionParticipantsTable)
+              .set({ points: sql`${competitionParticipantsTable.points} + 1` })
+              .where(eq(competitionParticipantsTable.userId, passenger.referredBy));
+            console.log(`Competition Point Awarded: User ${passenger.referredBy} invited passenger ${ride.passengerId} who completed ride ${ride.id}`);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error updating competition points on ride completion:", err);
+    }
+
     await notifyUsers({
       userIds: [ride.passengerId],
       title: "✅ وصلت بالسلامة!",
@@ -976,6 +998,140 @@ router.get("/rides/settings", authenticate, async (_req, res): Promise<void> => 
   try {
     const list = await db.select().from(rideSettingsTable);
     res.json(list);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── المسابقات: جلب حالة المسابقة الحالية ولوحة الصدارة ────────────────────
+router.get("/competition/status", optionalAuthenticate, async (req, res): Promise<void> => {
+  try {
+    const userId = (req as any).user?.id;
+
+    // جلب الإعدادات الخاصة بالمسابقة
+    const settings = await db.select().from(rideSettingsTable);
+    const getSetting = (key: string, def: string) => settings.find(s => s.key === key)?.value || def;
+
+    const enabled = getSetting("competition_enabled", "false") === "true";
+    const status = getSetting("competition_status", "preparing");
+    const prize = getSetting("competition_prize", "50 ألف دورو");
+    const terms = getSetting("competition_terms", "شروط المسابقة:\n١. قم بدعوة الركاب لتحميل التطبيق.\n٢. يحصل المشترك على نقطة عند إتمام المدعو لأول رحلة.\n٣. صاحب أكبر عدد نقاط يفوز بالجائزة.");
+    const endTime = getSetting("competition_end_time", "");
+    const winnerId = getSetting("competition_winner_id", "");
+
+    // جلب جميع المشتركين وترتيبهم حسب النقاط تنازلياً
+    const participantsList = await db.select().from(competitionParticipantsTable);
+    
+    // جلب بيانات المستخدمين المشتركين
+    const userIds = participantsList.map(p => p.userId);
+    const users = userIds.length > 0 
+      ? await db.select({
+          id: usersTable.id,
+          name: usersTable.name,
+          avatar: usersTable.avatar,
+        }).from(usersTable).where(inArray(usersTable.id, userIds))
+      : [];
+    const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+
+    const leaderboard = participantsList.map(p => {
+      const u = userMap[p.userId];
+      return {
+        userId: p.userId,
+        name: u?.name || "مستخدم مجهول",
+        avatar: u?.avatar || null,
+        inviteCode: p.inviteCode,
+        points: p.points,
+        joinedAt: p.joinedAt.toISOString(),
+      };
+    }).sort((a, b) => b.points - a.points);
+
+    // حساب المراكز (ranks)
+    const rankedLeaderboard = leaderboard.map((item, idx) => ({
+      ...item,
+      rank: idx + 1,
+    }));
+
+    const userParticipant = rankedLeaderboard.find(p => p.userId === userId) || null;
+
+    let winnerProfile = null;
+    if (winnerId) {
+      const wPart = rankedLeaderboard.find(p => p.userId === winnerId);
+      if (wPart) {
+        winnerProfile = wPart;
+      } else {
+        const [wUser] = await db.select({
+          id: usersTable.id,
+          name: usersTable.name,
+          avatar: usersTable.avatar,
+        }).from(usersTable).where(eq(usersTable.id, winnerId));
+        if (wUser) {
+          winnerProfile = {
+            userId: wUser.id,
+            name: wUser.name,
+            avatar: wUser.avatar,
+            points: 0,
+            inviteCode: "—",
+            rank: 1,
+          };
+        }
+      }
+    }
+
+    res.json({
+      enabled,
+      status,
+      prize,
+      terms,
+      endTime,
+      winnerId: winnerId || null,
+      winnerProfile,
+      leaderboard: rankedLeaderboard,
+      userParticipant,
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── المسابقات: الاشتراك في المسابقة ─────────────────────────────────────
+router.post("/competition/join", authenticate, async (req, res): Promise<void> => {
+  try {
+    const userId = (req as any).user.id;
+
+    const [enabledSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "competition_enabled"));
+    if (!enabledSetting || enabledSetting.value !== "true") {
+      res.status(400).json({ error: "المسابقات غير مفعلة حالياً" });
+      return;
+    }
+
+    const [existing] = await db.select().from(competitionParticipantsTable).where(eq(competitionParticipantsTable.userId, userId));
+    if (existing) {
+      res.json({ success: true, message: "أنت مشترك بالفعل في المسابقة", participant: existing });
+      return;
+    }
+
+    // جلب بيانات المشترك لإنشاء كود إحالة مميز
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    if (!user) {
+      res.status(404).json({ error: "المستخدم غير موجود" });
+      return;
+    }
+
+    // توليد كود إحالة فريد وسهل
+    const randomSuffix = Math.random().toString(36).substring(2, 7).toUpperCase();
+    const inviteCode = `GT-${randomSuffix}`;
+
+    await db.insert(competitionParticipantsTable).values({
+      userId,
+      inviteCode,
+      points: 0,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "تم الاشتراك في المسابقة بنجاح! 🎉",
+      inviteCode,
+    });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

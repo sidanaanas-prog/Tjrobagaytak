@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
-import { db, usersTable, walletsTable } from "@workspace/db";
+import { db, usersTable, walletsTable, competitionParticipantsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { signToken, authenticate } from "../lib/auth";
 import { activityTable } from "@workspace/db";
@@ -10,7 +10,7 @@ const router: IRouter = Router();
 
 router.post("/auth/register", async (req, res): Promise<void> => {
   try {
-    const { name, email, password, avatar } = req.body;
+    const { name, email, password, avatar, referredBy } = req.body;
     if (!name || !email || !password) {
       res.status(400).json({ error: "Name, email, and password are required" });
       return;
@@ -25,6 +25,22 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     const passwordHash = await bcrypt.hash(password, 10);
     const id = randomUUID();
 
+    let referrerUserId: string | null = null;
+    if (referredBy) {
+      try {
+        const [participant] = await db
+          .select()
+          .from(competitionParticipantsTable)
+          .where(eq(competitionParticipantsTable.inviteCode, referredBy));
+        if (participant) {
+          referrerUserId = participant.userId;
+          console.log(`Resolved invite code ${referredBy} to referrer userId ${referrerUserId}`);
+        }
+      } catch (err) {
+        console.error("Error resolving invite code in email registration:", err);
+      }
+    }
+
     // Neon HTTP driver لا يدعم .returning()
     await db.insert(usersTable).values({
       id,
@@ -34,6 +50,7 @@ router.post("/auth/register", async (req, res): Promise<void> => {
       avatar: avatar ?? null,
       role: "user",
       banned: false,
+      referredBy: referrerUserId,
     });
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id));
 
