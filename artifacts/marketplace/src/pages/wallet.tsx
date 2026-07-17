@@ -77,15 +77,21 @@ export default function WalletPage() {
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="relative overflow-hidden rounded-3xl p-6 bg-gradient-to-br from-primary via-primary/80 to-primary/60 text-white shadow-[0_0_40px_rgba(168,85,247,0.3)]"
+            className={`relative overflow-hidden rounded-3xl p-6 text-white shadow-lg transition-all ${
+              wallet && Number(wallet.balance) < 0
+                ? "bg-gradient-to-br from-red-600 via-red-500/90 to-red-400/80 shadow-[0_0_40px_rgba(239,68,68,0.2)]"
+                : "bg-gradient-to-br from-primary via-primary/80 to-primary/60 shadow-[0_0_40px_rgba(168,85,247,0.3)]"
+            }`}
           >
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
             <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
             <div className="relative z-10">
-              <p className="text-white/70 text-sm font-medium">الرصيد المتوفر</p>
-              <p className="text-4xl font-black mt-1">
+              <p className="text-white/70 text-sm font-medium">
+                {wallet && Number(wallet.balance) < 0 ? "الرصيد المطلوب سداده (مستحقات التطبيق) ⚠️" : "الرصيد المتوفر"}
+              </p>
+              <p className="text-4xl font-black mt-1 text-right" dir="ltr">
                 {wallet ? Number(wallet.balance).toLocaleString("ar-DZ") : "0"}
-                <span className="text-xl font-bold mr-2">ألف دورو</span>
+                <span className="text-xl font-bold ml-2">ألف دورو</span>
               </p>
               <div className="flex items-center gap-2 mt-4 text-white/60 text-xs">
                 <Wallet className="w-4 h-4" />
@@ -93,6 +99,31 @@ export default function WalletPage() {
               </div>
             </div>
           </motion.div>
+
+          {/* دليل السائق التوضيحي للمحفظة والعمولة */}
+          {(user.role === "driver" || user.role === "admin") && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-purple-500/10 border border-purple-500/20 rounded-2xl p-4 space-y-2.5 text-right"
+            >
+              <div className="flex items-center gap-2 text-purple-400">
+                <Wallet className="w-4.5 h-4.5 shrink-0" />
+                <p className="text-xs font-bold">دليل المحفظة والحساب الإداري للشركاء</p>
+              </div>
+              <p className="text-[11px] text-white/75 leading-relaxed">
+                مرحباً بك كشريك سائق! في تطبيق <b>Gaytak</b>، تستلم <b>100% من أجرة الرحلات نقداً (كاش)</b> بالكامل من الركاب مباشرة عند إكمال كل رحلة. 
+              </p>
+              <p className="text-[11px] text-white/70 leading-relaxed">
+                تقوم المحفظة بدور <b>دفتر حسابات إداري</b> يسجل رصيدك المالي لدى التطبيق:
+              </p>
+              <ul className="text-[11px] text-white/60 space-y-1.5 list-disc list-inside pr-1">
+                <li><span className="text-white/80 font-bold">رحلات ترحيبية:</span> أول 5 رحلات لك معفية تماماً من العمولات (0% عمولة).</li>
+                <li><span className="text-white/80 font-bold">خصم العمولة:</span> بعد الرحلات المجانية الأولى، تُخصم عمولة الخدمة المحددة تلقائياً من رصيد محفظتك، مما يجعل رصيدك يتناقص تدريجياً.</li>
+                <li><span className="text-white/80 font-bold">الرصيد السالب:</span> رصيدك يمكن أن يصبح سالباً بعد قبول الرحلات. يتطلب منك شحن رصيد المحفظة عبر الإدارة لمواصلة العمل واستلام طلبات جديدة عندما يقل عن الحد المسموح.</li>
+              </ul>
+            </motion.div>
+          )}
 
           {/* كيفية الشحن */}
           <motion.div

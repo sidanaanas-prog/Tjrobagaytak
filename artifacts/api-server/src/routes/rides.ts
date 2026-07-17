@@ -680,7 +680,32 @@ router.get("/driver/profile", authenticate, async (req, res): Promise<void> => {
       res.status(404).json({ error: "ليس لديك ملف سائق" });
       return;
     }
-    res.json(profile);
+
+    // جلب أو إنشاء رصيد المحفظة
+    let walletBalance = "0";
+    const [wallet] = (await db.select().from(walletsTable).where(eq(walletsTable.userId, driverId))) ?? [];
+    if (wallet) {
+      walletBalance = wallet.balance;
+    } else {
+      const walletId = randomUUID();
+      try {
+        await db.insert(walletsTable).values({
+          id: walletId,
+          userId: driverId,
+          balance: "0",
+          currency: "DZD",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      } catch (e) {
+        // Safe fallback if another request inserts it concurrently
+      }
+    }
+
+    res.json({
+      ...profile,
+      walletBalance,
+    });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

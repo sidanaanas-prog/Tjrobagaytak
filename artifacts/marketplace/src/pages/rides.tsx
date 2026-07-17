@@ -888,9 +888,29 @@ function DriverDashboard() {
               </div>
             </div>
 
+            {profile.freeRidesLeft > 0 && (
+              <div className="mb-4 rounded-xl p-3 border bg-emerald-500/8 border-emerald-500/20 animate-pulse">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-emerald-500/15 text-emerald-400">🎁</div>
+                    <div>
+                      <p className="text-xs font-bold text-white">عرض ترحيبي نشط</p>
+                      <p className="text-[10px] text-white/50">لديك <span className="text-emerald-400 font-bold">{profile.freeRidesLeft} رحلات مجانية متبقية</span> (بدون عمولات)</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-400 font-bold">نشط 🎁</span>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-3 gap-3 text-center">
               <div className="bg-primary/10 rounded-xl p-2"><p className="text-lg font-bold text-primary">{profile.totalRides}</p><p className="text-[10px] text-muted-foreground">رحلات</p></div>
-              <div className="bg-primary/10 rounded-xl p-2"><p className="text-lg font-bold text-primary">{profile.totalEarnings}</p><p className="text-[10px] text-muted-foreground">أرباح</p></div>
+              <div className="bg-primary/10 rounded-xl p-2 cursor-pointer hover:bg-primary/15 transition-all border border-transparent hover:border-primary/20" onClick={() => setLocation("/wallet")}>
+                <p className="text-lg font-bold text-primary">
+                  {profile.walletBalance ? Number(profile.walletBalance).toLocaleString("ar-DZ") : "0"}
+                </p>
+                <p className="text-[10px] text-muted-foreground">الرصيد (دورو)</p>
+              </div>
               <div className="bg-primary/10 rounded-xl p-2"><p className="text-lg font-bold text-primary">{profile.avgRating}</p><p className="text-[10px] text-muted-foreground">تقييم</p></div>
             </div>
           </>
