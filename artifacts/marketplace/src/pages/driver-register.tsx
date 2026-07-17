@@ -86,7 +86,7 @@ export default function DriverRegisterPage() {
       });
       const data = await res.json();
       if (data.success) {
-        toast({ title: "✅ تم تسجيل الطلب!", description: "🎉 تم إرسال وثائقك بنجاح للأدمن للمراجعة. ستبدأ تجربتك المجانية 7 أيام فور موافقة الإدارة." });
+        toast({ title: "✅ تم تسجيل الطلب!", description: "🎉 تم إرسال وثائقك بنجاح للأدمن للمراجعة. ستحصل على 5 رحلات مجانية معفية من العمولات فور موافقة الإدارة." });
         navigate("/rides");
       } else {
         toast({ variant: "destructive", title: "خطأ", description: data.error || "فشل التسجيل" });

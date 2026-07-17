@@ -564,15 +564,19 @@ router.patch("/admin/drivers/:userId/verify-documents", authenticate, requireAdm
   const { status } = req.body; // "verified" | "rejected"
   const now = new Date();
   
-  const trialExpiresAt = status === "verified" ? new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) : undefined;
+  const updates: any = {
+    documentsStatus: status,
+    licenseVerified: status === "verified",
+    trialExpiresAt: null, // No more 7 days free trial
+    updatedAt: now,
+  };
+
+  if (status === "verified") {
+    updates.freeRidesLeft = 5;
+  }
   
   await db.update(driverProfilesTable)
-    .set({
-      documentsStatus: status,
-      licenseVerified: status === "verified",
-      ...(trialExpiresAt ? { trialExpiresAt } : {}),
-      updatedAt: now,
-    })
+    .set(updates)
     .where(eq(driverProfilesTable.userId, userId));
   res.json({ success: true });
 });

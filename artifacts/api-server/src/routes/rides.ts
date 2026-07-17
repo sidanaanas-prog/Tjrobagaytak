@@ -245,22 +245,20 @@ router.patch("/rides/:id/accept", authenticate, async (req, res): Promise<void> 
   try {
     const driverId = (req as any).user.id;
 
-    // تحقق من إشتراك/تجربة السائق
+    // تحقق من تسجيل وتوثيق السائق
     const [profile] = (await db.select({
-      trialExpiresAt: driverProfilesTable.trialExpiresAt,
-      subscriptionExpiresAt: driverProfilesTable.subscriptionExpiresAt,
-      isFree: driverProfilesTable.isFree,
-      isSubscribed: driverProfilesTable.isSubscribed,
+      documentsStatus: driverProfilesTable.documentsStatus,
       vehicleType: driverProfilesTable.vehicleType,
       vehicleModel: driverProfilesTable.vehicleModel,
     }).from(driverProfilesTable).where(eq(driverProfilesTable.userId, driverId))) ?? [];
 
-    const now = new Date();
-    const trialActive = profile?.trialExpiresAt && new Date(profile.trialExpiresAt) > now;
-    const subscriptionActive = profile?.subscriptionExpiresAt && new Date(profile.subscriptionExpiresAt) > now;
+    if (!profile) {
+      res.status(403).json({ error: "يجب إكمال تسجيل السائق أولاً" });
+      return;
+    }
 
-    if (!profile?.isFree && !trialActive && !subscriptionActive) {
-      res.status(403).json({ error: "يجب اشتراك لقبول الرحلات" });
+    if (profile.documentsStatus !== "verified") {
+      res.status(403).json({ error: "يجب تأكيد وثائق السائق من الإدارة أولاً لقبول الرحلات" });
       return;
     }
 
@@ -701,8 +699,6 @@ router.post("/driver/profile", authenticate, async (req, res): Promise<void> => 
 
     if (existing) {
       const hasDocsNow = !!(licenseImage || idCardImage || vehicleDocImage);
-      // تفعيل التجربة للمرة الأولى عند رفع الوثائق
-      const shouldActivateTrial = hasDocsNow && !existing.trialExpiresAt;
       await db.update(driverProfilesTable).set({
         vehicleType: vehicleType ?? existing.vehicleType,
         vehicleModel: vehicleModel ?? existing.vehicleModel,
@@ -713,12 +709,11 @@ router.post("/driver/profile", authenticate, async (req, res): Promise<void> => 
         vehicleDocImage: vehicleDocImage ?? existing.vehicleDocImage,
         documentsSubmittedAt: hasDocsNow ? now : existing.documentsSubmittedAt,
         documentsStatus: isFirstSubmit ? "pending" : existing.documentsStatus,
-        trialExpiresAt: shouldActivateTrial ? new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) : existing.trialExpiresAt,
+        trialExpiresAt: null, // No more 7 days free trial
         updatedAt: now,
       }).where(eq(driverProfilesTable.userId, driverId));
     } else {
       const hasDocs = !!(licenseImage || idCardImage || vehicleDocImage);
-      const trialExpiry = hasDocs ? new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) : null;
       await db.insert(driverProfilesTable).values({
         id: randomUUID(),
         userId: driverId,
@@ -729,7 +724,8 @@ router.post("/driver/profile", authenticate, async (req, res): Promise<void> => 
         licenseImage: licenseImage ?? null,
         idCardImage: idCardImage ?? null,
         vehicleDocImage: vehicleDocImage ?? null,
-        trialExpiresAt: trialExpiry,
+        trialExpiresAt: null, // No more 7 days free trial
+        freeRidesLeft: 5, // Starts with 5 free rides
         documentsSubmittedAt: hasDocs ? now : null,
         documentsStatus: hasDocs ? "pending" : null,
         createdAt: now,
@@ -772,35 +768,22 @@ router.get("/driver/subscription", authenticate, async (req, res): Promise<void>
   try {
     const driverId = (req as any).user.id;
     const [profile] = (await db.select().from(driverProfilesTable).where(eq(driverProfilesTable.userId, driverId))) ?? [];
-    const now = new Date();
-    const trialActive = profile?.trialExpiresAt && new Date(profile.trialExpiresAt) > now;
-    const subscriptionActive = profile?.subscriptionExpiresAt && new Date(profile.subscriptionExpiresAt) > now;
-    const isActive = profile?.isFree || trialActive || subscriptionActive;
-    const isFree = profile?.isFree || trialActive;
 
-    // Check for pending driver subscription requests
-    const [pendingSub] = (await db
-      .select()
-      .from(subscriptionsTable)
-      .where(and(
-        eq(subscriptionsTable.userId, driverId),
-        eq(subscriptionsTable.type, "driver")
-      ))
-      .orderBy(desc(subscriptionsTable.createdAt))
-      .limit(1)) ?? [];
-    const isPending = pendingSub?.status === "pending";
+    const isSubscribed = profile?.documentsStatus === "verified";
+    const isFree = profile?.isFree || (profile?.freeRidesLeft ?? 0) > 0;
+    const isPending = profile?.documentsStatus === "pending";
 
     res.json({
-      isSubscribed: isActive,
+      isSubscribed: isSubscribed,
       isFree: isFree,
       expiresAt: profile?.subscriptionExpiresAt ?? null,
-      trialExpiresAt: profile?.trialExpiresAt ?? null,
-      isPending: false,
+      trialExpiresAt: null,
+      isPending: isPending,
       plan: "driver_monthly",
       hasProfile: !!profile?.documentsSubmittedAt,
       documentsStatus: profile?.documentsStatus ?? "not_submitted",
       licenseVerified: profile?.licenseVerified ?? false,
-      latestRequest: pendingSub ?? null,
+      latestRequest: null,
     });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
