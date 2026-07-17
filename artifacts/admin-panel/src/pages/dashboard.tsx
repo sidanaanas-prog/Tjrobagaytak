@@ -535,7 +535,7 @@ export default function Dashboard() {
                     <TrendingUp className="w-4 h-4 text-emerald-400" />
                     المتابعة الذكية لعمولات السائقين ومستحقاتهم
                   </h3>
-                  <p className="text-xs text-muted-foreground">تتبع السائقين المطالبين بدفع العمولة، ومن لديهم رحلات مجانية أو اشتراكات نشطة للاتصال بهم بسهولة.</p>
+                  <p className="text-xs text-muted-foreground">تتبع السائقين المطالبين بدفع العمولة، ومن لديهم رحلات مجانية أو فترة تجربة نشطة للاتصال بهم بسهولة.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 justify-end">
                   <button
@@ -558,12 +558,11 @@ export default function Dashboard() {
                     }`}
                   >
                     <Gift className="w-3.5 h-3.5" />
-                    السائقون في الوضع المجاني / تجريبي / نشط ({
+                    السائقون في الوضع المجاني / تجريبي ({
                       drivers.filter(d => 
                         d.isFree || 
                         d.freeRidesLeft > 0 || 
-                        (d.trialExpiresAt && new Date(d.trialExpiresAt) > new Date()) || 
-                        (d.isSubscribed && d.subscriptionExpiresAt && new Date(d.subscriptionExpiresAt) > new Date())
+                        (d.trialExpiresAt && new Date(d.trialExpiresAt) > new Date())
                       ).length
                     })
                   </button>
@@ -677,8 +676,7 @@ export default function Dashboard() {
                           const list = drivers.filter(d => 
                             d.isFree || 
                             d.freeRidesLeft > 0 || 
-                            (d.trialExpiresAt && new Date(d.trialExpiresAt) > new Date()) || 
-                            (d.isSubscribed && d.subscriptionExpiresAt && new Date(d.subscriptionExpiresAt) > new Date())
+                            (d.trialExpiresAt && new Date(d.trialExpiresAt) > new Date())
                           ).filter(d => 
                             d.name.toLowerCase().includes(driverSearch.toLowerCase()) || 
                             (d.phone && d.phone.includes(driverSearch))
@@ -704,9 +702,6 @@ export default function Dashboard() {
                             } else if (d.trialExpiresAt && new Date(d.trialExpiresAt) > new Date()) {
                               benefitText = `تجربة نشطة (ينتهي في خلال ${getDaysLeft(d.trialExpiresAt)} يوم) ⏳`;
                               badgeStyle = "bg-blue-500/10 border-blue-500/20 text-blue-400";
-                            } else if (d.isSubscribed && d.subscriptionExpiresAt && new Date(d.subscriptionExpiresAt) > new Date()) {
-                              benefitText = `اشتراك شهري نشط (ينتهي في خلال ${getDaysLeft(d.subscriptionExpiresAt)} يوم) 📅`;
-                              badgeStyle = "bg-emerald-500/10 border-emerald-500/20 text-emerald-400";
                             } else {
                               benefitText = "لا توجد ميزات نشطة";
                               badgeStyle = "bg-white/5 border border-white/10 text-white/50";

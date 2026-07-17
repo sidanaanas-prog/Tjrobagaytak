@@ -6,7 +6,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, LogOut, Shield, User as UserIcon, Camera, ChevronLeft, Bell, Trash2, AlertTriangle, Package, Users, Image, Car, Store, UserCheck, Check, Clock, Gift } from "lucide-react";
+import { Loader2, LogOut, Shield, User as UserIcon, Camera, ChevronLeft, Bell, Trash2, AlertTriangle, Package, Users, Image, Car, Store, UserCheck, Check, Clock, Gift, Copy } from "lucide-react";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { useToast } from "@/hooks/use-toast";
 import { getMemToken } from "@/hooks/use-auth";
@@ -248,6 +248,18 @@ export default function ProfilePage() {
                 {(user.isVerified || user.role === "admin") && <VerifiedBadge size="md" role={user.role} />}
               </div>
               <p className="text-sm text-muted-foreground">{user.email}</p>
+              <div 
+                onClick={() => {
+                  navigator.clipboard.writeText(user.id);
+                  toast({ title: "تم نسخ معرف المستخدم! 📋", description: "تم نسخ الـ ID إلى الحافظة بنجاح." });
+                }}
+                className="flex items-center justify-center gap-1.5 mt-2 text-[11px] text-white/50 bg-white/5 px-2.5 py-1 rounded-lg border border-white/5 max-w-fit mx-auto cursor-pointer hover:bg-white/10 active:scale-95 transition-all"
+                title="اضغط لنسخ معرف المستخدم"
+              >
+                <span className="font-mono">{user.id}</span>
+                <span className="text-[10px] font-sans opacity-70">ID:</span>
+                <Copy className="w-3 h-3 opacity-60" />
+              </div>
               <div className="flex items-center justify-center gap-1.5 mt-1.5">
                 <Shield className="w-3.5 h-3.5 text-accent" />
                 <span className="text-xs font-bold text-accent uppercase">{user.role}</span>
