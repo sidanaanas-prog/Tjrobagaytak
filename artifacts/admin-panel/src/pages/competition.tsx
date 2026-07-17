@@ -22,6 +22,16 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const BASE = getApiUrl("");
 
+function getNumericId(id: string | null | undefined): string {
+  if (!id) return "—";
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash << 5) - hash + id.charCodeAt(i);
+    hash |= 0;
+  }
+  return String(Math.abs(hash) % 1000000).padStart(6, "0");
+}
+
 function apiReq(path: string, options?: RequestInit) {
   const token = localStorage.getItem("glow_admin_token");
   return fetch(path, {
@@ -445,7 +455,7 @@ export default function CompetitionAdminPage() {
                                 )}
                                 <div>
                                   <p className="font-bold text-white text-xs">{p.name}</p>
-                                  <p className="text-[10px] text-white/30 font-mono" dir="ltr">{p.userId}</p>
+                                  <p className="text-[10px] text-white/40 font-mono font-bold" dir="ltr" title={`المعرف الكامل: ${p.userId}`}>ID: {getNumericId(p.userId)}</p>
                                 </div>
                               </div>
                             </td>

@@ -76,6 +76,16 @@ router.get("/admin/stats", authenticate, requireAdmin, async (_req, res): Promis
   const [{ totalRideRevenueRaw }] = await db.select({ totalRideRevenueRaw: sql<number>`coalesce(sum(${ridesTable.price}), 0)::numeric(12,2)` }).from(ridesTable).where(eq(ridesTable.status, "completed"));
   const [{ rideRevenueTodayRaw }] = await db.select({ rideRevenueTodayRaw: sql<number>`coalesce(sum(${ridesTable.price}), 0)::numeric(12,2)` }).from(ridesTable).where(and(eq(ridesTable.status, "completed"), gte(ridesTable.completedAt, today)));
 
+  const [{ totalTaxiCommissionRaw }] = await db
+    .select({ totalTaxiCommissionRaw: sql<number>`coalesce(sum(abs(${walletTransactionsTable.amount}::numeric)), 0)::numeric(12,2)` })
+    .from(walletTransactionsTable)
+    .where(eq(walletTransactionsTable.type, "penalty"));
+
+  const [{ taxiCommissionTodayRaw }] = await db
+    .select({ taxiCommissionTodayRaw: sql<number>`coalesce(sum(abs(${walletTransactionsTable.amount}::numeric)), 0)::numeric(12,2)` })
+    .from(walletTransactionsTable)
+    .where(and(eq(walletTransactionsTable.type, "penalty"), gte(walletTransactionsTable.createdAt, today)));
+
   // ── Driver stats ──
   const [{ totalDrivers }]        = await db.select({ totalDrivers: count() }).from(driverProfilesTable);
   const [{ activeDrivers }]       = await db.select({ activeDrivers: count() }).from(driverProfilesTable).where(eq(driverProfilesTable.isOnline, true));
@@ -119,6 +129,8 @@ router.get("/admin/stats", authenticate, requireAdmin, async (_req, res): Promis
     ridesCancelled: Number(ridesCancelled),
     totalRideRevenue: Number(totalRideRevenueRaw ?? 0),
     rideRevenueToday: Number(rideRevenueTodayRaw ?? 0),
+    totalTaxiCommission: Number(totalTaxiCommissionRaw ?? 0),
+    taxiCommissionToday: Number(taxiCommissionTodayRaw ?? 0),
     // Drivers
     totalDrivers: Number(totalDrivers),
     activeDrivers: Number(activeDrivers),
@@ -467,6 +479,9 @@ router.get("/admin/drivers", authenticate, requireAdmin, async (_req, res): Prom
   const users = await db.select().from(usersTable).where(inArray(usersTable.id, userIds));
   const userMap = Object.fromEntries(users.map(u => [u.id, u]));
 
+  const wallets = await db.select().from(walletsTable).where(inArray(walletsTable.userId, userIds));
+  const walletMap = Object.fromEntries(wallets.map(w => [w.userId, w]));
+
   res.json(drivers.map(d => {
     const u = userMap[d.userId];
     return {
@@ -494,6 +509,7 @@ router.get("/admin/drivers", authenticate, requireAdmin, async (_req, res): Prom
       documentsStatus: d.documentsStatus,
       documentsSubmittedAt: d.documentsSubmittedAt?.toISOString() ?? null,
       isFree: d.isFree,
+      walletBalance: walletMap[d.userId] ? Number(walletMap[d.userId].balance) : 0,
     };
   }));
 });
@@ -561,98 +577,118 @@ router.patch("/admin/drivers/:userId/verify-documents", authenticate, requireAdm
 
 // ── قائمة الرحلات (للأدمن) ────────────────────────────────
 router.get("/admin/rides", authenticate, requireAdmin, async (_req, res): Promise<void> => {
-  const rides = await db.select().from(ridesTable).orderBy(desc(ridesTable.createdAt));
-  if (!rides.length) { res.json([]); return; }
+  try {
+    const rides = await db.select().from(ridesTable).orderBy(desc(ridesTable.createdAt));
+    if (!rides.length) { res.json([]); return; }
 
-  const userIds = [...new Set(rides.flatMap(r => [r.passengerId, r.driverId]).filter((id): id is string => id !== null))];
-  const users = await db.select().from(usersTable).where(inArray(usersTable.id, userIds));
-  const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+    const userIds = [...new Set(rides.flatMap(r => [r.passengerId, r.driverId]).filter((id): id is string => id !== null))];
+    const users = userIds.length > 0 
+      ? await db.select().from(usersTable).where(inArray(usersTable.id, userIds))
+      : [];
+    const userMap = Object.fromEntries(users.map(u => [u.id, u]));
 
-  // fetch driver profiles for vehicle info
-  const driverIds = [...new Set(rides.map((r) => r.driverId).filter((id): id is string => id !== null))];
-  const driverProfiles = driverIds.length > 0
-    ? (await db.select({
-        userId: driverProfilesTable.userId,
-        vehicleType: driverProfilesTable.vehicleType,
-        vehicleModel: driverProfilesTable.vehicleModel,
-        vehiclePlate: driverProfilesTable.vehiclePlate,
-        vehicleColor: driverProfilesTable.vehicleColor,
-      }).from(driverProfilesTable).where(inArray(driverProfilesTable.userId, driverIds))) ?? []
-    : [];
-  const dProfMap = Object.fromEntries(driverProfiles.map((d) => [d.userId, d]));
+    // fetch driver profiles for vehicle info
+    const driverIds = [...new Set(rides.map((r) => r.driverId).filter((id): id is string => id !== null))];
+    const driverProfiles = driverIds.length > 0
+      ? (await db.select({
+          userId: driverProfilesTable.userId,
+          vehicleType: driverProfilesTable.vehicleType,
+          vehicleModel: driverProfilesTable.vehicleModel,
+          vehiclePlate: driverProfilesTable.vehiclePlate,
+          vehicleColor: driverProfilesTable.vehicleColor,
+        }).from(driverProfilesTable).where(inArray(driverProfilesTable.userId, driverIds))) ?? []
+      : [];
+    const dProfMap = Object.fromEntries(driverProfiles.map((d) => [d.userId, d]));
 
-  // Fetch settings for expected commission calculations
-  const [typeSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_type"));
-  const [valSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_value"));
-  const [rateSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_rate"));
+    // Fetch settings for expected commission calculations
+    const [typeSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_type"));
+    const [valSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_value"));
+    const [rateSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_rate"));
 
-  const commType = typeSetting?.value || "percentage";
-  const commVal = Number(valSetting?.value || rateSetting?.value || "10");
+    const commType = typeSetting?.value || "percentage";
+    const commVal = Number(valSetting?.value || rateSetting?.value || "10");
 
-  // Fetch actual commission penalties deducted from driver wallets
-  const rideIds = rides.map(r => r.id);
-  const commissionTxList = rideIds.length > 0
-    ? await db.select({
-        rideId: walletTransactionsTable.rideId,
-        amount: walletTransactionsTable.amount,
-      })
-      .from(walletTransactionsTable)
-      .where(
-        and(
-          eq(walletTransactionsTable.type, "penalty"),
-          inArray(walletTransactionsTable.rideId, rideIds)
+    // Fetch actual commission penalties deducted from driver wallets
+    const rideIds = rides.map(r => r.id);
+    const commissionTxList = rideIds.length > 0
+      ? await db.select({
+          rideId: walletTransactionsTable.rideId,
+          amount: walletTransactionsTable.amount,
+        })
+        .from(walletTransactionsTable)
+        .where(
+          and(
+            eq(walletTransactionsTable.type, "penalty"),
+            inArray(walletTransactionsTable.rideId, rideIds)
+          )
         )
-      )
-    : [];
+      : [];
 
-  const commissionMap = Object.fromEntries(
-    commissionTxList
-      .filter(tx => tx.rideId !== null)
-      .map(tx => [tx.rideId!, Math.abs(Number(tx.amount))])
-  );
+    const commissionMap = Object.fromEntries(
+      commissionTxList
+        .filter(tx => tx.rideId !== null)
+        .map(tx => [tx.rideId!, Math.abs(Number(tx.amount))])
+    );
 
-  res.json(rides.map(r => {
-    const passenger = userMap[r.passengerId];
-    const driver = r.driverId ? userMap[r.driverId] : null;
-    const dProf = r.driverId ? dProfMap[r.driverId] : null;
-
-    const priceNum = Number(r.price || 0);
-    let expectedCommission = 0;
-    if (commType === "fixed") {
-      expectedCommission = commVal;
-    } else {
-      expectedCommission = Math.round(priceNum * (commVal / 100));
-    }
-    const commissionDeducted = commissionMap[r.id] ?? 0;
-
-    return {
-      id: r.id,
-      status: r.status,
-      fromAddress: r.fromAddress,
-      toAddress: r.toAddress,
-      price: r.price,
-      vehicleType: r.vehicleType,
-      vehicleModel: dProf?.vehicleModel ?? null,
-      vehiclePlate: dProf?.vehiclePlate ?? null,
-      vehicleColor: dProf?.vehicleColor ?? null,
-      passengerName: passenger?.name || "—",
-      passengerPhone: passenger?.phone || null,
-      passengerId: r.passengerId,
-      driverName: driver?.name || null,
-      driverPhone: driver?.phone || null,
-      driverId: r.driverId,
-      rating: r.driverRating,
-      driverRating: r.passengerRating,
-      createdAt: r.createdAt.toISOString(),
-      acceptedAt: r.acceptedAt?.toISOString() ?? null,
-      arrivedAt: (r as any).arrivedAt?.toISOString?.() ?? null,
-      pickedUpAt: r.pickedUpAt?.toISOString() ?? null,
-      completedAt: r.completedAt?.toISOString() ?? null,
-      cancelledAt: r.cancelledAt?.toISOString() ?? null,
-      commissionDeducted,
-      expectedCommission,
+    const safeToIsoString = (val: any): string | null => {
+      if (!val) return null;
+      if (val instanceof Date) {
+        return isNaN(val.getTime()) ? null : val.toISOString();
+      }
+      try {
+        const d = new Date(val);
+        return isNaN(d.getTime()) ? null : d.toISOString();
+      } catch {
+        return null;
+      }
     };
-  }));
+
+    res.json(rides.map(r => {
+      const passenger = userMap[r.passengerId];
+      const driver = r.driverId ? userMap[r.driverId] : null;
+      const dProf = r.driverId ? dProfMap[r.driverId] : null;
+
+      const priceNum = Number(r.price || 0);
+      let expectedCommission = 0;
+      if (commType === "fixed") {
+        expectedCommission = commVal;
+      } else {
+        expectedCommission = Math.round(priceNum * (commVal / 100));
+      }
+      const commissionDeducted = commissionMap[r.id] ?? 0;
+
+      return {
+        id: r.id,
+        status: r.status,
+        fromAddress: r.fromAddress,
+        toAddress: r.toAddress,
+        price: r.price,
+        vehicleType: r.vehicleType,
+        vehicleModel: dProf?.vehicleModel ?? null,
+        vehiclePlate: dProf?.vehiclePlate ?? null,
+        vehicleColor: dProf?.vehicleColor ?? null,
+        passengerName: passenger?.name || "—",
+        passengerPhone: passenger?.phone || null,
+        passengerId: r.passengerId,
+        driverName: driver?.name || null,
+        driverPhone: driver?.phone || null,
+        driverId: r.driverId,
+        rating: r.driverRating,
+        driverRating: r.passengerRating,
+        createdAt: safeToIsoString(r.createdAt) || new Date().toISOString(),
+        acceptedAt: safeToIsoString(r.acceptedAt),
+        arrivedAt: safeToIsoString((r as any).arrivedAt),
+        pickedUpAt: safeToIsoString(r.pickedUpAt),
+        completedAt: safeToIsoString(r.completedAt),
+        cancelledAt: safeToIsoString(r.cancelledAt),
+        commissionDeducted,
+        expectedCommission,
+      };
+    }));
+  } catch (err: any) {
+    console.error("Error in /admin/rides:", err);
+    res.status(500).json({ success: false, error: err.message || "Internal server error" });
+  }
 });
 
 // ── تسجيل خروج جميع الحسابات ──────────────────────────────

@@ -6,6 +6,16 @@ import { Loader2, CheckCircle, XCircle, Clock, Navigation, User, Phone, Calendar
 
 const BASE = getApiUrl("");
 
+function getNumericId(id: string | null | undefined): string {
+  if (!id) return "—";
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash << 5) - hash + id.charCodeAt(i);
+    hash |= 0;
+  }
+  return String(Math.abs(hash) % 1000000).padStart(6, "0");
+}
+
 type DriverSub = {
   id: string;
   userId: string;
@@ -31,6 +41,7 @@ type DriverSub = {
   licenseVerified: boolean;
   documentsStatus: string | null;
   documentsSubmittedAt: string | null;
+  walletBalance: number;
 };
 
 export default function DriverSubscriptions() {
@@ -39,7 +50,7 @@ export default function DriverSubscriptions() {
   const { toast } = useToast();
   const [drivers, setDrivers] = useState<DriverSub[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "subscribed" | "not-subscribed" | "online" | "pending-docs">("all");
+  const [filter, setFilter] = useState<"all" | "subscribed" | "not-subscribed" | "online" | "pending-docs" | "debtors">("all");
   const [actionId, setActionId] = useState<string | null>(null);
   const [selectedDriver, setSelectedDriver] = useState<DriverSub | null>(null);
   const [showDocsModal, setShowDocsModal] = useState(false);
@@ -134,11 +145,13 @@ export default function DriverSubscriptions() {
     if (filter === "not-subscribed") return !d.isSubscribed;
     if (filter === "online") return d.isOnline;
     if (filter === "pending-docs") return d.documentsStatus === "pending";
+    if (filter === "debtors") return d.walletBalance < 0;
     return true;
   });
 
   const subscribedCount = drivers.filter((d) => d.isSubscribed).length;
   const onlineCount = drivers.filter((d) => d.isOnline).length;
+  const debtorsCount = drivers.filter((d) => d.walletBalance < 0).length;
 
   return (
     <div className="p-6 space-y-5" dir="rtl">
@@ -154,6 +167,9 @@ export default function DriverSubscriptions() {
           <span className="bg-amber-500/15 border border-amber-500/30 text-amber-400 text-sm font-bold px-3 py-1.5 rounded-full">
             {drivers.filter((d) => d.isFree).length} مجاني
           </span>
+          <span className="bg-red-500/15 border border-red-500/30 text-red-400 text-sm font-bold px-3 py-1.5 rounded-full">
+            {debtorsCount} مطلوب دفعهم 💸
+          </span>
           <span className="bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-sm font-bold px-3 py-1.5 rounded-full">
             {onlineCount} متصل
           </span>
@@ -161,7 +177,7 @@ export default function DriverSubscriptions() {
       </div>
 
       <div className="flex gap-2 flex-wrap">
-        {(["all", "online", "pending-docs"] as const).map((f) => (
+        {(["all", "online", "pending-docs", "debtors"] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f as any)}
@@ -175,6 +191,7 @@ export default function DriverSubscriptions() {
               all: "الكل",
               online: `متصل (${drivers.filter((d) => d.isOnline).length})`,
               "pending-docs": `وثائق قيد المراجعة (${drivers.filter((d) => d.documentsStatus === "pending").length})`,
+              debtors: `يجب أن يدفعوا (${drivers.filter((d) => d.walletBalance < 0).length}) 💸`,
             }[f]}
           </button>
         ))}
@@ -209,8 +226,8 @@ export default function DriverSubscriptions() {
                       {driver.phone || driver.email}
                     </p>
                     <div className="flex items-center gap-1.5 mt-1">
-                      <span className="text-[10px] text-muted-foreground bg-muted/50 border border-border px-2 py-0.5 rounded font-mono select-all">
-                        ID: {driver.userId}
+                      <span className="text-[10px] text-muted-foreground bg-muted/50 border border-border px-2 py-0.5 rounded font-mono select-all" title={`المعرف الكامل: ${driver.userId}`}>
+                        ID: {getNumericId(driver.userId)}
                       </span>
                       <button
                         onClick={() => {
@@ -218,7 +235,7 @@ export default function DriverSubscriptions() {
                           toast({ title: "تم النسخ بنجاح ✅", description: "تم نسخ معرف السائق (User ID) إلى الحافظة" });
                         }}
                         className="text-muted-foreground hover:text-primary p-0.5 transition-colors"
-                        title="نسخ المعرف"
+                        title="نسخ المعرف الكامل"
                       >
                         <Copy className="w-3 h-3" />
                       </button>
@@ -252,7 +269,20 @@ export default function DriverSubscriptions() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {/* تنبيه السائقين المطالبين بالدفع */}
+              {driver.walletBalance < 0 && (
+                <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl p-4 flex items-start gap-3 mt-2">
+                  <AlertTriangle className="w-5 h-5 shrink-0 animate-pulse text-red-500" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold">يجب التواصل مع السائق فوراً لإحضار عمولة التطبيق للمكتب! ⚠️</p>
+                    <p className="text-xs opacity-90">
+                      هذا السائق أكمل <span className="font-bold underline">{driver.totalRides}</span> رحلات وهو مدين بمبلغ <span className="font-bold underline text-white bg-red-500/20 px-1 py-0.5 rounded">{Math.abs(driver.walletBalance).toLocaleString()} ألف دورو</span> عمولات متراكمة. يرجى الاتصال به على الهاتف: <span className="font-mono font-bold underline select-all text-white">{driver.phone || "—"}</span>.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 <div className="bg-muted/30 rounded-lg p-2.5 text-center">
                   <p className="text-[10px] text-muted-foreground">المركبة</p>
                   <p className="text-sm font-bold text-foreground mt-0.5">
@@ -269,7 +299,11 @@ export default function DriverSubscriptions() {
                 </div>
                 <div className="bg-muted/30 rounded-lg p-2.5 text-center">
                   <p className="text-[10px] text-muted-foreground">الأرباح</p>
-                  <p className="text-sm font-bold text-foreground mt-0.5">{Number(driver.totalEarnings).toFixed(0)} دج</p>
+                  <p className="text-sm font-bold text-foreground mt-0.5">{Number(driver.totalEarnings).toFixed(0)} ألف دورو</p>
+                </div>
+                <div className={`rounded-lg p-2.5 text-center ${driver.walletBalance < 0 ? "bg-red-500/10 border border-red-500/30 text-red-400" : "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400"}`}>
+                  <p className="text-[10px] opacity-75">رصيد المحفظة</p>
+                  <p className="text-sm font-black mt-0.5 font-mono">{driver.walletBalance ?? 0} ألف دورو</p>
                 </div>
               </div>
 

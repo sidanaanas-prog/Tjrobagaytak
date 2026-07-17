@@ -90,7 +90,14 @@ export default function PromotionsPage() {
   const fetchPromos = async () => {
     try {
       const data = await apiReq(`${BASE}/api/admin/promotions`);
-      setPromos(data ?? []);
+      if (Array.isArray(data)) {
+        setPromos(data);
+      } else {
+        setPromos([]);
+        if (data && data.error) {
+          toast({ title: "خطأ", description: data.error, variant: "destructive" });
+        }
+      }
     } catch (e) {
       toast({ title: "Error", description: "Failed to load promotions", variant: "destructive" });
     } finally {
@@ -222,7 +229,11 @@ export default function PromotionsPage() {
                     <span className="text-green-400 font-mono">-{p.discountPercent}%</span>
                     {p.trialDays && <span className="text-purple-400 font-mono">{p.trialDays} أيام تجريبية</span>}
                     {p.maxUsers && <span className="text-orange-400 font-mono">{p.usedCount}/{p.maxUsers} مشترك</span>}
-                    {p.endAt && <span className="text-orange-400 font-mono flex items-center gap-1"><Clock className="w-3 h-3" /> ينتهي {new Date(p.endAt).toLocaleDateString("ar-DZ")}</span>}
+                    {p.endAt && (
+                      <span className="text-orange-400 font-mono flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> ينتهي {isNaN(Date.parse(p.endAt)) ? p.endAt : new Date(p.endAt).toLocaleDateString("ar-DZ")}
+                      </span>
+                    )}
                   </div>
                   {p.goalDescription && (
                     <div className="text-sm bg-purple-500/10 text-purple-300 px-3 py-1.5 rounded border border-purple-500/20 mb-1">

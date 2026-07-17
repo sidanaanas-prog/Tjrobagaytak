@@ -441,9 +441,11 @@ export default function Dashboard() {
 
       {/* ── إحصائيات الكورسا والسائقين ── */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Car className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-mono font-bold text-white tracking-wider">إحصائيات الكورسا والسائقين</h2>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Car className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-mono font-bold text-white tracking-wider">إحصائيات الكورسا والسائقين</h2>
+          </div>
         </div>
 
         {isInitialLoading ? (
@@ -452,6 +454,30 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {/* مربع كبير فيه أرباح عمولة تطبيق من تاكسي */}
+            <Card className="col-span-2 md:col-span-4 lg:col-span-6 bg-gradient-to-br from-emerald-950/40 to-slate-900 border-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.15)] relative overflow-hidden p-6">
+              <div className="absolute top-0 right-0 p-6 opacity-10">
+                <DollarSign className="w-24 h-24 text-emerald-400" />
+              </div>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold text-emerald-400 tracking-wider flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    أرباح عمولة التطبيق من التاكسي (Taxi Commissions)
+                  </h3>
+                  <p className="text-xs text-muted-foreground">مجموع المبالغ المقتطعة من السائقين كعمولة عن الرحلات المكتملة</p>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-black text-white font-mono tracking-tight">
+                    {((stats as any)?.totalTaxiCommission || 0).toLocaleString()} ألف دورو
+                  </span>
+                  <span className="text-xs text-emerald-400 font-bold font-mono">
+                    +{((stats as any)?.taxiCommissionToday || 0).toLocaleString()} ألف دورو اليوم
+                  </span>
+                </div>
+              </div>
+            </Card>
+
             {/* الرحلات */}
             <Card className="bg-card border-primary/30 shadow-[0_0_15px_rgba(0,255,255,0.05)]">
               <CardHeader className="flex flex-row items-center justify-between pb-1">

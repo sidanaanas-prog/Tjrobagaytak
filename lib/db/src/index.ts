@@ -138,8 +138,7 @@ function buildDb() {
             errMsg.includes("closed") ||
             err?.code === "57P01" ||
             err?.code === "57P02";
-          
-          if (isSuspended && attempts < maxAttempts) {
+                    if (isSuspended && attempts < maxAttempts) {
             console.warn(`[DB Neon Wrapper] Neon database is suspended or inactive. Retrying in ${delay}ms... (Attempt ${attempts}/${maxAttempts})`);
             await new Promise((resolve) => setTimeout(resolve, delay));
             delay = Math.min(delay * 1.5, 3000);
@@ -148,6 +147,7 @@ function buildDb() {
           }
         }
       }
+      throw new Error("Neon connection failed after max attempts");
     };
 
     // Copy original properties and wrap the `.query` method as well
@@ -183,6 +183,7 @@ function buildDb() {
           }
         }
       }
+      throw new Error("Neon .query connection failed after max attempts");
     };
     
     return drizzleNeon(wrappedSql as any, { schema });

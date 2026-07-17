@@ -9,6 +9,38 @@ import {
 
 const BASE = getApiUrl("");
 
+function getNumericId(id: string | null | undefined): string {
+  if (!id) return "—";
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash << 5) - hash + id.charCodeAt(i);
+    hash |= 0;
+  }
+  return String(Math.abs(hash) % 1000000).padStart(6, "0");
+}
+
+function safeFormatTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return "—";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "—";
+  }
+}
+
+function safeFormatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return "—";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("ar");
+  } catch {
+    return "—";
+  }
+}
+
 type Ride = {
   id: string;
   status: "pending" | "accepted" | "arrived" | "picked_up" | "completed" | "cancelled";
@@ -94,6 +126,8 @@ export default function RidesAdmin() {
   const [commissionValue, setCommissionValue] = useState("10");
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsSubmitting, setSettingsSubmitting] = useState(false);
+  const [driverSearchQuery, setDriverSearchQuery] = useState("");
+  const [debtFilterOnly5Plus, setDebtFilterOnly5Plus] = useState(false);
 
   // Wallet states
   const [walletUserId, setWalletUserId] = useState("");
@@ -112,8 +146,23 @@ export default function RidesAdmin() {
       const res = await fetch(`${BASE}/api/admin/rides`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) setRides(await res.json());
-    } finally { setLoading(false); }
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setRides(data);
+        } else {
+          console.error("Expected array but got:", data);
+          setRides([]);
+        }
+      } else {
+        setRides([]);
+      }
+    } catch (err) {
+      console.error(err);
+      setRides([]);
+    } finally {
+      setLoading(false);
+    }
   }, [token]);
 
   const fetchDestinations = useCallback(async () => {
@@ -303,9 +352,98 @@ export default function RidesAdmin() {
     return r.status === filter;
   });
 
-  const todayRides = rides.filter((r) => new Date(r.createdAt).toDateString() === new Date().toDateString());
+  const todayRides = rides.filter((r) => {
+    if (!r.createdAt) return false;
+    try {
+      const d = new Date(r.createdAt);
+      return !isNaN(d.getTime()) && d.toDateString() === new Date().toDateString();
+    } catch {
+      return false;
+    }
+  });
   const activeCount = rides.filter((r) => activeStatuses.includes(r.status)).length;
   const revenue = rides.filter((r) => r.status === "completed").reduce((sum, r) => sum + Number(r.price), 0);
+
+  // App Commission Calculations
+  const completedRides = rides.filter((r) => r.status === "completed");
+  const commVal = Number(commissionValue || "10");
+  const commType = commissionType || "percentage";
+
+  let totalExpectedCommission = 0;
+  let totalDeductedCommission = 0;
+
+  completedRides.forEach((r) => {
+    const priceNum = Number(r.price || 0);
+    let expected = 0;
+    if (commType === "fixed") {
+      expected = commVal;
+    } else {
+      expected = Math.round(priceNum * (commVal / 100));
+    }
+    totalExpectedCommission += expected;
+    totalDeductedCommission += r.commissionDeducted ?? 0;
+  });
+
+  const totalUnpaidCommission = Math.max(0, totalExpectedCommission - totalDeductedCommission);
+
+  // Group completed rides by driver to identify commission collections
+  const driverStatsMap: Record<string, {
+    driverId: string;
+    driverName: string;
+    driverPhone: string | null;
+    completedCount: number;
+    totalEarnings: number;
+    commissionOwed: number;
+    commissionDeducted: number;
+    unpaidCommission: number;
+  }> = {};
+
+  completedRides.forEach((r) => {
+    if (r.driverId) {
+      const dId = r.driverId;
+      const priceNum = Number(r.price || 0);
+      let expected = 0;
+      if (commType === "fixed") {
+        expected = commVal;
+      } else {
+        expected = Math.round(priceNum * (commVal / 100));
+      }
+      const deducted = r.commissionDeducted ?? 0;
+      const unpaid = Math.max(0, expected - deducted);
+
+      if (!driverStatsMap[dId]) {
+        driverStatsMap[dId] = {
+          driverId: dId,
+          driverName: r.driverName || "سائق غير معروف",
+          driverPhone: r.driverPhone,
+          completedCount: 0,
+          totalEarnings: 0,
+          commissionOwed: 0,
+          commissionDeducted: 0,
+          unpaidCommission: 0,
+        };
+      }
+
+      const d = driverStatsMap[dId];
+      d.completedCount += 1;
+      d.totalEarnings += priceNum;
+      d.commissionOwed += expected;
+      d.commissionDeducted += deducted;
+      d.unpaidCommission += unpaid;
+    }
+  });
+
+  const driversDebtList = Object.values(driverStatsMap)
+    .filter((d) => {
+      const matchesSearch = d.driverName.toLowerCase().includes(driverSearchQuery.toLowerCase()) || 
+                            (d.driverPhone && d.driverPhone.includes(driverSearchQuery)) ||
+                            getNumericId(d.driverId).includes(driverSearchQuery) ||
+                            d.driverId.includes(driverSearchQuery);
+      
+      const matchesCount = debtFilterOnly5Plus ? d.completedCount >= 5 : true;
+      return matchesSearch && matchesCount;
+    })
+    .sort((a, b) => b.unpaidCommission - a.unpaidCommission || b.completedCount - a.completedCount);
 
   return (
     <div className="p-6 space-y-6" dir="rtl">
@@ -356,6 +494,40 @@ export default function RidesAdmin() {
 
       {activeTab === "rides" ? (
         <div className="space-y-6">
+          {/* Big Highlighted App Commission Revenue Box */}
+          <div className="bg-gradient-to-r from-[#10101a] via-[#151a24] to-[#0d0d12] border border-primary/20 rounded-2xl p-6 relative overflow-hidden shadow-xl">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -z-10" />
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-primary font-bold">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <DollarSign className="w-5 h-5 text-primary" />
+                  </div>
+                  <span className="text-xs uppercase tracking-wider">أرباح عمولة تطبيق تاكسي Tjroba</span>
+                </div>
+                <h2 className="text-3xl font-black text-white tracking-tight">
+                  {(totalExpectedCommission).toFixed(0)} <span className="text-lg font-bold text-muted-foreground">ألف دورو (إجمالي العمولات المستحقة)</span>
+                </h2>
+                <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
+                  هذا الصندوق يعرض مجموع مستحقات التطبيق (العمولات) المحتسبة على جميع الرحلات المكتملة بنجاح، سواء تَمّ خصمها تلقائياً من محافظ السائقين أو يجب تحصيلها يدوياً بالمكتب.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 sm:flex sm:items-center shrink-0">
+                <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 text-center min-w-[140px] sm:min-w-[160px]">
+                  <p className="text-[10px] text-green-400 font-bold">✅ تم خصمها تلقائياً</p>
+                  <p className="text-xl font-black text-green-300 mt-1">{totalDeductedCommission.toFixed(0)} ألف دورو</p>
+                  <p className="text-[9px] text-muted-foreground mt-0.5">مخصومة من محافظ السائقين</p>
+                </div>
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 text-center min-w-[140px] sm:min-w-[160px]">
+                  <p className="text-[10px] text-yellow-400 font-bold">⚠️ معلقة للتحصيل المكتبي</p>
+                  <p className="text-xl font-black text-yellow-300 mt-1">{totalUnpaidCommission.toFixed(0)} ألف دورو</p>
+                  <p className="text-[9px] text-muted-foreground mt-0.5">مستحقة للدفع في المكتب</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Stats Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-card border border-border rounded-xl p-3.5 text-center">
@@ -373,6 +545,191 @@ export default function RidesAdmin() {
             <div className="bg-card border border-border rounded-xl p-3.5 text-center">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide">إيرادات</p>
               <p className="text-xl font-black text-yellow-400 mt-1">{revenue.toFixed(0)} ألف دورو</p>
+            </div>
+          </div>
+
+          {/* Driver Commission Debt & Collection Dashboard */}
+          <div className="bg-card border border-border rounded-2xl p-6 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-4">
+              <div>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <ShieldAlert className="w-5 h-5 text-yellow-500" />
+                  <span>لوحة تحصيل عمولات السائقين (المستحقات المكتبية)</span>
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1">تتبع السائقين الذين أكملوا رحلات ولم يتم خصم عمولتهم بالكامل لتسوية حساباتهم.</p>
+              </div>
+
+              {/* Filtering Actions */}
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={() => setDebtFilterOnly5Plus(!debtFilterOnly5Plus)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                    debtFilterOnly5Plus 
+                      ? "bg-red-500/20 text-red-400 border-red-500/30" 
+                      : "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10"
+                  }`}
+                >
+                  {debtFilterOnly5Plus ? "🔴 عرض السائقين الحرجين (5+ رحلات) فقط" : "🔍 عرض جميع السائقين"}
+                </button>
+                <div className="relative w-full sm:w-60">
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/40" />
+                  <input
+                    type="text"
+                    value={driverSearchQuery}
+                    onChange={(e) => setDriverSearchQuery(e.target.value)}
+                    placeholder="ابحث باسم السائق، هاتف أو معرّف..."
+                    className="w-full bg-white/5 border border-border rounded-xl pr-9 pl-3 h-9 text-xs text-white focus:outline-none focus:border-primary/50 transition-all text-right"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-white/10">
+              <table className="w-full border-collapse text-right">
+                <thead>
+                  <tr className="bg-white/5 border-b border-white/10 text-white/60 text-xs font-bold">
+                    <th className="p-3">السائق</th>
+                    <th className="p-3 text-center">الرحلات المكتملة</th>
+                    <th className="p-3 text-center">مجموع الإيرادات</th>
+                    <th className="p-3 text-center">العمولة الكلية</th>
+                    <th className="p-3 text-center">المخصوم تلقائياً</th>
+                    <th className="p-3 text-center">المبلغ المتبقي للتحصيل المكتبى</th>
+                    <th className="p-3 text-center">الإجراءات والسداد</th>
+                  </tr>
+                </thead>
+                <tbody className="text-xs">
+                  {driversDebtList.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-6 text-center text-muted-foreground">
+                        لا يوجد سائقون تنطبق عليهم شروط البحث المحددة.
+                      </td>
+                    </tr>
+                  ) : (
+                    driversDebtList.map((d) => {
+                      const isCritical = d.completedCount >= 5;
+                      return (
+                        <tr key={d.driverId} className={`border-b border-white/5 hover:bg-white/[0.01] transition-colors ${isCritical ? "bg-red-500/[0.02]" : ""}`}>
+                          {/* Driver Info */}
+                          <td className="p-3">
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-white text-sm">{d.driverName}</span>
+                                {isCritical && (
+                                  <span className="inline-flex items-center gap-1 bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-0.5 rounded text-[9px] font-black animate-pulse">
+                                    ⚠️ حرج (5+ رحلات)
+                                  </span>
+                                )}
+                              </div>
+                              {d.driverPhone && (
+                                <p className="text-muted-foreground font-mono mt-0.5" dir="ltr">{d.driverPhone}</p>
+                              )}
+                              <div className="flex items-center gap-1.5 mt-1">
+                                <span 
+                                  className="text-[10px] text-muted-foreground bg-muted border border-border px-1.5 py-0.5 rounded font-mono select-all cursor-help font-bold"
+                                  title={`المعرف الكامل للسائق: ${d.driverId}`}
+                                >
+                                  ID: {getNumericId(d.driverId)}
+                                </span>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(d.driverId);
+                                    toast({ title: "تم نسخ معرف السائق ✅", description: "تم نسخ معرف السائق بالكامل لاستعماله" });
+                                  }}
+                                  className="text-muted-foreground hover:text-primary transition-colors"
+                                  title="نسخ المعرف الكامل"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Completed Count */}
+                          <td className="p-3 text-center font-bold text-sm text-foreground">
+                            {d.completedCount} رحلات
+                          </td>
+
+                          {/* Total Earnings */}
+                          <td className="p-3 text-center font-mono">
+                            {d.totalEarnings.toFixed(0)} ألف دورو
+                          </td>
+
+                          {/* Commission Owed */}
+                          <td className="p-3 text-center font-mono text-white/80">
+                            {d.commissionOwed.toFixed(0)} ألف دورو
+                          </td>
+
+                          {/* Commission Deducted */}
+                          <td className="p-3 text-center font-mono text-green-400">
+                            {d.commissionDeducted.toFixed(0)} ألف دورو
+                          </td>
+
+                          {/* Unpaid Commission (Debt to App) */}
+                          <td className="p-3 text-center font-bold font-mono">
+                            {d.unpaidCommission > 0 ? (
+                              <span className="text-yellow-400 bg-yellow-400/10 border border-yellow-500/20 px-2 py-1 rounded">
+                                {d.unpaidCommission.toFixed(0)} ألف دورو
+                              </span>
+                            ) : (
+                              <span className="text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-1 rounded">
+                                مسدد بالكامل 🎉
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Actions */}
+                          <td className="p-3 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => {
+                                  setWalletUserId(d.driverId);
+                                  setWalletAmount(String(d.unpaidCommission));
+                                  setWalletAction("withdraw");
+                                  setActiveTab("settings");
+                                  
+                                  // Scroll down to the form
+                                  setTimeout(() => {
+                                    const formEl = document.getElementById("wallet-adjust-form");
+                                    if (formEl) formEl.scrollIntoView({ behavior: "smooth" });
+                                  }, 150);
+
+                                  toast({
+                                    title: "تم تجهيز الخصم 💸",
+                                    description: "تم ملء معلومات السائق وقيمة العمولات المستحقة في نموذج تعديل المحفظة بالأسفل.",
+                                  });
+                                }}
+                                className="px-2.5 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-bold transition-all"
+                              >
+                                خصم من المحفظة
+                              </button>
+                              
+                              <button
+                                onClick={() => {
+                                  setDriverIdForFree(d.driverId);
+                                  setActiveTab("settings");
+                                  
+                                  setTimeout(() => {
+                                    const formEl = document.getElementById("free-rides-form");
+                                    if (formEl) formEl.scrollIntoView({ behavior: "smooth" });
+                                  }, 150);
+
+                                  toast({
+                                    title: "تجهيز رحلات مجانية 🎁",
+                                    description: "تم ملء معرف السائق في نموذج منح الرحلات التجريبية بالأسفل.",
+                                  });
+                                }}
+                                className="px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-white font-medium transition-all"
+                              >
+                                منح رحلات مجانية
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -428,9 +785,12 @@ export default function RidesAdmin() {
                               {r.passengerPhone}
                             </p>
                           )}
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <span className="text-[10px] text-muted-foreground bg-muted/60 border border-border px-1.5 py-0.5 rounded font-mono select-all">
-                              ID: {r.passengerId}
+                           <div className="flex items-center gap-1.5 mt-1">
+                            <span 
+                              className="text-[10px] text-muted-foreground bg-muted/60 border border-border px-1.5 py-0.5 rounded font-mono select-all cursor-help font-bold"
+                              title={`المعرف الكامل للراكب: ${r.passengerId}`}
+                            >
+                              ID: {getNumericId(r.passengerId)}
                             </span>
                             <button
                               onClick={() => {
@@ -440,7 +800,7 @@ export default function RidesAdmin() {
                               className="text-muted-foreground hover:text-primary transition-colors"
                               title="نسخ المعرف"
                             >
-                              <Copy className="w-3 h-3" />
+                              <Copy className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => {
@@ -485,12 +845,12 @@ export default function RidesAdmin() {
                     {/* Timeline */}
                     <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                       <Clock className="w-3 h-3" />
-                      {r.status === "pending" && <span>طُلبت {new Date(r.createdAt).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}</span>}
-                      {r.acceptedAt && <span>قُبِلت {new Date(r.acceptedAt).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}</span>}
-                      {r.arrivedAt && <span>· وصل {new Date(r.arrivedAt).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}</span>}
-                      {r.pickedUpAt && <span>· استُلِمت {new Date(r.pickedUpAt).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}</span>}
-                      {r.completedAt && <span>· وُصِلت {new Date(r.completedAt).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}</span>}
-                      {r.cancelledAt && <span>· أُلغِيت {new Date(r.cancelledAt).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}</span>}
+                      {r.status === "pending" && <span>طُلبت {safeFormatTime(r.createdAt)}</span>}
+                      {r.acceptedAt && <span>قُبِلت {safeFormatTime(r.acceptedAt)}</span>}
+                      {r.arrivedAt && <span>· وصل {safeFormatTime(r.arrivedAt)}</span>}
+                      {r.pickedUpAt && <span>· استُلِمت {safeFormatTime(r.pickedUpAt)}</span>}
+                      {r.completedAt && <span>· وُصِلت {safeFormatTime(r.completedAt)}</span>}
+                      {r.cancelledAt && <span>· أُلغِيت {safeFormatTime(r.cancelledAt)}</span>}
                     </div>
 
                      {/* Driver info */}
@@ -506,8 +866,11 @@ export default function RidesAdmin() {
                          <div className="flex items-center gap-2 flex-wrap">
                            {r.driverId && (
                              <>
-                               <span className="text-[10px] text-muted-foreground bg-muted border border-border px-1.5 py-0.5 rounded font-mono select-all">
-                                 ID: {r.driverId}
+                               <span 
+                                 className="text-[10px] text-muted-foreground bg-muted border border-border px-1.5 py-0.5 rounded font-mono select-all cursor-help font-bold"
+                                 title={`المعرف الكامل للسائق: ${r.driverId}`}
+                               >
+                                 ID: {getNumericId(r.driverId)}
                                </span>
                                <button
                                  onClick={() => {
@@ -585,7 +948,7 @@ export default function RidesAdmin() {
                       <div className="bg-muted/30 rounded-lg p-2.5 text-center">
                         <p className="text-[10px] text-muted-foreground">التاريخ</p>
                         <p className="text-xs font-bold text-foreground mt-0.5">
-                          {new Date(r.createdAt).toLocaleDateString("ar")}
+                          {safeFormatDate(r.createdAt)}
                         </p>
                       </div>
                     </div>
@@ -723,7 +1086,7 @@ export default function RidesAdmin() {
           </div>
 
           {/* Section 3: Manual Wallet Adjustment */}
-          <div className="bg-card border border-border rounded-2xl p-5 space-y-4 shadow-md">
+          <div id="wallet-adjust-form" className="bg-card border border-border rounded-2xl p-5 space-y-4 shadow-md scroll-mt-20">
             <h3 className="font-bold text-base text-foreground flex items-center gap-2 border-b border-border pb-2.5">
               <Wallet className="w-5 h-5 text-primary" />
               تعديل رصيد المحفظة يدوياً للمستخدمين والسائقين
@@ -770,7 +1133,7 @@ export default function RidesAdmin() {
           </div>
 
           {/* Section 4: Driver Free Rides */}
-          <div className="bg-card border border-border rounded-2xl p-5 space-y-4 shadow-md">
+          <div id="free-rides-form" className="bg-card border border-border rounded-2xl p-5 space-y-4 shadow-md scroll-mt-20">
             <h3 className="font-bold text-base text-foreground flex items-center gap-2 border-b border-border pb-2.5">
               <Sparkles className="w-5 h-5 text-primary" />
               تعديل عدد الرحلات المجانية الممنوحة للسائقين (فترة تجريبية)

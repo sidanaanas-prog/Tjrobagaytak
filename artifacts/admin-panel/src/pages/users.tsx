@@ -33,6 +33,16 @@ import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/lib/api-url";
 const BASE = getApiUrl("");
 
+function getNumericId(id: string | null | undefined): string {
+  if (!id) return "—";
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash << 5) - hash + id.charCodeAt(i);
+    hash |= 0;
+  }
+  return String(Math.abs(hash) % 1000000).padStart(6, "0");
+}
+
 const updateUserSchema = z.object({
   name: z.string().min(2, "Name required"),
   role: z.enum(["admin", "user"]),
@@ -281,9 +291,12 @@ export default function Users() {
                             )}
                           </p>
                           <p className="text-xs text-muted-foreground font-mono">{user.email}</p>
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <span className="text-[10px] text-muted-foreground bg-muted/50 border border-border px-1.5 py-0.5 rounded font-mono select-all">
-                              ID: {user.id}
+                           <div className="flex items-center gap-1.5 mt-1">
+                            <span 
+                              className="text-[10px] text-muted-foreground bg-muted/50 border border-border px-1.5 py-0.5 rounded font-mono select-all cursor-help font-bold"
+                              title={`المعرف الكامل: ${user.id}`}
+                            >
+                              ID: {getNumericId(user.id)}
                             </span>
                             <button
                               onClick={() => {
