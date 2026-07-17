@@ -509,6 +509,8 @@ router.get("/admin/drivers", authenticate, requireAdmin, async (_req, res): Prom
       documentsStatus: d.documentsStatus,
       documentsSubmittedAt: d.documentsSubmittedAt?.toISOString() ?? null,
       isFree: d.isFree,
+      freeRidesLeft: d.freeRidesLeft,
+      trialExpiresAt: d.trialExpiresAt?.toISOString() ?? null,
       walletBalance: walletMap[d.userId] ? Number(walletMap[d.userId].balance) : 0,
     };
   }));

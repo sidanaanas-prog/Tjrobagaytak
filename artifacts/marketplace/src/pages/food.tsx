@@ -416,17 +416,27 @@ export default function FoodPage() {
                 className="p-5 rounded-2xl bg-gradient-to-br from-primary/15 via-black/40 to-background border border-primary/30 text-center"
               >
                 <Sparkles className="w-8 h-8 text-primary mx-auto mb-2 animate-pulse" />
-                <h3 className="text-sm font-black text-white">هل تريد الصعود في لائحة الصدارة والفوز؟</h3>
-                <p className="text-xs text-white/50 mt-1">اشترك الآن بضغطة زر، انسخ كود إحالتك، واكسب نقطة واحدة عن كل راكب يجلب رحلة ويكملها!</p>
+                <h3 className="text-sm font-black text-white">
+                  {competition.status === "preparing" 
+                    ? "المسابقة قيد التجهيز... احجز مقعدك واظهر اهتمامك! ⏳"
+                    : "هل تريد الصعود في لائحة الصدارة والفوز؟"}
+                </h3>
+                <p className="text-xs text-white/50 mt-1 font-sans leading-relaxed">
+                  {competition.status === "preparing"
+                    ? "احجز مقعدك الآن لتكون من أوائل المشاركين والمهتمين فور انطلاق المسابقة رسمياً وكسب نقاط الإحالة!"
+                    : "اشترك الآن بضغطة زر، انسخ كود إحالتك، واكسب نقطة واحدة عن كل راكب يجلب رحلة ويكملها!"}
+                </p>
                 
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={handleJoinCompetition}
-                  disabled={joining || competition.status !== "open"}
+                  disabled={joining || (competition.status !== "open" && competition.status !== "preparing")}
                   className="w-full py-3 rounded-xl bg-primary text-white text-xs font-black shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:shadow-[0_0_30px_rgba(168,85,247,0.6)] transition-all mt-4 flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
                   {joining ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : competition.status === "preparing" ? (
+                    <>احجز مقعدي الآن! 🚀</>
                   ) : (
                     <>أنا جاهز للاشتراك الآن! 🚀</>
                   )}

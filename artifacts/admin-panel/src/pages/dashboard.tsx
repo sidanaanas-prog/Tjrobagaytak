@@ -1,13 +1,13 @@
 import { useGetAdminStats, useGetAdminActivity, useListProducts, useApproveProduct, getGetAdminStatsQueryKey, getListProductsQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Box, MessageSquare, AlertCircle, CheckCircle2, XCircle, ShoppingBag, TrendingUp, DollarSign, Clock, Truck, Package, Car, MapPin, Navigation, CreditCard, Gift } from "lucide-react";
+import { Users, Box, MessageSquare, AlertCircle, CheckCircle2, XCircle, ShoppingBag, TrendingUp, DollarSign, Clock, Truck, Package, Car, MapPin, Navigation, CreditCard, Gift, Phone, Copy, Search, AlertTriangle } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/lib/api-url";
 import { Loader2 } from "lucide-react";
@@ -55,6 +55,55 @@ export default function Dashboard() {
     { status: "pending", limit: 5 },
     { query: { queryKey: getListProductsQueryKey({ status: "pending", limit: 5 }) } }
   );
+
+  const { toast } = useToast();
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [driversLoading, setDriversLoading] = useState(false);
+  const [commTab, setCommTab] = useState<"debtors" | "free">("debtors");
+  const [showCommDetails, setShowCommDetails] = useState(false);
+  const [driverSearch, setDriverSearch] = useState("");
+
+  const loadDrivers = useCallback(async () => {
+    setDriversLoading(true);
+    try {
+      const token = localStorage.getItem("glow_admin_token");
+      const res = await fetch(`${BASE}/api/admin/drivers`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setDrivers(await res.json());
+      }
+    } catch (e) {
+      console.error("Error loading drivers:", e);
+    } finally {
+      setDriversLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDrivers();
+  }, [loadDrivers]);
+
+  const handleCopyPhone = (phone: string) => {
+    if (!phone) return;
+    navigator.clipboard.writeText(phone);
+    toast({
+      title: "تم نسخ الرقم! 📋",
+      description: `تم نسخ رقم الهاتف ${phone} إلى الحافظة.`,
+    });
+  };
+
+  const getDaysLeft = (dateStr: string | null) => {
+    if (!dateStr) return 0;
+    const diff = new Date(dateStr).getTime() - Date.now();
+    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+  };
+
+  const getWhatsAppLink = (phone: string | null) => {
+    if (!phone) return "#";
+    const cleanPhone = phone.replace(/[+\s-]/g, "");
+    return `https://wa.me/${cleanPhone}`;
+  };
 
   const queryClient = useQueryClient();
   const approveMutation = useApproveProduct();
@@ -476,6 +525,256 @@ export default function Dashboard() {
                   </span>
                 </div>
               </div>
+            </Card>
+
+            {/* تفاصيل عمولات السائقين ومستحقاتهم */}
+            <Card className="col-span-2 md:col-span-4 lg:col-span-6 bg-slate-950/40 border border-slate-800 p-5 rounded-2xl space-y-4" dir="rtl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-white/5">
+                <div className="space-y-1 text-right">
+                  <h3 className="text-base font-bold text-white flex items-center gap-2 justify-start">
+                    <TrendingUp className="w-4 h-4 text-emerald-400" />
+                    المتابعة الذكية لعمولات السائقين ومستحقاتهم
+                  </h3>
+                  <p className="text-xs text-muted-foreground">تتبع السائقين المطالبين بدفع العمولة، ومن لديهم رحلات مجانية أو اشتراكات نشطة للاتصال بهم بسهولة.</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 justify-end">
+                  <button
+                    onClick={() => setCommTab("debtors")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                      commTab === "debtors"
+                        ? "bg-red-500/20 border border-red-500/40 text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.15)]"
+                        : "bg-white/5 border border-white/10 text-white/60 hover:text-white"
+                    }`}
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    جاهزون للدفع / رصيد سالب ({drivers.filter(d => d.walletBalance < 0).length})
+                  </button>
+                  <button
+                    onClick={() => setCommTab("free")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                      commTab === "free"
+                        ? "bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.15)]"
+                        : "bg-white/5 border border-white/10 text-white/60 hover:text-white"
+                    }`}
+                  >
+                    <Gift className="w-3.5 h-3.5" />
+                    السائقون في الوضع المجاني / تجريبي / نشط ({
+                      drivers.filter(d => 
+                        d.isFree || 
+                        d.freeRidesLeft > 0 || 
+                        (d.trialExpiresAt && new Date(d.trialExpiresAt) > new Date()) || 
+                        (d.isSubscribed && d.subscriptionExpiresAt && new Date(d.subscriptionExpiresAt) > new Date())
+                      ).length
+                    })
+                  </button>
+                </div>
+              </div>
+
+              {/* البحث و التصفية */}
+              <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2 w-full max-w-md mr-auto" dir="rtl">
+                <Search className="w-4 h-4 text-white/40" />
+                <input
+                  type="text"
+                  placeholder="ابحث عن سائق باسمه أو رقم هاتفه..."
+                  value={driverSearch}
+                  onChange={(e) => setDriverSearch(e.target.value)}
+                  className="bg-transparent border-none text-xs text-white focus:outline-none w-full text-right"
+                />
+              </div>
+
+              {driversLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-white/10">
+                  <table className="w-full text-right border-collapse">
+                    <thead>
+                      <tr className="bg-white/5 border-b border-white/10 text-white/60 text-xs font-bold">
+                        <th className="p-3">السائق</th>
+                        <th className="p-3">الهاتف</th>
+                        <th className="p-3 text-center">حالة الحساب / الرصيد</th>
+                        <th className="p-3 text-center">الرحلات المكتملة</th>
+                        <th className="p-3 text-center">التفاصيل الذكية</th>
+                        <th className="p-3 text-center">تواصل سريع</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {commTab === "debtors" ? (
+                        (() => {
+                          const list = drivers.filter(d => d.walletBalance < 0).filter(d => 
+                            d.name.toLowerCase().includes(driverSearch.toLowerCase()) || 
+                            (d.phone && d.phone.includes(driverSearch))
+                          );
+                          if (list.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={6} className="p-8 text-center text-xs text-muted-foreground">
+                                  لا يوجد سائقون رصيدهم سالب ومطالبون بالدفع حالياً! 👍
+                                </td>
+                              </tr>
+                            );
+                          }
+                          return list.map((d) => (
+                            <tr key={d.id} className="border-b border-white/5 hover:bg-white/[0.02] text-xs">
+                              <td className="p-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center font-bold text-white border border-white/10 overflow-hidden">
+                                    {d.avatar ? <img src={d.avatar} className="w-full h-full object-cover" /> : d.name[0]}
+                                  </div>
+                                  <div>
+                                    <p className="font-bold text-white">{d.name}</p>
+                                    <p className="text-[10px] text-muted-foreground">{d.email}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-3 font-mono text-white/80">{d.phone || "غير متوفر"}</td>
+                              <td className="p-3 text-center font-bold text-red-400 font-mono" dir="ltr">
+                                {d.walletBalance.toLocaleString()} ألف دورو ⚠️
+                              </td>
+                              <td className="p-3 text-center font-mono text-white/70">{d.totalRides || 0}</td>
+                              <td className="p-3 text-center">
+                                <span className="bg-red-500/10 border border-red-500/20 text-red-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                                  رصيد مكشوف - مطالب بالسداد فوراً 💸
+                                </span>
+                              </td>
+                              <td className="p-3">
+                                <div className="flex items-center justify-center gap-2">
+                                  {d.phone && (
+                                    <>
+                                      <a
+                                        href={`tel:${d.phone}`}
+                                        className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 transition-colors"
+                                        title="اتصال هاتفي"
+                                      >
+                                        <Phone className="w-3.5 h-3.5" />
+                                      </a>
+                                      <a
+                                        href={getWhatsAppLink(d.phone)}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                                        title="مراسلة واتساب"
+                                      >
+                                        <MessageSquare className="w-3.5 h-3.5" />
+                                      </a>
+                                      <button
+                                        onClick={() => handleCopyPhone(d.phone)}
+                                        className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/60 hover:bg-white/10 transition-colors"
+                                        title="نسخ رقم الهاتف"
+                                      >
+                                        <Copy className="w-3.5 h-3.5" />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ));
+                        })()
+                      ) : (
+                        (() => {
+                          const list = drivers.filter(d => 
+                            d.isFree || 
+                            d.freeRidesLeft > 0 || 
+                            (d.trialExpiresAt && new Date(d.trialExpiresAt) > new Date()) || 
+                            (d.isSubscribed && d.subscriptionExpiresAt && new Date(d.subscriptionExpiresAt) > new Date())
+                          ).filter(d => 
+                            d.name.toLowerCase().includes(driverSearch.toLowerCase()) || 
+                            (d.phone && d.phone.includes(driverSearch))
+                          );
+                          if (list.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={6} className="p-8 text-center text-xs text-muted-foreground">
+                                  لا يوجد سائقون بميزات مجانية نشطة حالياً!
+                                </td>
+                              </tr>
+                            );
+                          }
+                          return list.map((d) => {
+                            let benefitText = "";
+                            let badgeStyle = "";
+                            if (d.isFree) {
+                              benefitText = "معفي دائم من العمولات 🛡️";
+                              badgeStyle = "bg-purple-500/10 border-purple-500/20 text-purple-400";
+                            } else if (d.freeRidesLeft > 0) {
+                              benefitText = `متبقي ${d.freeRidesLeft} رحلة مجانية 🎁`;
+                              badgeStyle = "bg-amber-500/10 border-amber-500/20 text-amber-400";
+                            } else if (d.trialExpiresAt && new Date(d.trialExpiresAt) > new Date()) {
+                              benefitText = `تجربة نشطة (ينتهي في خلال ${getDaysLeft(d.trialExpiresAt)} يوم) ⏳`;
+                              badgeStyle = "bg-blue-500/10 border-blue-500/20 text-blue-400";
+                            } else if (d.isSubscribed && d.subscriptionExpiresAt && new Date(d.subscriptionExpiresAt) > new Date()) {
+                              benefitText = `اشتراك شهري نشط (ينتهي في خلال ${getDaysLeft(d.subscriptionExpiresAt)} يوم) 📅`;
+                              badgeStyle = "bg-emerald-500/10 border-emerald-500/20 text-emerald-400";
+                            } else {
+                              benefitText = "لا توجد ميزات نشطة";
+                              badgeStyle = "bg-white/5 border border-white/10 text-white/50";
+                            }
+
+                            return (
+                              <tr key={d.id} className="border-b border-white/5 hover:bg-white/[0.02] text-xs">
+                                <td className="p-3">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center font-bold text-white border border-white/10 overflow-hidden">
+                                      {d.avatar ? <img src={d.avatar} className="w-full h-full object-cover" /> : d.name[0]}
+                                    </div>
+                                    <div>
+                                      <p className="font-bold text-white">{d.name}</p>
+                                      <p className="text-[10px] text-muted-foreground">{d.email}</p>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="p-3 font-mono text-white/80">{d.phone || "غير متوفر"}</td>
+                                <td className="p-3 text-center font-bold text-emerald-400 font-mono" dir="ltr">
+                                  {d.walletBalance >= 0 ? `+${d.walletBalance.toLocaleString()}` : d.walletBalance.toLocaleString()} د.أ
+                                </td>
+                                <td className="p-3 text-center font-mono text-white/70">{d.totalRides || 0}</td>
+                                <td className="p-3 text-center">
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeStyle}`}>
+                                    {benefitText}
+                                  </span>
+                                </td>
+                                <td className="p-3">
+                                  <div className="flex items-center justify-center gap-2">
+                                    {d.phone && (
+                                      <>
+                                        <a
+                                          href={`tel:${d.phone}`}
+                                          className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 transition-colors"
+                                          title="اتصال هاتفي"
+                                        >
+                                          <Phone className="w-3.5 h-3.5" />
+                                        </a>
+                                        <a
+                                          href={getWhatsAppLink(d.phone)}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                                          title="مراسلة واتساب"
+                                        >
+                                          <MessageSquare className="w-3.5 h-3.5" />
+                                        </a>
+                                        <button
+                                          onClick={() => handleCopyPhone(d.phone)}
+                                          className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/60 hover:bg-white/10 transition-colors"
+                                          title="نسخ رقم الهاتف"
+                                        >
+                                          <Copy className="w-3.5 h-3.5" />
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          });
+                        })()
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </Card>
 
             {/* الرحلات */}
