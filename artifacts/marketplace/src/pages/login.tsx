@@ -199,9 +199,9 @@ export default function LoginPage() {
     const delayDebounceFn = setTimeout(async () => {
       setInviteCodeLoading(true);
       try {
-        const res = await fetch(`${BASE}/api/auth/validate-invite-code/${encodeURIComponent(inviteCode.trim())}`);
+        const res = await fetch(`${BASE}/api/auth/validate-invite-code/${encodeURIComponent(inviteCode.trim().toUpperCase())}`);
         const data = await res.json();
-        setInviteCodeValid(data.valid);
+        setInviteCodeValid(data.valid === true);
       } catch (err) {
         console.error(err);
         setInviteCodeValid(null);
@@ -321,14 +321,19 @@ export default function LoginPage() {
       toast({ variant: "destructive", title: "أدخل اسمك" });
       return;
     }
-    if (isNewUser && inviteCode.trim() && inviteCodeValid === false) {
+    if (isNewUser && inviteCode.trim() && inviteCodeLoading) {
+      toast({ variant: "destructive", title: "جاري التحقق", description: "يرجى الانتظار حتى ينتهي التحقق من كود الإحالة." });
+      return;
+    }
+    if (isNewUser && inviteCode.trim() && inviteCodeValid !== true) {
       toast({ variant: "destructive", title: "خطأ في كود الإحالة", description: "كود الإحالة المكتوب غير صحيح. يرجى تعديله أو مسحه بالكامل." });
       return;
     }
     setLoading(true);
     setServerWaking(false);
     try {
-      const referredBy = inviteCode.trim() || localStorage.getItem("gaytak_referred_by") || undefined;
+      const rawRef = inviteCode.trim() || localStorage.getItem("gaytak_referred_by") || "";
+      const referredBy = rawRef.trim().toUpperCase() || undefined;
       const { res, data } = await apiFetch(
         `${BASE}/api/auth/otp/verify`,
         { 
@@ -536,7 +541,7 @@ export default function LoginPage() {
                         />
                       </div>
 
-                       <div className="space-y-2">
+                      <div className="space-y-2">
                         <label className="text-xs text-white/50 uppercase tracking-wider font-bold flex items-center justify-between">
                           <span>كود الإحالة / الدعوة (اختياري)</span>
                           {inviteCode.trim() && (
@@ -553,8 +558,9 @@ export default function LoginPage() {
                           type="text"
                           value={inviteCode}
                           onChange={(e) => {
-                            setInviteCode(e.target.value);
-                            localStorage.setItem("gaytak_referred_by", e.target.value);
+                            const val = e.target.value.toUpperCase();
+                            setInviteCode(val);
+                            localStorage.setItem("gaytak_referred_by", val);
                           }}
                           placeholder="مثال: GT-AMINE8"
                           className={`w-full bg-white/5 border rounded-2xl px-4 h-12 text-white placeholder:text-white/20 focus:outline-none transition-all text-left font-mono ${
@@ -577,7 +583,11 @@ export default function LoginPage() {
                   <motion.button
                     type="submit"
                     whileTap={{ scale: 0.97 }}
-                    disabled={loading || otp.length < 6}
+                    disabled={
+                      loading || 
+                      otp.length < 6 || 
+                      (isNewUser && !!inviteCode.trim() && (inviteCodeLoading || inviteCodeValid !== true))
+                    }
                     className="w-full py-3.5 bg-primary text-white font-bold rounded-2xl shadow-[0_0_20px_rgba(168,85,247,0.4)] flex items-center justify-center gap-2 disabled:opacity-40 text-base"
                   >
                     {loading

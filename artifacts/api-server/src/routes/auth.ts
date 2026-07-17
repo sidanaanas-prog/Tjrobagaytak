@@ -28,13 +28,14 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     let referrerUserId: string | null = null;
     if (referredBy) {
       try {
+        const normalizedRef = referredBy.trim().toUpperCase();
         const [participant] = await db
           .select()
           .from(competitionParticipantsTable)
-          .where(eq(competitionParticipantsTable.inviteCode, referredBy));
+          .where(eq(competitionParticipantsTable.inviteCode, normalizedRef));
         if (participant) {
           referrerUserId = participant.userId;
-          console.log(`Resolved invite code ${referredBy} to referrer userId ${referrerUserId}`);
+          console.log(`Resolved invite code ${normalizedRef} to referrer userId ${referrerUserId}`);
         } else {
           res.status(400).json({ error: "كود الإحالة غير صحيح أو غير موجود" });
           return;
@@ -232,12 +233,13 @@ router.get("/auth/validate-invite-code/:code", async (req, res): Promise<void> =
       res.status(400).json({ valid: false, error: "الكود مطلوب" });
       return;
     }
+    const normalizedCode = code.trim().toUpperCase();
     const [participant] = await db
       .select()
       .from(competitionParticipantsTable)
-      .where(eq(competitionParticipantsTable.inviteCode, code));
+      .where(eq(competitionParticipantsTable.inviteCode, normalizedCode));
     if (participant) {
-      res.json({ valid: true, code });
+      res.json({ valid: true, code: normalizedCode });
     } else {
       res.json({ valid: false, error: "كود الإحالة غير صحيح أو غير موجود" });
     }
