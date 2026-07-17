@@ -21,6 +21,7 @@ import DriverSubscriptions from "@/pages/driver-subscriptions";
 import Rides from "@/pages/rides-admin";
 import RestaurantsAdmin from "@/pages/restaurants-admin";
 import Promotions from "@/pages/promotions";
+import Competition from "@/pages/competition";
 import { AdminAuthProvider } from "@/hooks/use-admin-auth";
 import { Layout } from "@/components/layout";
 
@@ -63,6 +64,7 @@ function Router() {
       <Route path="/rides" component={() => <ProtectedRoute component={Rides} />} />
       <Route path="/restaurants" component={() => <ProtectedRoute component={RestaurantsAdmin} />} />
       <Route path="/promotions" component={() => <ProtectedRoute component={Promotions} />} />
+      <Route path="/competition" component={() => <ProtectedRoute component={Competition} />} />
       <Route component={NotFound} />
     </Switch>
   );
