@@ -750,7 +750,7 @@ router.post("/driver/profile", authenticate, async (req, res): Promise<void> => 
         idCardImage: idCardImage ?? null,
         vehicleDocImage: vehicleDocImage ?? null,
         trialExpiresAt: null, // No more 7 days free trial
-        freeRidesLeft: 5, // Starts with 5 free rides
+        freeRidesLeft: 0, // Starts with 0 free rides until verified by admin
         documentsSubmittedAt: hasDocs ? now : null,
         documentsStatus: hasDocs ? "pending" : null,
         createdAt: now,
@@ -795,7 +795,7 @@ router.get("/driver/subscription", authenticate, async (req, res): Promise<void>
     const [profile] = (await db.select().from(driverProfilesTable).where(eq(driverProfilesTable.userId, driverId))) ?? [];
 
     const isSubscribed = profile?.documentsStatus === "verified";
-    const isFree = profile?.isFree || (profile?.freeRidesLeft ?? 0) > 0;
+    const isFree = profile?.documentsStatus === "verified" && (profile?.isFree || (profile?.freeRidesLeft ?? 0) > 0);
     const isPending = profile?.documentsStatus === "pending";
 
     res.json({
