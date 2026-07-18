@@ -287,9 +287,9 @@ router.patch("/rides/:id/accept", authenticate, async (req, res): Promise<void> 
     }
 
     // تأكيد مرة ثانية للحالة = pending قبل التحديث (race condition fix)
-    const now2 = new Date();
+    const now = new Date();
     await db.update(ridesTable).set({
-      driverId, status: "accepted", acceptedAt: now2, updatedAt: now2,
+      driverId, status: "accepted", acceptedAt: now, updatedAt: now,
     }).where(and(eq(ridesTable.id, req.params.id as string), eq(ridesTable.status, "pending")));
 
     // التحقق من التحديث الفعلي

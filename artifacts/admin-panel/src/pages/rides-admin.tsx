@@ -700,7 +700,7 @@ export default function RidesAdmin() {
                                 onClick={() => {
                                   setWalletUserId(d.driverId);
                                   setWalletAmount(String(d.unpaidCommission));
-                                  setWalletAction("withdraw");
+                                  setWalletAction("deposit");
                                   setActiveTab("settings");
                                   
                                   // Scroll down to the form
@@ -710,13 +710,13 @@ export default function RidesAdmin() {
                                   }, 150);
 
                                   toast({
-                                    title: "تم تجهيز الخصم 💸",
-                                    description: "تم ملء معلومات السائق وقيمة العمولات المستحقة في نموذج تعديل المحفظة بالأسفل.",
+                                    title: "تم تجهيز السداد والتحصيل 💸",
+                                    description: "تم ملء معلومات السائق وقيمة العمولات المستحقة كإيداع لتسوية المحفظة وتصفير الديون بالأسفل.",
                                   });
                                 }}
                                 className="px-2.5 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-bold transition-all"
                               >
-                                خصم من المحفظة
+                                سداد وتصفير العولة
                               </button>
                               
                               <button
