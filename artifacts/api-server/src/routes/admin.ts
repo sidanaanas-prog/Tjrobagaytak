@@ -802,10 +802,7 @@ router.delete("/admin/destinations/:id", authenticate, requireAdmin, async (req,
 router.patch("/admin/users/:userId/wallet", authenticate, requireAdmin, async (req, res): Promise<void> => {
   try {
     const userId = req.params.userId as string;
-    const { amount, action } = req.body; // action: "deposit" | "withdraw"
-    if (!amount || Number(amount) <= 0) { res.status(400).json({ error: "مبلغ غير صالح" }); return; }
-
-    const change = action === "deposit" ? Number(amount) : -Number(amount);
+    const { amount, action } = req.body; // action: "deposit" | "withdraw" | "reset"
 
     const [userWallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, userId));
     let walletId = userWallet?.id;
@@ -823,7 +820,24 @@ router.patch("/admin/users/:userId/wallet", authenticate, requireAdmin, async (r
       walletId = userWallet.id;
     }
 
-    const newBalance = currentBalance + change;
+    let change = 0;
+    let newBalance = 0;
+    let description = "";
+    let type = "deposit";
+
+    if (action === "reset") {
+      change = -currentBalance;
+      newBalance = 0;
+      description = "تصفير المحفظة وتسوية الديون من قبل الإدارة";
+      type = change >= 0 ? "deposit" : "withdrawal";
+    } else {
+      if (!amount || Number(amount) <= 0) { res.status(400).json({ error: "مبلغ غير صالح" }); return; }
+      change = action === "deposit" ? Number(amount) : -Number(amount);
+      newBalance = currentBalance + change;
+      description = action === "deposit" ? "شحن المحفظة من قبل الإدارة" : "خصم رصيد من قبل الإدارة";
+      type = action === "deposit" ? "deposit" : "withdrawal";
+    }
+
     await db.update(walletsTable).set({
       balance: String(newBalance),
       updatedAt: new Date(),
@@ -833,10 +847,10 @@ router.patch("/admin/users/:userId/wallet", authenticate, requireAdmin, async (r
       id: randomUUID(),
       walletId: walletId!,
       userId,
-      type: action === "deposit" ? "deposit" : "withdrawal",
+      type,
       amount: String(change),
       balanceAfter: String(newBalance),
-      description: action === "deposit" ? "شحن المحفظة من قبل الإدارة" : "خصم رصيد من قبل الإدارة",
+      description,
       status: "completed",
     });
 

@@ -116,6 +116,23 @@ export default function DriverSubscriptions() {
     } finally { setActionId(null); }
   }
 
+  async function resetWallet(userId: string) {
+    setActionId(userId);
+    try {
+      const res = await fetch(`${BASE}/api/admin/users/${userId}/wallet`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: "reset" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast({ title: "✅ تم التصفير", description: "تم تصفير محفظة السائق بنجاح وتسوية ديونه." });
+      load();
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "خطأ", description: e.message });
+    } finally { setActionId(null); }
+  }
+
   async function verifyDocuments(userId: string, status: "verified" | "rejected") {
     setActionId(userId);
     try {
@@ -353,6 +370,17 @@ export default function DriverSubscriptions() {
                   {actionId === driver.userId ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />}
                   {driver.isFree ? "مجاني" : "تفعيل مجاني"}
                 </button>
+
+                {driver.walletBalance !== 0 && (
+                  <button
+                    onClick={() => resetWallet(driver.userId)}
+                    disabled={actionId === driver.userId}
+                    className="flex-1 min-w-[120px] bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all disabled:opacity-50"
+                  >
+                    {actionId === driver.userId ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+                    تصفير المحفظة
+                  </button>
+                )}
               </div>
             </div>
           ))}

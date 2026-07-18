@@ -1266,8 +1266,12 @@ function AdminRidesDashboard() {
 
   const handleWalletAdjust = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!walletUserId || !walletAmount || Number(walletAmount) <= 0) {
-      toast({ variant: "destructive", title: "تنبيه", description: "يرجى إدخال معرف مستخدم صحيح ومبلغ أكبر من صفر." });
+    if (!walletUserId) {
+      toast({ variant: "destructive", title: "تنبيه", description: "يرجى إدخال معرف مستخدم صحيح." });
+      return;
+    }
+    if (walletAction !== "reset" && (!walletAmount || Number(walletAmount) <= 0)) {
+      toast({ variant: "destructive", title: "تنبيه", description: "يرجى إدخال مبلغ أكبر من صفر." });
       return;
     }
     setWalletSubmitting(true);
@@ -1637,6 +1641,13 @@ function AdminRidesDashboard() {
                 className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${walletAction === "withdraw" ? "bg-red-500 text-white" : "text-muted-foreground"}`}
               >
                 خصم / سحب رصيد
+              </button>
+              <button
+                type="button"
+                onClick={() => { setWalletAction("reset"); setWalletAmount("0"); }}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${walletAction === "reset" ? "bg-amber-500 text-white" : "text-muted-foreground"}`}
+              >
+                تصفير الرصيد
               </button>
             </div>
             <button

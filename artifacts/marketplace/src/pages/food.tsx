@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Star, Clock, Home, Sparkles, MapPin, Flame, ChevronRight, LayoutDashboard, Trophy, Gift, Calendar, Share2, Copy, Users, AlertCircle, HelpCircle, ArrowLeft, Loader2, RefreshCw } from "lucide-react";
+import { Search, Star, Clock, Home, Sparkles, MapPin, Flame, ChevronRight, LayoutDashboard, Trophy, Gift, Calendar, Share2, Copy, Users, AlertCircle, HelpCircle, ArrowLeft, Loader2, RefreshCw, X, Eye } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { getApiUrl } from "@/lib/api-url";
 import { useAuth, getMemToken } from "@/hooks/use-auth";
