@@ -132,7 +132,7 @@ export default function RidesAdmin() {
   // Wallet states
   const [walletUserId, setWalletUserId] = useState("");
   const [walletAmount, setWalletAmount] = useState("");
-  const [walletAction, setWalletAction] = useState<"deposit" | "withdraw">("deposit");
+  const [walletAction, setWalletAction] = useState<"deposit" | "withdraw" | "reset">("deposit");
   const [walletSubmitting, setWalletSubmitting] = useState(false);
 
   // Free rides states
@@ -293,21 +293,30 @@ export default function RidesAdmin() {
 
   const handleWalletAdjust = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!walletUserId || !walletAmount || Number(walletAmount) <= 0) {
-      toast({ variant: "destructive", title: "تنبيه", description: "يرجى إدخال معرف مستخدم صحيح ومبلغ أكبر من صفر." });
+    if (!walletUserId) {
+      toast({ variant: "destructive", title: "تنبيه", description: "يرجى إدخال معرف مستخدم صحيح." });
+      return;
+    }
+    if (walletAction !== "reset" && (!walletAmount || Number(walletAmount) <= 0)) {
+      toast({ variant: "destructive", title: "تنبيه", description: "يرجى إدخال مبلغ أكبر من صفر." });
       return;
     }
     setWalletSubmitting(true);
     try {
+      const bodyPayload = walletAction === "reset" 
+        ? { action: "reset" }
+        : { amount: walletAmount, action: walletAction };
+
       const res = await fetch(`${BASE}/api/admin/users/${walletUserId}/wallet`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ amount: walletAmount, action: walletAction }),
+        body: JSON.stringify(bodyPayload),
       });
       const data = await res.json();
       if (data.success) {
-        toast({ title: "✅ تم التعديل", description: `تم تعديل رصيد المحفظة بنجاح. الرصيد الجديد: ${data.newBalance} ألف دورو` });
+        toast({ title: "✅ تم التعديل", description: walletAction === "reset" ? "تم تصفير محفظة السائق بنجاح وتسوية ديونه." : `تم تعديل رصيد المحفظة بنجاح. الرصيد الجديد: ${data.newBalance} ألف دورو` });
         setWalletAmount("");
+        load();
       } else {
         toast({ variant: "destructive", title: "خطأ", description: data.error });
       }
@@ -396,9 +405,10 @@ export default function RidesAdmin() {
     commissionOwed: number;
     commissionDeducted: number;
     unpaidCommission: number;
+    walletBalance: number;
   }> = {};
 
-  completedRides.forEach((r) => {
+  completedRides.forEach((r: any) => {
     if (r.driverId) {
       const dId = r.driverId;
       const priceNum = Number(r.price || 0);
@@ -409,7 +419,6 @@ export default function RidesAdmin() {
         expected = Math.round(priceNum * (commVal / 100));
       }
       const deducted = r.commissionDeducted ?? 0;
-      const unpaid = Math.max(0, expected - deducted);
 
       if (!driverStatsMap[dId]) {
         driverStatsMap[dId] = {
@@ -421,6 +430,7 @@ export default function RidesAdmin() {
           commissionOwed: 0,
           commissionDeducted: 0,
           unpaidCommission: 0,
+          walletBalance: Number(r.driverWalletBalance ?? 0),
         };
       }
 
@@ -429,8 +439,12 @@ export default function RidesAdmin() {
       d.totalEarnings += priceNum;
       d.commissionOwed += expected;
       d.commissionDeducted += deducted;
-      d.unpaidCommission += unpaid;
     }
+  });
+
+  // Calculate unpaid commission based on the actual negative wallet balance
+  Object.values(driverStatsMap).forEach((d) => {
+    d.unpaidCommission = d.walletBalance < 0 ? Math.abs(d.walletBalance) : 0;
   });
 
   const driversDebtList = Object.values(driverStatsMap)
@@ -1105,10 +1119,11 @@ export default function RidesAdmin() {
               />
               <input
                 type="number"
-                placeholder="المبلغ بألف دورو"
-                value={walletAmount}
+                placeholder={walletAction === "reset" ? "التصفير لا يحتاج قيمة" : "المبلغ بألف دورو"}
+                value={walletAction === "reset" ? "" : walletAmount}
                 onChange={(e) => setWalletAmount(e.target.value)}
-                className="bg-background text-foreground border border-border rounded-xl px-3.5 py-2.5 text-xs font-bold"
+                disabled={walletAction === "reset"}
+                className="bg-background text-foreground border border-border rounded-xl px-3.5 py-2.5 text-xs font-bold disabled:opacity-50"
               />
               <select
                 value={walletAction}
@@ -1117,6 +1132,7 @@ export default function RidesAdmin() {
               >
                 <option value="deposit">📥 إيداع / شحن رصيد</option>
                 <option value="withdraw">📤 سحب / اقتطاع رصيد</option>
+                <option value="reset">🔄 تصفير المحفظة وتسوية الديون</option>
               </select>
 
               <div className="sm:col-span-4 text-left">

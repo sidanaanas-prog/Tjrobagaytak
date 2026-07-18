@@ -626,6 +626,12 @@ router.get("/admin/rides", authenticate, requireAdmin, async (_req, res): Promis
       : [];
     const dProfMap = Object.fromEntries(driverProfiles.map((d) => [d.userId, d]));
 
+    // Fetch driver wallet balances
+    const driverWallets = driverIds.length > 0
+      ? await db.select().from(walletsTable).where(inArray(walletsTable.userId, driverIds))
+      : [];
+    const driverWalletMap = Object.fromEntries(driverWallets.map(w => [w.userId, Number(w.balance)]));
+
     // Fetch settings for expected commission calculations
     const [typeSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_type"));
     const [valSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_value"));
@@ -709,6 +715,7 @@ router.get("/admin/rides", authenticate, requireAdmin, async (_req, res): Promis
         cancelledAt: safeToIsoString(r.cancelledAt),
         commissionDeducted,
         expectedCommission,
+        driverWalletBalance: r.driverId ? (driverWalletMap[r.driverId] ?? 0) : 0,
       };
     }));
   } catch (err: any) {
