@@ -264,7 +264,27 @@ router.patch("/rides/:id/accept", authenticate, async (req, res): Promise<void> 
 
     const [ride] = (await db.select().from(ridesTable).where(eq(ridesTable.id, req.params.id as string))) ?? [];
     if (!ride) { res.status(404).json({ error: "الرحلة غير موجودة" }); return; }
-    if (ride.status !== "pending") { res.status(409).json({ error: "الرحلة تم قبولها من سائق آخر", alreadyTaken: true }); return; }
+    
+    if (ride.status !== "pending") {
+      if (ride.status === "accepted" && ride.driverId === driverId) {
+        // إذا كان السائق قد قبل الكورسة مسبقاً (نقرة مزدوجة أو إعادة اتصال)، نرجع نجاح مباشرةً مع المحادثة والراكب لتجنب إظهار خطأ
+        const [existingConv] = await db
+          .select()
+          .from(conversationsTable)
+          .where(
+            or(
+              and(eq(conversationsTable.participant1Id, driverId), eq(conversationsTable.participant2Id, ride.passengerId)),
+              and(eq(conversationsTable.participant1Id, ride.passengerId), eq(conversationsTable.participant2Id, driverId))
+            )
+          );
+        const conversationId = existingConv ? existingConv.id : "";
+        const [passenger] = (await db.select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone, avatar: usersTable.avatar }).from(usersTable).where(eq(usersTable.id, ride.passengerId))) ?? [];
+        res.json({ success: true, conversationId, passenger: passenger ?? null });
+        return;
+      }
+      res.status(409).json({ error: "الرحلة تم قبولها من سائق آخر", alreadyTaken: true });
+      return;
+    }
 
     // تأكيد مرة ثانية للحالة = pending قبل التحديث (race condition fix)
     const now2 = new Date();

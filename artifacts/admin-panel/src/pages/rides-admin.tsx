@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/lib/api-url";
 import {
   Loader2, Car, MapPin, Clock, CheckCircle, XCircle, Star, User, Phone,
-  Settings, Trash2, ShieldAlert, Wallet, Sparkles, Map, Sliders, DollarSign, Copy
+  Settings, Trash2, ShieldAlert, Wallet, Sparkles, Map, Sliders, DollarSign, Copy, Search
 } from "lucide-react";
 
 const BASE = getApiUrl("");
