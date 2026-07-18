@@ -68,7 +68,7 @@ export const driverProfilesTable = pgTable("driver_profiles", {
   subscriptionExpiresAt: timestamp("subscription_expires_at", { withTimezone: true }),
   // سائق مجاني (يعمل بدون دفع اشتراك)
   isFree: boolean("is_free").notNull().default(false),
-  freeRidesLeft: integer("free_rides_left").notNull().default(5), // عدد الرحلات المجانية المتبقية للسائق (أول 5 رحلات مجانية)
+  freeRidesLeft: integer("free_rides_left").notNull().default(0), // عدد الرحلات المجانية المتبقية للسائق (أول 5 رحلات مجانية)
   // تجربة مجانية 7 أيام للسائقين الجدد
   trialExpiresAt: timestamp("trial_expires_at", { withTimezone: true }),
   // وثائق السائق

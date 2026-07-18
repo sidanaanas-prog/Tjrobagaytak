@@ -592,7 +592,7 @@ router.patch("/admin/drivers/:userId/verify-documents", authenticate, requireAdm
   };
 
   if (status === "verified") {
-    updates.freeRidesLeft = 5;
+    updates.freeRidesLeft = 0;
   }
   
   await db.update(driverProfilesTable)

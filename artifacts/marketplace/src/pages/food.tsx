@@ -125,6 +125,7 @@ export default function FoodPage() {
   const [compLoading, setCompLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showReferralMockup, setShowReferralMockup] = useState(false);
 
   // 2. حالات المناسبات (Event Homes States)
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
@@ -536,8 +537,109 @@ export default function FoodPage() {
             )}
           </div>
 
+          {/* 💡 دليل كود الإحالة المصور التفاعلي */}
+          <div className="p-5 rounded-2xl bg-gradient-to-br from-purple-950/20 via-white/5 to-black/30 border border-purple-500/20 space-y-4" dir="rtl">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-400">
+                <Sparkles className="w-4 h-4 animate-pulse" />
+              </div>
+              <div className="text-right">
+                <h3 className="text-xs font-black text-white">💡 دليل مصور: أين يكتب صديقك كود الإحالة؟</h3>
+                <p className="text-[10px] text-white/50 mt-0.5">اتبع هذه الخطوات البسيطة لضمان احتساب النقاط لك في المسابقة:</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+              {/* التعليمات الخطوة بخطوة */}
+              <div className="space-y-3 pr-1 text-right">
+                <div className="flex gap-2.5 items-start">
+                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-black shrink-0 mt-0.5">١</span>
+                  <p className="text-[11px] text-white/80 leading-relaxed">
+                    انسخ <b>كود الإحالة الخاص بك</b> من الأعلى وأرسله لصديقك أو الشخص الذي تدعوه للتسجيل.
+                  </p>
+                </div>
+                <div className="flex gap-2.5 items-start">
+                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-black shrink-0 mt-0.5">٢</span>
+                  <p className="text-[11px] text-white/80 leading-relaxed">
+                    عندما يقوم صديقك بفتح التطبيق لإنشاء حساب جديد، سيصل إلى خطوة <b>تأكيد رقم الهاتف وكتابة الاسم</b>.
+                  </p>
+                </div>
+                <div className="flex gap-2.5 items-start">
+                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-black shrink-0 mt-0.5">٣</span>
+                  <p className="text-[11px] text-white/80 leading-relaxed">
+                    أخبر صديقك بضرورة وضع كود الإحالة الخاص بك في خانة <b>"كود الإحالة / الدعوة (اختياري)"</b> (كما هو موضح في النموذج التوضيحي).
+                  </p>
+                </div>
+                <div className="flex gap-2.5 items-start">
+                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-black shrink-0 mt-0.5">٤</span>
+                  <p className="text-[11px] text-emerald-400/90 leading-relaxed font-bold">
+                    بمجرد أن ينهي صديقك التسجيل ويقوم بإتمام أول رحلة له (كورسا)، ستضاف نقطة الإحالة إلى حسابك تلقائياً! 🥳
+                  </p>
+                </div>
+              </div>
+
+              {/* بطاقة المعاينة المصغرة التفاعلية */}
+              <div className="flex flex-col items-center justify-center">
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setShowReferralMockup(true)}
+                  className="cursor-pointer group relative rounded-2xl overflow-hidden border border-white/10 bg-black/40 p-4 w-full max-w-[260px] shadow-[0_0_20px_rgba(168,85,247,0.1)] flex flex-col items-center gap-3 transition-all hover:border-primary/50"
+                >
+                  {/* شارة المعاينة */}
+                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-primary text-[8px] font-black text-white flex items-center gap-1 z-10 opacity-80 group-hover:opacity-100 transition-opacity">
+                    <Eye className="w-3 h-3" /> اضغط للمعاينة الكاملة
+                  </div>
+
+                  {/* نموذج هاتف مبسط */}
+                  <div className="w-full h-44 bg-[#0a0514] border border-white/5 rounded-xl flex flex-col p-3 relative overflow-hidden text-right select-none opacity-90 group-hover:opacity-100 transition-opacity">
+                    {/* Header */}
+                    <div className="flex items-center justify-between text-[7px] text-white/30 font-bold mb-2">
+                      <span>Gaytak App</span>
+                      <span className="font-mono">3:18 PM</span>
+                    </div>
+
+                    {/* Inputs Mockup */}
+                    <div className="space-y-1.5 flex-1">
+                      <div className="h-4 bg-white/5 rounded-md border border-white/5 flex items-center px-1.5 justify-between">
+                        <span className="text-[6px] text-white/40 font-mono">+213660******</span>
+                        <span className="text-[6px] text-white/30">الهاتف</span>
+                      </div>
+                      <div className="h-4 bg-white/5 rounded-md border border-white/5 flex items-center px-1.5 justify-between">
+                        <span className="text-[6px] text-white/40 font-mono">******</span>
+                        <span className="text-[6px] text-white/30">رمز التحقق</span>
+                      </div>
+
+                      {/* Glowing Invitation Input */}
+                      <div className="h-5 bg-purple-950/40 rounded-md border-2 border-emerald-500/80 flex items-center px-1.5 justify-between relative shadow-[0_0_8px_rgba(16,185,129,0.3)] animate-pulse">
+                        <span className="text-[7px] text-emerald-400 font-bold font-mono">GT-YOURCODE</span>
+                        <span className="text-[6px] text-emerald-400 font-black">كود الإحالة (اختياري)</span>
+                        
+                        {/* Arrow representation */}
+                        <div className="absolute -bottom-1 -left-2 text-[10px] text-amber-400 leading-none drop-shadow-md">↗️</div>
+                      </div>
+                    </div>
+
+                    {/* Instruction tooltip in mockup */}
+                    <div className="bg-amber-400 text-[#0a0514] font-bold rounded p-1 text-[7px] text-center mb-1 shadow-lg leading-tight scale-95">
+                      أخبره أن يكتب كود إحالتك هنا 👈
+                    </div>
+
+                    {/* Create Button Mock */}
+                    <div className="h-5.5 rounded-lg bg-primary flex items-center justify-center text-[7px] font-black text-white mt-1">
+                      إنشاء الحساب
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-white/40 font-bold mt-1 flex items-center gap-1 group-hover:text-primary transition-colors">
+                    🔍 انقر لعرض الشرح بالحجم الكامل
+                  </p>
+                </motion.div>
+              </div>
+            </div>
+          </div>
+
           {/* Terms & Conditions Accordion/Card */}
-          <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/10" dir="rtl">
             <h3 className="text-xs font-bold text-white flex items-center gap-1.5 mb-2">
               <AlertCircle className="w-3.5 h-3.5 text-primary shrink-0" /> شروط وميكانيكية المسابقة
             </h3>
@@ -545,6 +647,124 @@ export default function FoodPage() {
               {competition.terms}
             </p>
           </div>
+
+          {/* ── مودال المعاينة الكاملة (Full-screen Lightbox Modal) ── */}
+          <AnimatePresence>
+            {showReferralMockup && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-y-auto"
+                onClick={() => setShowReferralMockup(false)}
+              >
+                <motion.div
+                  initial={{ scale: 0.9, y: 15 }}
+                  animate={{ scale: 1, y: 0 }}
+                  exit={{ scale: 0.9, y: 15 }}
+                  transition={{ type: "spring", damping: 25, stiffness: 350 }}
+                  className="bg-[#0b0617] border border-white/10 rounded-3xl w-full max-w-[360px] overflow-hidden shadow-2xl relative"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* زر الإغلاق */}
+                  <button
+                    onClick={() => setShowReferralMockup(false)}
+                    className="absolute top-4 left-4 z-10 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 flex items-center justify-center text-white transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+
+                  {/* Header */}
+                  <div className="bg-primary/10 border-b border-white/5 p-4 text-center">
+                    <h3 className="text-sm font-black text-white">معاينة شاشة التسجيل التوضيحية</h3>
+                    <p className="text-[10px] text-white/50 mt-1">مكان وضع كود الإحالة (الدعوة)</p>
+                  </div>
+
+                  {/* الهاتف الافتراضي */}
+                  <div className="p-6 space-y-6">
+                    <div className="border border-white/10 rounded-2xl bg-black/60 p-5 space-y-4 text-right relative">
+                      <div className="flex justify-between items-center text-[10px] text-white/30 font-bold">
+                        <span>Gaytak App</span>
+                        <span>03:18</span>
+                      </div>
+
+                      <div className="space-y-1 text-center py-2">
+                        <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center mx-auto mb-2 text-primary text-sm font-black">
+                          G
+                        </div>
+                        <h4 className="text-sm font-bold text-white">أدخل الرمز واسمك لإنشاء حساب</h4>
+                        <p className="text-[10px] text-white/40">سجل الآن وابدأ في كسب نقاط المسابقة</p>
+                      </div>
+
+                      {/* Phone Display */}
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <label className="text-[9px] text-white/40 font-bold">رقم الهاتف الجوال</label>
+                          <div className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white/40 text-left select-none">
+                            +213 660 12 34 56
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[9px] text-white/40 font-bold">اسمك بالكامل</label>
+                          <div className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white/40 select-none">
+                            محمد أمين
+                          </div>
+                        </div>
+
+                        {/* HIGHLIGHTED INVITATION INPUT (Exactly matching screenshot guidelines) */}
+                        <div className="space-y-1 relative">
+                          <div className="absolute -left-3 -top-3 animate-bounce">
+                            <span className="text-2xl">👉</span>
+                          </div>
+                          
+                          <label className="text-[10px] text-emerald-400 font-black flex items-center gap-1">
+                            <span>كود الإحالة / الدعوة (اختياري)</span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                          </label>
+
+                          <div className="w-full bg-purple-950/30 border-2 border-emerald-500 rounded-xl px-3 py-2.5 text-xs text-emerald-400 font-bold font-mono text-left shadow-[0_0_15px_rgba(16,185,129,0.25)] select-all">
+                            GT-YOURCODE
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Instruction floating bubble (As requested: "وضح له تعليمات") */}
+                      <div className="bg-amber-500 border border-amber-400 text-black rounded-2xl p-3 shadow-lg text-xs leading-relaxed font-bold space-y-1 z-10">
+                        <p className="text-[11px] font-black text-amber-950 flex items-center gap-1">
+                          📌 تعليمات هامة للمشترك:
+                        </p>
+                        <p className="text-[10px] text-black">
+                          1️⃣ أخبر صديقك بنسخ كود إحالتك ووضعه هنا في هذا الحقل عند تسجيل حسابه لأول مرة.
+                        </p>
+                        <p className="text-[10px] text-black">
+                          2️⃣ يجب إدخال الكود بدقة كاملة (الحروف الكبيرة والصغيرة والأرقام).
+                        </p>
+                        <p className="text-[10px] text-black">
+                          3️⃣ يجب الضغط على "إنشاء الحساب" بعد إدخال الكود لتفعيل الرابط بشكل صحيح.
+                        </p>
+                      </div>
+
+                      {/* Button */}
+                      <div className="w-full bg-primary hover:bg-primary/90 text-white py-3 rounded-xl font-black text-xs text-center transition-all select-none">
+                        إنشاء الحساب وتفعيل العضوية
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Close Footer Button */}
+                  <div className="p-4 border-t border-white/5 bg-white/2 flex justify-center">
+                    <button
+                      onClick={() => setShowReferralMockup(false)}
+                      className="w-full max-w-[200px] bg-white/10 hover:bg-white/15 border border-white/10 text-white font-bold py-2 px-4 rounded-xl text-xs transition-colors"
+                    >
+                      موافق، فهمت التعليمات
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </AppLayout>
     );

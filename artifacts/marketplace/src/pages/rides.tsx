@@ -764,7 +764,7 @@ function DriverDashboard() {
           title: "🎉 تم إنهاء الرحلة بنجاح!",
           description: data.commissionDeducted > 0
             ? `تم خصم عمولة التطبيق بقيمة ${data.commissionDeducted} ألف دورو.`
-            : `الرحلة مجانية! متبقي لديك ${data.freeRidesLeft} رحلات مجانية.`,
+            : `الرحلة معفية من العمولة!`,
         });
         fetchRequests();
         fetchProfile();
@@ -818,20 +818,7 @@ function DriverDashboard() {
 
         {profile && (
           <>
-            {profile.freeRidesLeft > 0 && (
-              <div className="mb-4 rounded-xl p-3 border border-yellow-500/30 bg-yellow-500/10 text-yellow-400">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-right">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-yellow-500/20 text-yellow-400"><Gift className="w-4 h-4" /></div>
-                    <div>
-                      <p className="text-xs font-black">🎁 عرض الـ 5 رحلات المجانية نشط!</p>
-                      <p className="text-[10px] text-yellow-500/80">لن يتم خصم عمولة رحلاتك حتى تكتمل الفترة التجريبية.</p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-black bg-yellow-500/20 px-2.5 py-1 rounded-full">{profile.freeRidesLeft} متبقية</span>
-                </div>
-              </div>
-            )}
+
 
             {isDriverTrialActive ? (
               <div className="mb-4 rounded-xl p-3 border bg-amber-500/8 border-amber-500/20">
@@ -888,20 +875,7 @@ function DriverDashboard() {
               </div>
             </div>
 
-            {profile.freeRidesLeft > 0 && (
-              <div className="mb-4 rounded-xl p-3 border bg-emerald-500/8 border-emerald-500/20 animate-pulse">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-emerald-500/15 text-emerald-400">🎁</div>
-                    <div>
-                      <p className="text-xs font-bold text-white">عرض ترحيبي نشط</p>
-                      <p className="text-[10px] text-white/50">لديك <span className="text-emerald-400 font-bold">{profile.freeRidesLeft} رحلات مجانية متبقية</span> (بدون عمولات)</p>
-                    </div>
-                  </div>
-                  <span className="text-[10px] px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-400 font-bold">نشط 🎁</span>
-                </div>
-              </div>
-            )}
+
 
             <div className="grid grid-cols-3 gap-3 text-center">
               <div className="bg-primary/10 rounded-xl p-2"><p className="text-lg font-bold text-primary">{profile.totalRides}</p><p className="text-[10px] text-muted-foreground">رحلات</p></div>

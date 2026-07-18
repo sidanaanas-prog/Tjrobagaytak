@@ -118,8 +118,7 @@ export default function WalletPage() {
                 تقوم المحفظة بدور <b>دفتر حسابات إداري</b> يسجل رصيدك المالي لدى التطبيق:
               </p>
               <ul className="text-[11px] text-white/60 space-y-1.5 list-disc list-inside pr-1">
-                <li><span className="text-white/80 font-bold">رحلات ترحيبية:</span> أول 5 رحلات لك معفية تماماً من العمولات (0% عمولة).</li>
-                <li><span className="text-white/80 font-bold">خصم العمولة:</span> بعد الرحلات المجانية الأولى، تُخصم عمولة الخدمة المحددة تلقائياً من رصيد محفظتك، مما يجعل رصيدك يتناقص تدريجياً.</li>
+                <li><span className="text-white/80 font-bold">خصم العمولة:</span> تُخصم عمولة الخدمة المحددة تلقائياً من رصيد محفظتك لكل رحلة مكتملة، مما يجعل رصيدك يتناقص تدريجياً.</li>
                 <li><span className="text-white/80 font-bold">الرصيد السالب:</span> رصيدك يمكن أن يصبح سالباً بعد قبول الرحلات. يتطلب منك شحن رصيد المحفظة عبر الإدارة لمواصلة العمل واستلام طلبات جديدة عندما يقل عن الحد المسموح.</li>
               </ul>
             </motion.div>

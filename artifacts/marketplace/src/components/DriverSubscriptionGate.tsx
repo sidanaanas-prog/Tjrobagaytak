@@ -11,7 +11,7 @@ const DRIVER_BENEFITS = [
     color: "text-primary",
     bg: "bg-primary/10 border-primary/20",
     title: "تلقي طلبات فورية",
-    desc: "تلقى طلبات الكورسا من الركاب القريبين منك فورياً وبدون عمولات لأول 5 رحلات.",
+    desc: "تلقى طلبات الكورسا من الركاب القريبين منك فورياً بأقل عمولة في السوق.",
   },
   {
     icon: Star,
@@ -62,8 +62,6 @@ export function DriverSubscriptionGate({ children }: Props) {
           <h2 className="text-xl font-black text-white">وثائقك قيد المراجعة ⏳</h2>
           <p className="text-sm text-white/50 max-w-xs mx-auto leading-relaxed">
             يعمل فريق الإدارة حالياً على مراجعة وثائقك لتفعيل حسابك ومباشرة العمل.
-            <br />
-            ستحصل على <span className="text-emerald-400 font-bold">5 رحلات مجانية</span> بالكامل فور الموافقة.
           </p>
         </motion.div>
 
@@ -73,8 +71,8 @@ export function DriverSubscriptionGate({ children }: Props) {
             <span className="text-amber-400 font-bold">قيد التدقيق</span>
           </div>
           <div className="flex items-center justify-between text-xs">
-            <span className="text-white/50">العرض الترحيبي</span>
-            <span className="text-emerald-400 font-bold">5 رحلات مجانية 🎁</span>
+            <span className="text-white/50">نظام العمل</span>
+            <span className="text-emerald-400 font-bold">بناءً على العمولة 💸</span>
           </div>
         </div>
 
@@ -129,7 +127,7 @@ export function DriverSubscriptionGate({ children }: Props) {
       <motion.div initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="space-y-2">
         <h2 className="text-xl font-black text-white">سجل كشريك سائق 🚗</h2>
         <p className="text-sm text-white/50 max-w-xs mx-auto leading-relaxed">
-          للعمل معنا واستقبل الكورسا، يرجى تقديم وثائق الهوية والسيارة للتوثيق والاستفادة من <span className="text-emerald-400 font-bold">5 رحلات مجانية</span> عند التسجيل.
+          للعمل معنا واستقبل الكورسا، يرجى تقديم وثائق الهوية والسيارة للتوثيق والبدء مباشرة بالعمل.
         </p>
       </motion.div>
 

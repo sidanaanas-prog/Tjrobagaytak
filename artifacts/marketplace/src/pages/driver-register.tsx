@@ -86,7 +86,7 @@ export default function DriverRegisterPage() {
       });
       const data = await res.json();
       if (data.success) {
-        toast({ title: "✅ تم تسجيل الطلب!", description: "🎉 تم إرسال وثائقك بنجاح للأدمن للمراجعة. ستحصل على 5 رحلات مجانية معفية من العمولات فور موافقة الإدارة." });
+        toast({ title: "✅ تم تسجيل الطلب!", description: "🎉 تم إرسال وثائقك بنجاح للأدمن للمراجعة. سيبدأ العمل بنظام العمولة فور موافقة الإدارة." });
         navigate("/rides");
       } else {
         toast({ variant: "destructive", title: "خطأ", description: data.error || "فشل التسجيل" });
@@ -245,7 +245,7 @@ export default function DriverRegisterPage() {
           <div className="space-y-1">
             <p className="text-xs font-bold text-yellow-500">نظام المراجعة والموافقة</p>
             <p className="text-[11px] text-yellow-500/80 leading-relaxed">
-              بموجب سياسات التطبيق، سيتم مراجعة وثائقك من قبل الإدارة لضمان سلامة وجودة الخدمة. بمجرد تأكيد الأدمن لطلبك، ستبدأ مباشرة فترتك التجريبية المجانية لـ 7 أيام لتلقي الطلبات دون دفع أي عمولة!
+              بموجب سياسات التطبيق، سيتم مراجعة وثائقك من قبل الإدارة لضمان سلامة وجودة الخدمة. بمجرد تأكيد الأدمن لطلبك، يمكنك البدء في استقبال الطلبات مباشرة بنظام العمولة المخفضة!
             </p>
           </div>
         </div>
