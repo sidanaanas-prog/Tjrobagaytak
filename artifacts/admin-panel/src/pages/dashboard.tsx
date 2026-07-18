@@ -67,7 +67,7 @@ export default function Dashboard() {
     setDriversLoading(true);
     try {
       const token = localStorage.getItem("glow_admin_token");
-      const res = await fetch(`${BASE}/api/admin/drivers`, {
+      const res = await fetch(`${BASE}/api/admin/drivers?t=${Date.now()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

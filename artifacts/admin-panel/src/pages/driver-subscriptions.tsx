@@ -58,7 +58,7 @@ export default function DriverSubscriptions() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${BASE}/api/admin/drivers`, {
+      const res = await fetch(`${BASE}/api/admin/drivers?t=${Date.now()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) setDrivers(await res.json());

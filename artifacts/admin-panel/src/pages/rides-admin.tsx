@@ -143,7 +143,7 @@ export default function RidesAdmin() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${BASE}/api/admin/rides`, {
+      const res = await fetch(`${BASE}/api/admin/rides?t=${Date.now()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -316,6 +316,8 @@ export default function RidesAdmin() {
       if (data.success) {
         toast({ title: "✅ تم التعديل", description: walletAction === "reset" ? "تم تصفير محفظة السائق بنجاح وتسوية ديونه." : `تم تعديل رصيد المحفظة بنجاح. الرصيد الجديد: ${data.newBalance} ألف دورو` });
         setWalletAmount("");
+        setWalletUserId("");
+        setWalletAction("deposit");
         load();
       } else {
         toast({ variant: "destructive", title: "خطأ", description: data.error });

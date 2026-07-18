@@ -162,16 +162,21 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const handleAccept = useCallback(async (id: string): Promise<boolean> => {
+  const handleAccept = useCallback(async (id: string): Promise<{ success: boolean; error?: string }> => {
     const token = getMemToken();
-    const res = await fetch(`${BASE}/api/rides/${id}/accept`, {
-      method: "PATCH",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await res.json();
+    try {
+      const res = await fetch(`${BASE}/api/rides/${id}/accept`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
 
-    handleDismiss();
-    return res.ok && data.success;
+      handleDismiss();
+      return { success: res.ok && data.success, error: data.error };
+    } catch {
+      handleDismiss();
+      return { success: false, error: "فشل الاتصال بالخادم" };
+    }
   }, [handleDismiss]);
 
   // جلب الطلبات
@@ -359,12 +364,13 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
                 <button
                   onClick={async () => {
                     setAccepting(true);
-                    const ok = await handleAccept(alertState.ride!.id);
-                    if (ok) {
+                    const res = await handleAccept(alertState.ride!.id);
+                    if (res.success) {
                       toast({ title: "✅ تم القبول!", description: "الراكب ينتظرك" });
-                      setLocation("/rides");
+                      localStorage.setItem("gaytak_active_role", "driver");
+                      window.location.href = "/rides";
                     } else {
-                      toast({ title: "❌ تم القبول من سائق آخر", description: "لم تفوت هنالك", variant: "destructive" });
+                      toast({ title: "❌ تعذر القبول", description: res.error || "تم قبول الطلب من سائق آخر", variant: "destructive" });
                     }
                     setAccepting(false);
                   }}

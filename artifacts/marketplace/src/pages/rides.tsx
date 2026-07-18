@@ -690,8 +690,117 @@ function DriverDashboard() {
   const [completionCodes, setCompletionCodes] = useState<Record<string, string>>({}); // رموز التأكيد المدخلة من السائق لإنهاء الرحلات
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
 
+  const activeRides = requests.filter((r) => ["accepted", "arrived", "picked_up"].includes(r.status));
+  const pendingRequests = requests.filter((r) => r.status === "pending");
+
   const driverTrialDays = subStatus?.trialExpiresAt ? Math.max(0, Math.ceil((new Date(subStatus.trialExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : null;
   const isDriverTrialActive = driverTrialDays !== null && driverTrialDays > 0;
+
+  const renderRideCard = (r: Ride) => (
+    <motion.div key={r.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card border rounded-xl p-3">
+      <div className="flex items-start gap-2 mb-2">
+        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center"><User className="w-4 h-4 text-primary" /></div>
+        <div className="flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-bold">{r.passenger?.name ?? "راكب"}</p>
+            {r.vehicleType && <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full font-bold">{r.vehicleType === "car" ? "🚗 عادي" : r.vehicleType === "ac" ? "❄️ مكيف" : r.vehicleType === "suv" ? "🚙 دفع رباعي" : r.vehicleType === "van" ? "🚐 حافلة" : r.vehicleType === "truck" ? "🚚 شحن" : r.vehicleType}</span>}
+            {r.passengerCount && r.passengerCount > 1 && <span className="text-[10px] bg-blue-500/15 text-blue-400 px-1.5 py-0.5 rounded-full">{r.passengerCount} ركاب</span>}
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5"><span className="text-green-400">{r.fromAddress}</span> → <span className="text-red-400">{r.toAddress}</span></p>
+          <div className="mt-1 space-y-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[10px] bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 px-1.5 py-0.5 rounded-md font-black">
+                المبلغ المطلوب من الراكب: {r.price} ألف دورو
+              </span>
+              {r.paymentMethod === "wallet" && <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full flex items-center gap-0.5 font-bold"><Wallet className="w-2.5 h-2.5" /> محفظة</span>}
+            </div>
+            
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] bg-red-500/10 text-red-400 border border-red-500/15 px-1.5 py-0.5 rounded-md font-bold">
+                عمولة التطبيق: -{r.commission !== undefined ? r.commission : Math.round(Number(r.price) * 0.1)} ألف دورو
+              </span>
+              <span className="text-[10px] bg-green-500/10 text-green-400 border border-green-500/15 px-1.5 py-0.5 rounded-md font-bold">
+                ربح السائق الصافي: +{r.netProfit !== undefined ? r.netProfit : Math.round(Number(r.price) * 0.9)} ألف دورو
+              </span>
+            </div>
+          </div>
+          {r.status === "accepted" && r.passenger?.phone && (
+            <a href={`tel:${r.passenger.phone}`} className="mt-2 flex items-center gap-2 bg-green-500/15 border border-green-500/25 text-green-400 px-3 py-2 rounded-lg hover:bg-green-500/25 transition-colors w-full">
+              <Phone className="w-4 h-4 shrink-0" />
+              <div>
+                <p className="text-[10px] font-medium opacity-70">اتصل بالراكب</p>
+                <p className="text-sm font-bold">{r.passenger.phone}</p>
+              </div>
+            </a>
+          )}
+        </div>
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        {r.status === "pending" ? (
+          <>
+            <button 
+              onClick={() => handleAccept(r.id)} 
+              disabled={acceptingId !== null} 
+              className="flex-1 bg-primary text-primary-foreground py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 disabled:opacity-50"
+            >
+              {acceptingId === r.id ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <CheckCircle className="w-3 h-3" />
+              )}
+              قبول
+            </button>
+            <button onClick={() => handleCancel(r.id)} className="px-3 py-2 border rounded-lg text-xs text-red-400 hover:bg-red-400/10"><XCircle className="w-3 h-3" /></button>
+          </>
+        ) : r.status === "accepted" ? (
+          <>
+            <button onClick={() => handlePickup(r.id)} className="flex-1 bg-blue-500 text-white py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1"><Navigation className="w-3 h-3" /> استلام الراكب</button>
+            <button onClick={() => handleNoShow(r.id)} className="px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 flex items-center gap-1 hover:bg-red-500/20"><AlertTriangle className="w-3 h-3" /> لم يأتِ</button>
+          </>
+        ) : r.status === "picked_up" ? (
+          <div className="w-full space-y-2 mt-1">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                maxLength={4}
+                pattern="\d*"
+                placeholder="كود إنهاء الرحلة (4 أرقام)"
+                value={completionCodes[r.id] ?? ""}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "");
+                  setCompletionCodes(prev => ({ ...prev, [r.id]: val }));
+                }}
+                className="flex-1 bg-background text-foreground border border-green-500/30 rounded-lg px-3 py-1.5 text-xs font-bold focus:outline-none focus:border-green-400 text-center tracking-widest placeholder:tracking-normal"
+              />
+              <button
+                onClick={() => handleComplete(r.id, completionCodes[r.id] ?? "")}
+                className="bg-green-500 hover:bg-green-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors"
+              >
+                <CheckCircle className="w-3.5 h-3.5" /> إنهاء الكورسة
+              </button>
+            </div>
+            <p className="text-[10px] text-muted-foreground text-right font-medium">اطلب كود الأمان المكون من 4 أرقام من الراكب لإنهاء الرحلة بنجاح.</p>
+          </div>
+        ) : null}
+      </div>
+      {(r.status === "accepted" || r.status === "picked_up") && (
+        <div className="mt-3">
+          <Suspense fallback={<div className="h-[240px] rounded-xl bg-muted flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}>
+            <RideMap
+              rideId={r.id}
+              fromLat={r.fromLat}
+              fromLng={r.fromLng}
+              toLat={r.toLat}
+              toLng={r.toLng}
+              fromAddress={r.fromAddress}
+              toAddress={r.toAddress}
+              isDriver={true}
+            />
+          </Suspense>
+        </div>
+      )}
+    </motion.div>
+  );
 
   const fetchRequests = useCallback(async () => {
     const token = getMemToken(); if (!token) return;
@@ -739,7 +848,7 @@ function DriverDashboard() {
       fetchRequests();
       // ✅ إصلاح 4: لا redirect للدردشة — رقم الراكب يظهر مباشرة في البطاقة
       if (!res.ok || !data.success) {
-        toast({ variant: "destructive", title: "تعذر القبول", description: "قُبلت الكورسة من سائق آخر" });
+        toast({ variant: "destructive", title: "تعذر القبول", description: data.error || "قُبلت الكورسة من سائق آخر" });
       }
       return res.ok && data.success;
     } catch {
@@ -901,122 +1010,41 @@ function DriverDashboard() {
         )}
       </div>
 
+      {/* الرحلات الحالية النشطة */}
+      {activeRides.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="font-bold text-sm flex items-center gap-2 text-green-400">
+            <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
+            الرحلة النشطة الحالية
+          </h3>
+          <div className="space-y-3">
+            {activeRides.map((r) => renderRideCard(r))}
+          </div>
+        </div>
+      )}
+
       {/* الطلبات */}
       <div>
         <h3 className="font-bold text-sm mb-3 flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /> طلبات قريبة</h3>
-        {!online ? <p className="text-center text-sm text-muted-foreground py-8">اضغط زر التصل لرؤية الطلبات</p> :
-          loading ? <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div> :
-          requests.length === 0 ? <p className="text-center text-sm text-muted-foreground py-8">لا توجد طلبات حالياً</p> : (
+        {!online ? (
+          <div className="text-center py-8 px-4 bg-muted/10 border border-dashed rounded-xl border-muted/30">
+            <Megaphone className="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+            <p className="text-xs text-muted-foreground font-medium">أنت في وضع غير متصل حالياً.</p>
+            <p className="text-[10px] text-muted-foreground/60 mt-1 max-w-[220px] mx-auto">اتصل بالإنترنت لرؤية الطلبات الجديدة والبدء في تلقي الرحلات.</p>
+            <button 
+              onClick={toggleOnline} 
+              className="mt-3 px-4 py-1.5 rounded-lg bg-green-500 text-white font-bold text-xs hover:bg-green-600 transition-all active:scale-[0.98]"
+            >
+              الاتصال بالإنترنت
+            </button>
+          </div>
+        ) : loading ? (
+          <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+        ) : pendingRequests.length === 0 ? (
+          <p className="text-center text-xs text-muted-foreground py-8">لا توجد طلبات قريبة متاحة حالياً</p>
+        ) : (
           <div className="space-y-3">
-            {requests.map((r) => (
-              <motion.div key={r.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card border rounded-xl p-3">
-                <div className="flex items-start gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center"><User className="w-4 h-4 text-primary" /></div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-bold">{r.passenger?.name ?? "راكب"}</p>
-                      {/* ✅ إصلاح 5: نوع السيارة في طلب السائق */}
-                      {r.vehicleType && <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full font-bold">{r.vehicleType === "car" ? "🚗 عادي" : r.vehicleType === "ac" ? "❄️ مكيف" : r.vehicleType === "suv" ? "🚙 دفع رباعي" : r.vehicleType === "van" ? "🚐 حافلة" : r.vehicleType === "truck" ? "🚚 شحن" : r.vehicleType}</span>}
-                      {r.passengerCount && r.passengerCount > 1 && <span className="text-[10px] bg-blue-500/15 text-blue-400 px-1.5 py-0.5 rounded-full">{r.passengerCount} ركاب</span>}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5"><span className="text-green-400">{r.fromAddress}</span> → <span className="text-red-400">{r.toAddress}</span></p>
-                    <div className="mt-1 space-y-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[10px] bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 px-1.5 py-0.5 rounded-md font-black">
-                          المبلغ المطلوب من الراكب: {r.price} ألف دورو
-                        </span>
-                        {r.paymentMethod === "wallet" && <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full flex items-center gap-0.5 font-bold"><Wallet className="w-2.5 h-2.5" /> محفظة</span>}
-                      </div>
-                      
-                      {/* عرض العمولة والربح الصافي للشفافية المطلقة */}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] bg-red-500/10 text-red-400 border border-red-500/15 px-1.5 py-0.5 rounded-md font-bold">
-                          عمولة التطبيق: -{r.commission !== undefined ? r.commission : Math.round(Number(r.price) * 0.1)} ألف دورو
-                        </span>
-                        <span className="text-[10px] bg-green-500/10 text-green-400 border border-green-500/15 px-1.5 py-0.5 rounded-md font-bold">
-                          ربح السائق الصافي: +{r.netProfit !== undefined ? r.netProfit : Math.round(Number(r.price) * 0.9)} ألف دورو
-                        </span>
-                      </div>
-                    </div>
-                    {/* ✅ إصلاح 4: رقم الراكب بارز جداً بعد القبول */}
-                    {r.status === "accepted" && r.passenger?.phone && (
-                      <a href={`tel:${r.passenger.phone}`} className="mt-2 flex items-center gap-2 bg-green-500/15 border border-green-500/25 text-green-400 px-3 py-2 rounded-lg hover:bg-green-500/25 transition-colors w-full">
-                        <Phone className="w-4 h-4 shrink-0" />
-                        <div>
-                          <p className="text-[10px] font-medium opacity-70">اتصل بالراكب</p>
-                          <p className="text-sm font-bold">{r.passenger.phone}</p>
-                        </div>
-                      </a>
-                    )}
-                  </div>
-                </div>
-                <div className="flex gap-2 flex-wrap">
-                  {r.status === "pending" ? (
-                    <>
-                      <button 
-                        onClick={() => handleAccept(r.id)} 
-                        disabled={acceptingId !== null} 
-                        className="flex-1 bg-primary text-primary-foreground py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 disabled:opacity-50"
-                      >
-                        {acceptingId === r.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <CheckCircle className="w-3 h-3" />
-                        )}
-                        قبول
-                      </button>
-                      <button onClick={() => handleCancel(r.id)} className="px-3 py-2 border rounded-lg text-xs text-red-400 hover:bg-red-400/10"><XCircle className="w-3 h-3" /></button>
-                    </>
-                  ) : r.status === "accepted" ? (
-                    <>
-                      <button onClick={() => handlePickup(r.id)} className="flex-1 bg-blue-500 text-white py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1"><Navigation className="w-3 h-3" /> استلام الراكب</button>
-                      <button onClick={() => handleNoShow(r.id)} className="px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 flex items-center gap-1 hover:bg-red-500/20"><AlertTriangle className="w-3 h-3" /> لم يأتِ</button>
-                    </>
-                  ) : r.status === "picked_up" ? (
-                    <div className="w-full space-y-2 mt-1">
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          maxLength={4}
-                          pattern="\d*"
-                          placeholder="كود إنهاء الرحلة (4 أرقام)"
-                          value={completionCodes[r.id] ?? ""}
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/\D/g, "");
-                            setCompletionCodes(prev => ({ ...prev, [r.id]: val }));
-                          }}
-                          className="flex-1 bg-background text-foreground border border-green-500/30 rounded-lg px-3 py-1.5 text-xs font-bold focus:outline-none focus:border-green-400 text-center tracking-widest placeholder:tracking-normal"
-                        />
-                        <button
-                          onClick={() => handleComplete(r.id, completionCodes[r.id] ?? "")}
-                          className="bg-green-500 hover:bg-green-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors"
-                        >
-                          <CheckCircle className="w-3.5 h-3.5" /> إنهاء الكورسة
-                        </button>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground text-right font-medium">اطلب كود الأمان المكون من 4 أرقام من الراكب لإنهاء الرحلة بنجاح.</p>
-                    </div>
-                  ) : null}
-                </div>
-                {/* خريطة تتبع موقع الراكب — للسائق (تُرسل موقعه تلقائياً) */}
-                {(r.status === "accepted" || r.status === "picked_up") && (
-                  <div className="mt-3">
-                    <Suspense fallback={<div className="h-[240px] rounded-xl bg-muted flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}>
-                      <RideMap
-                        rideId={r.id}
-                        fromLat={r.fromLat}
-                        fromLng={r.fromLng}
-                        toLat={r.toLat}
-                        toLng={r.toLng}
-                        fromAddress={r.fromAddress}
-                        toAddress={r.toAddress}
-                        isDriver={true}
-                      />
-                    </Suspense>
-                  </div>
-                )}
-              </motion.div>
-            ))}
+            {pendingRequests.map((r) => renderRideCard(r))}
           </div>
         )}
       </div>

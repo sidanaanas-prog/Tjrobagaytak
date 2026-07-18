@@ -266,7 +266,7 @@ router.patch("/rides/:id/accept", authenticate, async (req, res): Promise<void> 
     if (!ride) { res.status(404).json({ error: "الرحلة غير موجودة" }); return; }
     
     if (ride.status !== "pending") {
-      if (ride.status === "accepted" && ride.driverId === driverId) {
+      if (ride.driverId === driverId) {
         // إذا كان السائق قد قبل الكورسة مسبقاً (نقرة مزدوجة أو إعادة اتصال)، نرجع نجاح مباشرةً مع المحادثة والراكب لتجنب إظهار خطأ
         const [existingConv] = await db
           .select()
@@ -294,7 +294,7 @@ router.patch("/rides/:id/accept", authenticate, async (req, res): Promise<void> 
 
     // التحقق من التحديث الفعلي
     const [updatedRide] = (await db.select().from(ridesTable).where(eq(ridesTable.id, req.params.id as string))) ?? [];
-    if (updatedRide?.status !== "accepted" || updatedRide?.driverId !== driverId) {
+    if (!updatedRide || updatedRide.driverId !== driverId) {
       res.status(409).json({ error: "الرحلة تم قبولها من سائق آخر", alreadyTaken: true });
       return;
     }
