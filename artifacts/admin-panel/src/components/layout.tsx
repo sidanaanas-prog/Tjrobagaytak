@@ -20,6 +20,7 @@ import {
   Home,
   Sparkles,
   Trophy,
+  FileText,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -107,6 +108,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/subscriptions", label: "الاشتراكات", icon: CreditCard, badge: pendingSubscriptions },
     { href: "/subscriptions?tab=smart", label: "الذكاء التسويقي ⭐️", icon: Sparkles },
     { href: "/driver-subscriptions", label: "اشتراكات الكورسا", icon: Navigation },
+    { href: "/driver-memo", label: "مذكرة السائقين 📝", icon: FileText },
     { href: "/rides", label: "طلبات الكورسا", icon: Car },
     { href: "/restaurants", label: "منازل المناسبات", icon: Home },
     { href: "/promotions", label: "العروض الترويجية", icon: Zap },

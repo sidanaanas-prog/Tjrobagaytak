@@ -18,6 +18,7 @@ import DeliveryRequests from "@/pages/delivery-requests";
 import FlashSales from "@/pages/flash-sales";
 import Subscriptions from "@/pages/subscriptions";
 import DriverSubscriptions from "@/pages/driver-subscriptions";
+import DriverMemo from "@/pages/driver-memo";
 import Rides from "@/pages/rides-admin";
 import RestaurantsAdmin from "@/pages/restaurants-admin";
 import Promotions from "@/pages/promotions";
@@ -61,6 +62,7 @@ function Router() {
       <Route path="/flash-sales" component={() => <ProtectedRoute component={FlashSales} />} />
       <Route path="/subscriptions" component={() => <ProtectedRoute component={Subscriptions} />} />
       <Route path="/driver-subscriptions" component={() => <ProtectedRoute component={DriverSubscriptions} />} />
+      <Route path="/driver-memo" component={() => <ProtectedRoute component={DriverMemo} />} />
       <Route path="/rides" component={() => <ProtectedRoute component={Rides} />} />
       <Route path="/restaurants" component={() => <ProtectedRoute component={RestaurantsAdmin} />} />
       <Route path="/promotions" component={() => <ProtectedRoute component={Promotions} />} />
