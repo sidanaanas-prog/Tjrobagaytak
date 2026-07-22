@@ -87,7 +87,11 @@ router.get("/rides/driver", authenticate, async (req, res): Promise<void> => {
     const status = req.query.status as string | undefined;
 
     const conditions = [eq(ridesTable.status, status || "pending")];
-    if (status === "accepted") {
+    if (!status || status === "pending") {
+      // فقط الطلبات الحديثة خلال آخر 15 دقيقة لمنع ظهور وتنبيه طلبات قديمة معلقة
+      const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000);
+      conditions.push(gt(ridesTable.createdAt, fifteenMinsAgo));
+    } else if (status === "accepted") {
       // Return all active rides for this driver: accepted, arrived, picked_up
       conditions.length = 0;
       conditions.push(inArray(ridesTable.status, ["accepted", "arrived", "picked_up"]));

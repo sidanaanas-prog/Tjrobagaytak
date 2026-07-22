@@ -153,6 +153,7 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
 
   const stopSoundRef = useRef<(() => void) | null>(null);
   const prevRequestsRef = useRef<Ride[]>([]);
+  const isInitialFetchRef = useRef<boolean>(true);
 
   const handleDismiss = useCallback(() => {
     setAlertState({ ride: null, type: null, countdown: 0 });
@@ -190,12 +191,37 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
       ]);
       const pending = await pendingRes.json();
       const accepted = await acceptedRes.json();
-      const requests = [
+      const requests: Ride[] = [
         ...(Array.isArray(pending) ? pending : []),
         ...(Array.isArray(accepted) ? accepted : []),
       ];
 
-      // اكتشاف طلبات جديدة
+      // إذا كان هذا أول جلب بعد فتح التطبيق
+      if (isInitialFetchRef.current) {
+        isInitialFetchRef.current = false;
+        prevRequestsRef.current = requests;
+
+        // التحقق فقط من الطلبات التي أنشئت خلال آخر 60 ثانية للتنبيه بها
+        const now = Date.now();
+        const superFresh = requests.find((r) => {
+          if (r.status !== "pending") return false;
+          const createdTime = r.createdAt ? new Date(r.createdAt).getTime() : 0;
+          return now - createdTime < 60000; // أحدث من دقيقة واحدة فقط
+        });
+
+        if (superFresh) {
+          setAlertState({
+            ride: superFresh,
+            type: "new_ride",
+            countdown: 30,
+          });
+          stopSoundRef.current = playContinuousAlert() ?? null;
+          if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200, 100, 500, 100, 500]);
+        }
+        return;
+      }
+
+      // اكتشاف طلبات جديدة لم تكن موجودة سابقاً
       const newOnes = requests.filter(
         (r: Ride) => r.status === "pending" && !prevRequestsRef.current.find((p) => p.id === r.id)
       );
@@ -209,8 +235,8 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
         }
       );
 
-      // إذا كانت الرحلة المعروضة تم قبولها من سائق آخر → إيقاف الرنة فوراً
-      if (alertState.ride && alertState.type === "new_ride") {
+      // إذا كانت الرحلة المعروضة حالياً تم قبولها من سائق آخر أو تم إلغاؤها → إيقاف الرنة فوراً
+      if (alertState.ride && (alertState.type === "new_ride" || alertState.type === "price_update")) {
         const stillPending = requests.find((r: Ride) => r.id === alertState.ride!.id && r.status === "pending");
         if (!stillPending) {
           handleDismiss();
@@ -238,7 +264,7 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
 
       prevRequestsRef.current = requests;
     } catch {}
-  }, [isDriver, isDriverActive, alertState.ride]);
+  }, [isDriver, isDriverActive, alertState.ride, handleDismiss]);
 
   // استماع للرسائل من Service Worker
   useEffect(() => {
