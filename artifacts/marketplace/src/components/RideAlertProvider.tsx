@@ -4,6 +4,7 @@ import { useAuth, getMemToken } from "@/hooks/use-auth";
 import { useDriverSubscription } from "@/hooks/use-driver-subscription";
 import { getApiUrl } from "@/lib/api-url";
 import { motion } from "framer-motion";
+import { initNativeNotifications, triggerNativeRideCall, clearNativeRideCall } from "@/lib/native-notifications";
 
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -156,12 +157,15 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
   const isInitialFetchRef = useRef<boolean>(true);
 
   const handleDismiss = useCallback(() => {
+    if (alertState.ride) {
+      clearNativeRideCall(alertState.ride.id);
+    }
     setAlertState({ ride: null, type: null, countdown: 0 });
     if (stopSoundRef.current) {
       stopSoundRef.current();
       stopSoundRef.current = null;
     }
-  }, []);
+  }, [alertState.ride]);
 
   const handleAccept = useCallback(async (id: string): Promise<{ success: boolean; error?: string }> => {
     const token = getMemToken();
@@ -216,6 +220,7 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
             countdown: 30,
           });
           stopSoundRef.current = playContinuousAlert() ?? null;
+          triggerNativeRideCall(superFresh);
           if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200, 100, 500, 100, 500]);
         }
         return;
@@ -235,7 +240,7 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
         }
       );
 
-      // إذا كانت الرحلة المعروضة حالياً تم قبولها من سائق آخر أو تم إلغاؤها → إيقاف الرنة فوراً
+      // إذا كانت الرحلة المعروضة حالياً تم قبولها من سائق آخر أو تم إلغاؤها ← إيقاف الرنة فوراً
       if (alertState.ride && (alertState.type === "new_ride" || alertState.type === "price_update")) {
         const stillPending = requests.find((r: Ride) => r.id === alertState.ride!.id && r.status === "pending");
         if (!stillPending) {
@@ -249,8 +254,9 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
           type: "new_ride",
           countdown: 30,
         });
-        // رنة + اهتزاز
+        // رنة + اهتزاز + إشعار ناتيف أندرويد
         stopSoundRef.current = playContinuousAlert() ?? null;
+        triggerNativeRideCall(newOnes[0]);
         if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200, 100, 500, 100, 500]);
       } else if (priceUpdated.length > 0 && !alertState.ride) {
         setAlertState({
@@ -259,12 +265,18 @@ export function RideAlertProvider({ children }: { children: ReactNode }) {
           countdown: 30,
         });
         stopSoundRef.current = playContinuousAlert() ?? null;
+        triggerNativeRideCall(priceUpdated[0]);
         if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200, 100, 500, 100, 500]);
       }
 
       prevRequestsRef.current = requests;
     } catch {}
   }, [isDriver, isDriverActive, alertState.ride, handleDismiss]);
+
+  // تهيئة الإشعارات الصوتية الناتيف على الأندرويد
+  useEffect(() => {
+    initNativeNotifications();
+  }, []);
 
   // استماع للرسائل من Service Worker
   useEffect(() => {
