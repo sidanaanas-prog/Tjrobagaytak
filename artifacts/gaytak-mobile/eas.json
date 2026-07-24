@@ -14,7 +14,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "544d2f7d-c000-41b2-90f1-aabed66935a0-00-2rgnrupiswp8s.spock.replit.dev"
+        "EXPO_PUBLIC_DOMAIN": "gaytak-api.onrender.com"
       }
     },
     "production": {
@@ -22,7 +22,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "544d2f7d-c000-41b2-90f1-aabed66935a0-00-2rgnrupiswp8s.spock.replit.dev"
+        "EXPO_PUBLIC_DOMAIN": "gaytak-api.onrender.com"
       }
     }
   },
