@@ -2,7 +2,7 @@
   "expo": {
     "name": "Gaytak",
     "slug": "gaytak-mobile",
-    "version": "1.0.0",
+    "version": "1.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "gaytak",
@@ -15,10 +15,11 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.gaytak.app"
+      "bundleIdentifier": "com.gaytak.gaytak"
     },
     "android": {
-      "package": "com.gaytak.app",
+      "package": "com.gaytak.gaytak",
+      "versionCode": 3,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
