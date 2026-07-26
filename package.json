@@ -2,6 +2,7 @@
   "name": "workspace",
   "version": "0.0.0",
   "license": "MIT",
+  "packageManager": "pnpm@10.26.1",
   "scripts": {
     "dev": "PORT=3000 tsx artifacts/api-server/src/index.ts",
     "build": "npm run build --workspace=@workspace/db && npm run build --workspace=@workspace/api-server && BASE_PATH=/ npm run build --workspace=@workspace/marketplace && BASE_PATH=/admin/ npm run build --workspace=@workspace/admin-panel",
