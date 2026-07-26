@@ -10,10 +10,14 @@
     },
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "node": "20.17.0",
+      "pnpm": "10.26.1"
     },
     "preview": {
       "distribution": "internal",
+      "node": "20.17.0",
+      "pnpm": "10.26.1",
       "android": {
         "buildType": "apk"
       },
@@ -22,6 +26,8 @@
       }
     },
     "production": {
+      "node": "20.17.0",
+      "pnpm": "10.26.1",
       "android": {
         "buildType": "app-bundle"
       },
