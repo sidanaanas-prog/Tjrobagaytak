@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Gaytak",
-    "slug": "gaytak-mobile",
+    "slug": "gaytak",
     "version": "1.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
