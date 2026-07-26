@@ -22,7 +22,6 @@ const basePlugins = [
 ];
 
 const nativePlugins = [
-  ["onesignal-expo-plugin", { mode: "production" }],
 ];
 
 module.exports = {
