@@ -21,17 +21,10 @@ const basePlugins = [
   ],
 ];
 
-const nativePlugins = [
-  ["onesignal-expo-plugin", { mode: "production" }],
-];
-
 module.exports = {
   ...baseConfig,
   expo: {
     ...baseConfig.expo,
-    plugins: [
-      ...basePlugins,
-      ...(isReplit ? [] : nativePlugins),
-    ],
+    plugins: basePlugins,
   },
 };
