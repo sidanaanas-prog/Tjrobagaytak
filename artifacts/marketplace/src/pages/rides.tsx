@@ -202,6 +202,28 @@ function PassengerRequest() {
     return () => window.removeEventListener("ride_notification", handler);
   }, [fetchMyRides]);
 
+  const handlePassengerArrived = async (id: string) => {
+    const token = getMemToken();
+    try {
+      const res = await fetch(`${BASE}/api/rides/${id}/complete`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast({
+          title: "🎉 الحمد لله على السلامة!",
+          description: "تم تأكيد وصولك للوجهة وإغلاق الرحلة بنجاح.",
+        });
+        fetchMyRides();
+      } else {
+        toast({ variant: "destructive", title: "❌ خطأ", description: data.error || "تعذر تأكيد الوصول" });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "❌ خطأ", description: "تعذر الاتصال بالخادم" });
+    }
+  };
+
   // تقدير السعر التلقائي
   async function estimatePrice() {
     if (!fromLat || !fromLng || !toLat || !toLng) {
@@ -578,14 +600,18 @@ function PassengerRequest() {
                           {r.driver.phone && <a href={`tel:${r.driver.phone}`} className="text-primary flex items-center gap-0.5"><Phone className="w-3 h-3" /> اتصل</a>}
                         </div>
                       )}
-                      {/* عرض رمز التأكيد المكون من 4 أرقام للراكب */}
-                      {["accepted", "arrived", "picked_up"].includes(r.status) && r.completionCode && (
-                        <div className="mt-2.5 bg-primary/10 border border-primary/20 rounded-xl p-2.5 text-center">
-                          <p className="text-[10px] text-muted-foreground font-semibold">🎁 كود تأكيد الرحلة للسائق:</p>
-                          <p className="text-base font-black text-primary tracking-widest mt-0.5 bg-primary/20 inline-block px-3 py-1 rounded-lg border border-primary/30">
-                            {r.completionCode}
+                      {/* زر "وصلت" للراكب عند الوصول للوجهة */}
+                      {["accepted", "arrived", "picked_up"].includes(r.status) && (
+                        <div className="mt-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-center space-y-2">
+                          <p className="text-xs text-emerald-400 font-bold flex items-center justify-center gap-1">
+                            <CheckCircle className="w-4 h-4 text-emerald-400" /> عند وصولك إلى وجهتك، اضغط على زر "وصلت":
                           </p>
-                          <p className="text-[9px] text-primary/70 mt-1">أعطِ هذا الرمز للسائق عند الوصول ليتمكن من إنهاء الرحلة وتحصل على نقاط مكافآت!</p>
+                          <button
+                            onClick={() => handlePassengerArrived(r.id)}
+                            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-lg text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98]"
+                          >
+                            <CheckCircle className="w-4 h-4" /> وصلت (تأكيد الوصول النهائي)
+                          </button>
                         </div>
                       )}
                       {/* معلومات السائق المباشرة */}
@@ -758,28 +784,13 @@ function DriverDashboard() {
             <button onClick={() => handleNoShow(r.id)} className="px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 flex items-center gap-1 hover:bg-red-500/20"><AlertTriangle className="w-3 h-3" /> لم يأتِ</button>
           </>
         ) : r.status === "picked_up" ? (
-          <div className="w-full space-y-2 mt-1">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                maxLength={4}
-                pattern="\d*"
-                placeholder="كود إنهاء الرحلة (4 أرقام)"
-                value={completionCodes[r.id] ?? ""}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/\D/g, "");
-                  setCompletionCodes(prev => ({ ...prev, [r.id]: val }));
-                }}
-                className="flex-1 bg-background text-foreground border border-green-500/30 rounded-lg px-3 py-1.5 text-xs font-bold focus:outline-none focus:border-green-400 text-center tracking-widest placeholder:tracking-normal"
-              />
-              <button
-                onClick={() => handleComplete(r.id, completionCodes[r.id] ?? "")}
-                className="bg-green-500 hover:bg-green-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors"
-              >
-                <CheckCircle className="w-3.5 h-3.5" /> إنهاء الكورسة
-              </button>
-            </div>
-            <p className="text-[10px] text-muted-foreground text-right font-medium">اطلب كود الأمان المكون من 4 أرقام من الراكب لإنهاء الرحلة بنجاح.</p>
+          <div className="w-full mt-1">
+            <button
+              onClick={() => handleComplete(r.id)}
+              className="w-full bg-green-500 hover:bg-green-600 text-white py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+            >
+              <CheckCircle className="w-4 h-4" /> إنهاء الكورسة (تم الوصول)
+            </button>
           </div>
         ) : null}
       </div>
@@ -865,17 +876,12 @@ function DriverDashboard() {
     fetchRequests();
   };
 
-  const handleComplete = async (id: string, code: string) => {
-    if (!code || code.trim().length !== 4) {
-      toast({ variant: "destructive", title: "⚠️ كود غير صالح", description: "الرجاء إدخال كود التأكيد المكون من 4 أرقام المستلم من الراكب." });
-      return;
-    }
+  const handleComplete = async (id: string) => {
     const token = getMemToken();
     try {
       const res = await fetch(`${BASE}/api/rides/${id}/complete`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ code: code.trim() }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -883,12 +889,12 @@ function DriverDashboard() {
           title: "🎉 تم إنهاء الرحلة بنجاح!",
           description: data.commissionDeducted > 0
             ? `تم خصم عمولة التطبيق بقيمة ${data.commissionDeducted} ألف دورو.`
-            : `الرحلة معفية من العمولة!`,
+            : `تم إنهاء الرحلة بنجاح!`,
         });
         fetchRequests();
         fetchProfile();
       } else {
-        toast({ variant: "destructive", title: "❌ خطأ في إنهاء الرحلة", description: data.error || "كود التأكيد خاطئ، يرجى مراجعة الراكب." });
+        toast({ variant: "destructive", title: "❌ خطأ في إنهاء الرحلة", description: data.error || "تعذر إنهاء الرحلة." });
       }
     } catch {
       toast({ variant: "destructive", title: "❌ خطأ", description: "تعذر الاتصال بالخادم." });

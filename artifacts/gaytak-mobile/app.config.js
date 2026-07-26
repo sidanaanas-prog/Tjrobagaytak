@@ -11,21 +11,27 @@ const basePlugins = [
     "expo-build-properties",
     {
       android: {
-        compileSdkVersion: 36,
+        compileSdkVersion: 35,
         targetSdkVersion: 35,
         minSdkVersion: 24,
         buildToolsVersion: "35.0.0",
-        kotlinVersion: "2.1.21",
-        newArchEnabled: true,
+        kotlinVersion: "1.9.25",
       },
     },
   ],
+];
+
+const nativePlugins = [
+  ["onesignal-expo-plugin", { mode: "production" }],
 ];
 
 module.exports = {
   ...baseConfig,
   expo: {
     ...baseConfig.expo,
-    plugins: basePlugins,
+    plugins: [
+      ...basePlugins,
+      ...(isReplit ? [] : nativePlugins),
+    ],
   },
 };

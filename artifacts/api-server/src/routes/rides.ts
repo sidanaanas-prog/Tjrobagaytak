@@ -422,30 +422,22 @@ router.patch("/rides/:id/pickup", authenticate, async (req, res): Promise<void> 
   }
 });
 
-// ── السائق: تنفيذ الرحلة ──────────────────────────────────────────────────
+// ── السائق أو الراكب: إنهاء الرحلة وتأكيد الوصول ─────────────────────────────
 router.patch("/rides/:id/complete", authenticate, async (req, res): Promise<void> => {
   try {
-    const driverId = (req as any).user.id;
-    const { code } = req.body;
+    const userId = (req as any).user.id;
 
     const [ride] = (await db.select().from(ridesTable).where(eq(ridesTable.id, req.params.id as string))) ?? [];
     if (!ride) { res.status(404).json({ error: "الرحلة غير موجودة" }); return; }
-    if (ride.driverId !== driverId) { res.status(403).json({ error: "ليس من صلاحياتك إنهاء هذه الرحلة" }); return; }
+    if (ride.driverId !== userId && ride.passengerId !== userId) { 
+      res.status(403).json({ error: "ليس من صلاحياتك إنهاء هذه الرحلة" }); return; 
+    }
     if (ride.status === "completed") { res.json({ success: true, message: "الرحلة منتهية بالفعل" }); return; }
 
-    // التحقق من رمز التأكيد لتفادي تحايل السائقين
-    if (!code) {
-      res.status(400).json({ error: "الرجاء إدخال رمز التأكيد المتكون من 4 أرقام المستلم من الراكب لإنهاء الرحلة" });
-      return;
-    }
-    if (ride.completionCode && ride.completionCode.trim() !== String(code).trim()) {
-      res.status(400).json({ error: "رمز التأكيد المدخل غير صحيح! الرجاء التأكد من الراكب." });
-      return;
-    }
-
+    const driverId = ride.driverId;
     const now = new Date();
 
-    // 1. حساب وإضافة نقاط الوفاء للراكب لتشجيعه على إعطاء الرمز للسائق
+    // 1. حساب وإضافة نقاط الوفاء للراكب
     const ridePrice = Number(ride.price || 0);
     const pointsEarned = Math.max(1, Math.round(ridePrice / 10)); // نقطة واحدة لكل 10 ألف دورو
     await db.update(usersTable)
@@ -457,77 +449,80 @@ router.patch("/rides/:id/complete", authenticate, async (req, res): Promise<void
       status: "completed", completedAt: now, updatedAt: now,
     }).where(eq(ridesTable.id, req.params.id as string));
 
-    // 3. جلب ملف السائق لمعالجة الرحلات المجانية الخمس والعمولة
-    const [driverProfile] = (await db.select().from(driverProfilesTable).where(eq(driverProfilesTable.userId, driverId))) ?? [];
-    const freeRidesCount = driverProfile?.freeRidesLeft ?? 0;
-
+    let freeRidesCount = 0;
     let commissionDeducted = 0;
 
-    if (freeRidesCount > 0) {
-      // السائق لا يزال في فترة الرحلات الخمس المجانية
-      await db.update(driverProfilesTable).set({
-        freeRidesLeft: sql`${driverProfilesTable.freeRidesLeft} - 1`,
-        totalRides: sql`${driverProfilesTable.totalRides} + 1`,
-        totalEarnings: sql`${driverProfilesTable.totalEarnings} + ${ride.price}`,
-      }).where(eq(driverProfilesTable.userId, driverId));
-    } else {
-      // السائق أكمل رحلاته المجانية ويجب خصم عمولة مخصصة من لوحة التحكم (الافتراضية 10%)
-      const [typeSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_type"));
-      const [valSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_value"));
-      const [rateSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_rate"));
+    // 3. جلب ملف السائق لمعالجة الرحلات المجانية الخمس والعمولة إن وجد سائق
+    if (driverId) {
+      const [driverProfile] = (await db.select().from(driverProfilesTable).where(eq(driverProfilesTable.userId, driverId))) ?? [];
+      freeRidesCount = driverProfile?.freeRidesLeft ?? 0;
 
-      const commType = typeSetting?.value || "percentage";
-      const commVal = Number(valSetting?.value || rateSetting?.value || "10");
-
-      if (commType === "fixed") {
-        commissionDeducted = commVal;
+      if (freeRidesCount > 0) {
+        // السائق لا يزال في فترة الرحلات الخمس المجانية
+        await db.update(driverProfilesTable).set({
+          freeRidesLeft: sql`${driverProfilesTable.freeRidesLeft} - 1`,
+          totalRides: sql`${driverProfilesTable.totalRides} + 1`,
+          totalEarnings: sql`${driverProfilesTable.totalEarnings} + ${ride.price}`,
+        }).where(eq(driverProfilesTable.userId, driverId));
       } else {
-        commissionDeducted = Math.round(ridePrice * (commVal / 100));
-      }
+        // السائق أكمل رحلاته المجانية ويجب خصم عمولة مخصصة من لوحة التحكم (الافتراضية 10%)
+        const [typeSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_type"));
+        const [valSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_value"));
+        const [rateSetting] = await db.select().from(rideSettingsTable).where(eq(rideSettingsTable.key, "commission_rate"));
 
-      // خصم من محفظة السائق وتسجيل المعاملة
-      const [driverWallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, driverId));
-      let walletId = driverWallet?.id;
-      let currentBalance = Number(driverWallet?.balance ?? 0);
+        const commType = typeSetting?.value || "percentage";
+        const commVal = Number(valSetting?.value || rateSetting?.value || "10");
 
-      if (!driverWallet) {
-        walletId = randomUUID();
-        await db.insert(walletsTable).values({
-          id: walletId,
+        if (commType === "fixed") {
+          commissionDeducted = commVal;
+        } else {
+          commissionDeducted = Math.round(ridePrice * (commVal / 100));
+        }
+
+        // خصم من محفظة السائق وتسجيل المعاملة
+        const [driverWallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, driverId));
+        let walletId = driverWallet?.id;
+        let currentBalance = Number(driverWallet?.balance ?? 0);
+
+        if (!driverWallet) {
+          walletId = randomUUID();
+          await db.insert(walletsTable).values({
+            id: walletId,
+            userId: driverId,
+            balance: "0",
+          });
+          currentBalance = 0;
+        } else {
+          walletId = driverWallet.id;
+        }
+
+        const newBalance = currentBalance - commissionDeducted;
+        await db.update(walletsTable).set({
+          balance: String(newBalance),
+          updatedAt: now,
+        }).where(eq(walletsTable.id, walletId!));
+
+        // تسجيل المعاملة المالية في الأرشيف
+        await db.insert(walletTransactionsTable).values({
+          id: randomUUID(),
+          walletId: walletId!,
           userId: driverId,
-          balance: "0",
+          type: "penalty", // عمولة تطبيق
+          amount: String(-commissionDeducted),
+          balanceAfter: String(newBalance),
+          description: commType === "fixed" 
+            ? `عمولة الكورسة (مبلغ ثابت: ${commVal} ألف دورو) من ${ride.fromAddress} إلى ${ride.toAddress}`
+            : `عمولة الكورسة (${commVal}%) من ${ride.fromAddress} إلى ${ride.toAddress}`,
+          rideId: ride.id,
+          status: "completed",
         });
-        currentBalance = 0;
-      } else {
-        walletId = driverWallet.id;
+
+        // تحديث إحصائيات السائق العامة
+        await db.update(driverProfilesTable).set({
+          totalRides: sql`${driverProfilesTable.totalRides} + 1`,
+          totalEarnings: sql`${driverProfilesTable.totalEarnings} + ${ride.price}`,
+        }).where(eq(driverProfilesTable.userId, driverId));
       }
-
-      const newBalance = currentBalance - commissionDeducted;
-      await db.update(walletsTable).set({
-        balance: String(newBalance),
-        updatedAt: now,
-      }).where(eq(walletsTable.id, walletId!));
-
-      // تسجيل المعاملة المالية في الأرشيف
-      await db.insert(walletTransactionsTable).values({
-        id: randomUUID(),
-        walletId: walletId!,
-        userId: driverId,
-        type: "penalty", // عمولة تطبيق
-        amount: String(-commissionDeducted),
-        balanceAfter: String(newBalance),
-        description: commType === "fixed" 
-          ? `عمولة الكورسة (مبلغ ثابت: ${commVal} ألف دورو) من ${ride.fromAddress} إلى ${ride.toAddress}`
-          : `عمولة الكورسة (${commVal}%) من ${ride.fromAddress} إلى ${ride.toAddress}`,
-        rideId: ride.id,
-        status: "completed",
-      });
-
-      // تحديث إحصائيات السائق العامة
-      await db.update(driverProfilesTable).set({
-        totalRides: sql`${driverProfilesTable.totalRides} + 1`,
-        totalEarnings: sql`${driverProfilesTable.totalEarnings} + ${ride.price}`,
-      }).where(eq(driverProfilesTable.userId, driverId));
     }
 
     // 1.5. التحقق من الإحالة لإضافة نقاط في المسابقة
@@ -552,12 +547,22 @@ router.patch("/rides/:id/complete", authenticate, async (req, res): Promise<void
       console.error("Error updating competition points on ride completion:", err);
     }
 
+    // إرسال إشعارات للطرفين
     await notifyUsers({
       userIds: [ride.passengerId],
       title: "✅ وصلت بالسلامة!",
       body: `لقد حصلت على ${pointsEarned} نقطة وفاء مجانية! نرجو منك تقييم الرحلة.`,
       data: { type: "ride_completed", rideId: ride.id, pointsEarned },
     });
+
+    if (driverId) {
+      await notifyUsers({
+        userIds: [driverId],
+        title: "✅ تم إنهاء الرحلة!",
+        body: userId === ride.passengerId ? "الراكب ضغط على زر (وصلت) وأكد الوصول للوجهة." : "تم إنهاء الرحلة بنجاح.",
+        data: { type: "ride_completed", rideId: ride.id },
+      });
+    }
 
     res.json({
       success: true,
