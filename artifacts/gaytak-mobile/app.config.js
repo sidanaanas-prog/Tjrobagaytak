@@ -16,7 +16,7 @@ const basePlugins = [
         minSdkVersion: 24,
         buildToolsVersion: "35.0.0",
         kotlinVersion: "2.1.21",
-        newArchEnabled: false,
+        newArchEnabled: true,
       },
     },
   ],
