@@ -6,9 +6,7 @@
   "build": {
     "base": {
       "node": "20.17.0",
-      "pnpm": {
-        "version": "10.26.1"
-      }
+      "pnpm": "10.26.1"
     },
     "development": {
       "developmentClient": true,
