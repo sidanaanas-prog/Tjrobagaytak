@@ -8,29 +8,34 @@ const basePlugins = [
   "expo-web-browser",
   "expo-image-picker",
   [
+    "expo-notifications",
+    {
+      icon: "./assets/images/icon.png",
+      color: "#09090F",
+      androidMode: "default",
+      androidCollapsedTitle: "Gaytak",
+      sounds: ["./assets/sounds/alert.mp3"],
+    },
+  ],
+  [
     "expo-build-properties",
     {
       android: {
-        compileSdkVersion: 35,
+        compileSdkVersion: 36,
         targetSdkVersion: 35,
         minSdkVersion: 24,
         buildToolsVersion: "35.0.0",
-        kotlinVersion: "1.9.25",
+        kotlinVersion: "2.1.21",
+        newArchEnabled: true,
       },
     },
   ],
-];
-
-const nativePlugins = [
 ];
 
 module.exports = {
   ...baseConfig,
   expo: {
     ...baseConfig.expo,
-    plugins: [
-      ...basePlugins,
-      ...(isReplit ? [] : nativePlugins),
-    ],
+    plugins: basePlugins,
   },
 };
