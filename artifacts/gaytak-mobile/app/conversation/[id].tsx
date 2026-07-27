@@ -21,11 +21,24 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+const DOMAIN = process.env.EXPO_PUBLIC_DOMAIN;
+const BASE   = `https://${DOMAIN}`;
+
+/** تحويل Blob إلى base64 data URL بشكل موثوق */
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror   = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 export default function ConversationScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { data: messages, refetch } = useGetMessages(id ?? "", undefined, {
     query: { enabled: !!id, refetchInterval: 3000 },
   } as any);
@@ -138,6 +151,10 @@ export default function ConversationScreen() {
   // ─── إيقاف وإرسال ─────────────────────────────────────────────────────
   async function stopAndSend() {
     if (!recording || !id) return;
+
+    // ✅ احفظ المدة قبل أي reset
+    const durationSecs = recordingSecs;
+
     setSendingVoice(true);
     if (recordTimerRef.current) clearInterval(recordTimerRef.current);
 
@@ -148,27 +165,46 @@ export default function ConversationScreen() {
       setIsRecording(false);
       setRecordingSecs(0);
 
-      if (!uri) { setSendingVoice(false); return; }
+      if (!uri) throw new Error("لا يوجد ملف صوتي");
 
-      // تحويل إلى base64 وإرسال
+      // الخطوة 1: قراءة الملف كـ base64
       const resp = await fetch(uri);
       const blob = await resp.blob();
-      const reader = new FileReader();
-      reader.readAsDataURL(blob);
-      reader.onloadend = async () => {
-        const base64 = reader.result as string;
-        const duration = recordingSecs;
-        const content = `[voice]${duration}|${base64}`;
-        try {
-          await sendMsg.mutateAsync({ id, data: { content } });
-          refetch();
-          markConversationRead(id ?? "");
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        } catch {}
-        setSendingVoice(false);
-      };
-      reader.onerror = () => setSendingVoice(false);
-    } catch {
+      const base64 = await blobToBase64(blob); // ← await مباشر، لا callback
+
+      // الخطوة 2: رفع الصوت للخادم
+      const ext         = Platform.OS === "web" ? "webm" : "m4a";
+      const contentType = Platform.OS === "web" ? "audio/webm" : "audio/m4a";
+      const filePath    = `voice/${Date.now()}_${durationSecs}s.${ext}`;
+
+      const uploadRes = await fetch(`${BASE}/api/upload`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ base64, path: filePath, contentType }),
+      });
+      if (!uploadRes.ok) {
+        const errData = await uploadRes.json().catch(() => ({}));
+        throw new Error((errData as any).error || "فشل رفع الصوت");
+      }
+      const { url: voiceUrl } = await uploadRes.json() as { url: string };
+
+      // الخطوة 3: إرسال الرسالة مع voiceUrl
+      const msgRes = await fetch(`${BASE}/api/conversations/${id}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ content: `[voice]${durationSecs}`, voiceUrl }),
+      });
+      if (!msgRes.ok) {
+        const errData = await msgRes.json().catch(() => ({}));
+        throw new Error((errData as any).error || "فشل إرسال الرسالة");
+      }
+
+      refetch();
+      markConversationRead(id ?? "");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e: any) {
+      Alert.alert("خطأ في الإرسال", e?.message || "تعذر إرسال الرسالة الصوتية");
+    } finally {
       setSendingVoice(false);
     }
   }
@@ -229,20 +265,35 @@ export default function ConversationScreen() {
         inverted
         contentContainerStyle={{ padding: 12, paddingBottom: 8 }}
         renderItem={({ item: msg }) => {
-          const isMine = msg.senderId === user?.id;
-          const isVoice = typeof msg.content === "string" && msg.content.startsWith("[voice]");
+          const isMine  = msg.senderId === user?.id;
+          // دعم الصيغتين: voiceUrl (جديد) أو [voice] في content (قديم)
+          const hasVoiceUrl = !!(msg as any).voiceUrl;
+          const isVoice = hasVoiceUrl || (typeof msg.content === "string" && msg.content.startsWith("[voice]"));
 
           if (isVoice) {
-            const rest = msg.content.slice(7);
-            const pipeIdx = rest.indexOf("|");
-            const dur = parseInt(rest.slice(0, pipeIdx)) || 0;
-            const b64 = rest.slice(pipeIdx + 1);
+            let dur = 0;
+            let audioUri: string | null = (msg as any).voiceUrl ?? null;
+
+            if (typeof msg.content === "string" && msg.content.startsWith("[voice]")) {
+              const rest    = msg.content.slice(7); // بعد "[voice]"
+              const pipeIdx = rest.indexOf("|");
+              if (pipeIdx >= 0) {
+                // صيغة قديمة: [voice]duration|base64
+                dur      = parseInt(rest.slice(0, pipeIdx)) || 0;
+                audioUri = audioUri ?? rest.slice(pipeIdx + 1);
+              } else {
+                // صيغة جديدة: [voice]duration  +  voiceUrl منفصل
+                dur = parseInt(rest) || 0;
+              }
+            }
+
             const isPlaying = playingMsgId === msg.id;
 
             return (
               <View style={[styles.msgWrap, isMine ? styles.msgRight : styles.msgLeft]}>
                 <TouchableOpacity
-                  onPress={() => playVoice(msg.id, b64)}
+                  onPress={() => audioUri && playVoice(msg.id, audioUri)}
+                  disabled={!audioUri}
                   style={[
                     styles.voiceBubble,
                     isMine
