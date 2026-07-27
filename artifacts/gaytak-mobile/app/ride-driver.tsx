@@ -195,6 +195,32 @@ export default function RideDriverScreen() {
     } catch {}
   }
 
+  async function handleCancel(rideId: string) {
+    if (!token) return;
+    Alert.alert(
+      "إلغاء الرحلة",
+      "هل أنت متأكد من إلغاء هذه الرحلة؟",
+      [
+        { text: "تراجع", style: "cancel" },
+        {
+          text: "إلغاء الرحلة",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await fetch(`https://${DOMAIN}/api/rides/${rideId}/cancel`, {
+                method: "PATCH",
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              fetchRides();
+            } catch {
+              Alert.alert("خطأ", "تعذر إلغاء الرحلة");
+            }
+          },
+        },
+      ]
+    );
+  }
+
   function handleDismiss() {
     setShowCallOverlay(false);
     setIncomingRide(null);
@@ -407,6 +433,16 @@ export default function RideDriverScreen() {
               >
                 <Feather name="message-circle" size={14} color={colors.accent} />
                 <Text style={[styles.actionTextOutline, { color: colors.accent }]}>محادثة</Text>
+              </TouchableOpacity>
+            )}
+            {/* Cancel button — shown for all non-completed statuses */}
+            {["accepted", "arrived", "picked_up"].includes(ride.status) && (
+              <TouchableOpacity
+                onPress={() => handleCancel(ride.id)}
+                style={[styles.actionBtnOutline, { borderColor: "#F8717150", marginTop: 4 }]}
+              >
+                <Feather name="x-circle" size={14} color="#F87171" />
+                <Text style={[styles.actionTextOutline, { color: "#F87171" }]}>إلغاء الرحلة</Text>
               </TouchableOpacity>
             )}
           </View>
