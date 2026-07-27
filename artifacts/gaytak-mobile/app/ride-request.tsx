@@ -286,6 +286,49 @@ export default function RideRequestScreen() {
     } else { Alert.alert("خطأ", data.error || "تعذر التأكيد"); }
   }
 
+  // ─── Report driver ────────────────────────────────────────────────────────
+  const [reportModalRide, setReportModalRide] = useState<Ride | null>(null);
+  const [reportReason, setReportReason]       = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportDone, setReportDone]           = useState<string | null>(null); // rideId of sent report
+
+  const REPORT_REASONS = [
+    "إزعاج وتحرش",
+    "سلوك عدواني",
+    "قيادة متهورة",
+    "رفض الوجهة",
+    "طلب سعر أعلى",
+    "سبّ وشتم",
+    "أخرى",
+  ];
+
+  async function submitReport() {
+    if (!reportReason.trim() || !reportModalRide?.driver) return;
+    setReportSubmitting(true);
+    try {
+      const res = await fetch(`${BASE}/api/reports`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          reportedId: reportModalRide.driver.id,
+          reason: reportReason.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setReportDone(reportModalRide.id);
+        setReportModalRide(null);
+        setReportReason("");
+        Alert.alert("✅ تم الإرسال", "تم إرسال تبليغك للإدارة، سنتواصل معك قريباً");
+      } else {
+        Alert.alert("خطأ", data.error || "تعذر إرسال التبليغ");
+      }
+    } catch {
+      Alert.alert("خطأ", "تعذر الاتصال بالخادم");
+    }
+    setReportSubmitting(false);
+  }
+
   // ─── Rate ────────────────────────────────────────────────────────────────
   async function handleRate(id: string, stars: number) {
     await fetch(`${BASE}/api/rides/${id}/rate`, {
@@ -480,12 +523,46 @@ export default function RideRequestScreen() {
           </View>
         )}
 
-        {/* SOS for picked_up */}
+        {/* SOS + Report for picked_up */}
         {r.status === "picked_up" && (
-          <TouchableOpacity style={[styles.sosBtn, { backgroundColor: "#EF444415", borderColor: "#EF444430" }]}>
-            <Feather name="alert-triangle" size={14} color="#EF4444" />
-            <Text style={{ color: "#EF4444", fontSize: 12, fontWeight: "700" }}>زر SOS — إبلاغ طارئ</Text>
+          <View style={{ gap: 6, marginTop: 8 }}>
+            <TouchableOpacity style={[styles.sosBtn, { backgroundColor: "#EF444415", borderColor: "#EF444430" }]}>
+              <Feather name="alert-triangle" size={14} color="#EF4444" />
+              <Text style={{ color: "#EF4444", fontSize: 12, fontWeight: "700" }}>زر SOS — إبلاغ طارئ</Text>
+            </TouchableOpacity>
+            {r.driver && reportDone !== r.id && (
+              <TouchableOpacity
+                style={[styles.reportBtn, { backgroundColor: "#F9731615", borderColor: "#F9731630" }]}
+                onPress={() => { setReportModalRide(r); setReportReason(""); }}
+              >
+                <Feather name="flag" size={14} color="#F97316" />
+                <Text style={{ color: "#F97316", fontSize: 12, fontWeight: "700" }}>بلّغ عن السائق</Text>
+              </TouchableOpacity>
+            )}
+            {reportDone === r.id && (
+              <View style={[styles.reportBtn, { backgroundColor: "#22C55E10", borderColor: "#22C55E30" }]}>
+                <Feather name="check" size={14} color="#4ADE80" />
+                <Text style={{ color: "#4ADE80", fontSize: 12, fontWeight: "700" }}>تم إرسال التبليغ</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Report button for active accepted/arrived rides too */}
+        {(r.status === "accepted" || r.status === "arrived") && r.driver && reportDone !== r.id && (
+          <TouchableOpacity
+            style={[styles.reportBtn, { backgroundColor: "#F9731615", borderColor: "#F9731630", marginTop: 6 }]}
+            onPress={() => { setReportModalRide(r); setReportReason(""); }}
+          >
+            <Feather name="flag" size={14} color="#F97316" />
+            <Text style={{ color: "#F97316", fontSize: 12, fontWeight: "700" }}>بلّغ عن السائق</Text>
           </TouchableOpacity>
+        )}
+        {(r.status === "accepted" || r.status === "arrived") && reportDone === r.id && (
+          <View style={[styles.reportBtn, { backgroundColor: "#22C55E10", borderColor: "#22C55E30", marginTop: 6 }]}>
+            <Feather name="check" size={14} color="#4ADE80" />
+            <Text style={{ color: "#4ADE80", fontSize: 12, fontWeight: "700" }}>تم إرسال التبليغ</Text>
+          </View>
         )}
 
         {/* Rating for completed */}
@@ -813,6 +890,101 @@ export default function RideRequestScreen() {
         </View>
       </ScrollView>
 
+      {/* ── Report driver modal ─────────────────────────────────────────────── */}
+      <Modal visible={!!reportModalRide} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.reportCard, { backgroundColor: colors.card, borderColor: "#F9731640" }]}>
+            {/* Header */}
+            <View style={styles.reportHeader}>
+              <View style={[styles.reportIconWrap, { backgroundColor: "#F9731620" }]}>
+                <Feather name="flag" size={22} color="#F97316" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.reportTitle, { color: colors.text }]}>بلّغ عن السائق</Text>
+                {reportModalRide?.driver && (
+                  <Text style={[styles.reportSub, { color: colors.mutedForeground }]}>
+                    {reportModalRide.driver.name}
+                  </Text>
+                )}
+              </View>
+              <TouchableOpacity onPress={() => { setReportModalRide(null); setReportReason(""); }}>
+                <Feather name="x" size={20} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.reportLabel, { color: colors.mutedForeground }]}>اختر سبب التبليغ:</Text>
+
+            {/* Reason chips */}
+            <View style={styles.reasonGrid}>
+              {REPORT_REASONS.map((r) => {
+                const selected = reportReason === r;
+                return (
+                  <TouchableOpacity
+                    key={r}
+                    style={[
+                      styles.reasonChip,
+                      {
+                        backgroundColor: selected ? "#F9731620" : colors.background,
+                        borderColor:     selected ? "#F97316"   : colors.border,
+                      },
+                    ]}
+                    onPress={() => setReportReason(r)}
+                  >
+                    {selected && <Feather name="check-circle" size={12} color="#F97316" />}
+                    <Text style={[styles.reasonChipText, { color: selected ? "#F97316" : colors.mutedForeground }]}>
+                      {r}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Custom reason if "أخرى" */}
+            {reportReason === "أخرى" && (
+              <TextInput
+                style={[styles.reportInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                placeholder="اكتب سبب التبليغ..."
+                placeholderTextColor={colors.mutedForeground}
+                multiline
+                numberOfLines={3}
+                onChangeText={(t) => setReportReason(t || "أخرى")}
+              />
+            )}
+
+            {/* Disclaimer */}
+            <View style={[styles.reportDisclaimer, { backgroundColor: "#3B82F610", borderColor: "#3B82F620" }]}>
+              <Feather name="info" size={12} color="#60A5FA" />
+              <Text style={{ color: "#60A5FA", fontSize: 11, flex: 1, lineHeight: 17 }}>
+                سيتم إرسال تبليغك للإدارة فوراً وسنراجعه خلال 24 ساعة. التبليغات الكاذبة تعرّض حسابك للإيقاف.
+              </Text>
+            </View>
+
+            {/* Actions */}
+            <View style={styles.reportActions}>
+              <TouchableOpacity
+                style={[styles.reportCancelBtn, { borderColor: colors.border }]}
+                onPress={() => { setReportModalRide(null); setReportReason(""); }}
+              >
+                <Text style={{ color: colors.mutedForeground, fontWeight: "700", fontSize: 13 }}>إلغاء</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.reportSubmitBtn,
+                  { backgroundColor: reportReason.trim() ? "#F97316" : colors.muted, opacity: reportSubmitting ? 0.6 : 1 },
+                ]}
+                onPress={submitReport}
+                disabled={!reportReason.trim() || reportSubmitting}
+              >
+                {reportSubmitting
+                  ? <ActivityIndicator size="small" color="#FFF" />
+                  : <><Feather name="send" size={14} color="#FFF" /><Text style={{ color: "#FFF", fontWeight: "700", fontSize: 13 }}>إرسال التبليغ</Text></>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* ── Accept popup ────────────────────────────────────────────────────── */}
       <Modal visible={!!acceptedRide} transparent animationType="fade">
         <View style={styles.modalOverlay}>
@@ -975,4 +1147,21 @@ const styles = StyleSheet.create({
   driverCardName:   { fontSize: 14, fontWeight: "700" },
   driverCallBtn:    { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
   acceptDismiss:    { width: "100%", borderRadius: 12, paddingVertical: 14, alignItems: "center" },
+
+  // Report driver
+  reportBtn:        { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderRadius: 10, paddingVertical: 8 },
+  reportCard:       { width: "100%", maxWidth: 380, borderRadius: 20, borderWidth: 2, padding: 20, gap: 14 },
+  reportHeader:     { flexDirection: "row", alignItems: "center", gap: 12 },
+  reportIconWrap:   { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
+  reportTitle:      { fontSize: 16, fontWeight: "800" },
+  reportSub:        { fontSize: 12, marginTop: 2 },
+  reportLabel:      { fontSize: 12, fontWeight: "700" },
+  reasonGrid:       { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  reasonChip:       { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
+  reasonChipText:   { fontSize: 12, fontWeight: "700" },
+  reportInput:      { borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, minHeight: 72, textAlignVertical: "top" },
+  reportDisclaimer: { flexDirection: "row", alignItems: "flex-start", gap: 8, borderWidth: 1, borderRadius: 10, padding: 10 },
+  reportActions:    { flexDirection: "row", gap: 10 },
+  reportCancelBtn:  { flex: 1, borderWidth: 1, borderRadius: 12, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
+  reportSubmitBtn:  { flex: 2, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 12, paddingVertical: 12 },
 });
