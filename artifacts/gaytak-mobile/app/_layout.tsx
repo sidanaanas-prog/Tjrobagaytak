@@ -16,7 +16,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { useNotifications, initNotifications } from "@/hooks/useNotifications";
+import { useNotifications, initNotifications, registerBackgroundTask } from "@/hooks/useNotifications";
 
 setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
 setAuthTokenGetter(async () => AsyncStorage.getItem("glow_token"));
@@ -67,7 +67,10 @@ export default function RootLayout() {
   }, [fontsLoaded, fontError]);
 
   useEffect(() => {
-    initNotifications();
+    initNotifications().then(() => {
+      // تسجيل مهمة الخلفية بعد الأذونات — تُعمّل الإشعار حتى لو التطبيق مغلق
+      registerBackgroundTask();
+    });
   }, []);
 
   if (!fontsLoaded && !fontError) return null;

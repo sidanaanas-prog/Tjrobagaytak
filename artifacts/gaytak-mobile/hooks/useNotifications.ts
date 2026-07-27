@@ -1,13 +1,21 @@
 import { useEffect, useRef } from "react";
 import { router } from "expo-router";
 import * as Notifications from "expo-notifications";
+import * as TaskManager from "expo-task-manager";
 import * as Device from "expo-device";
 import { Platform, PermissionsAndroid } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const DOMAIN = process.env.EXPO_PUBLIC_DOMAIN;
 
-// التهيئة الافتراضية لمعالج الإشعارات على مستوى الملف لضمان تسجيله دائماً فور تشغيل التطبيق
+// ── اسم مهمة الخلفية ─────────────────────────────────────────────────────────
+export const BACKGROUND_NOTIFICATION_TASK = "BACKGROUND-NOTIFICATION-TASK";
+
+// ── معرّفات أزرار الإشعار ────────────────────────────────────────────────────
+export const ACCEPT_RIDE_ACTION = "ACCEPT_RIDE";
+export const REJECT_RIDE_ACTION = "REJECT_RIDE";
+
+// ── التهيئة الافتراضية لمعالج الإشعارات ────────────────────────────────────
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,
@@ -18,26 +26,58 @@ Notifications.setNotificationHandler({
   }),
 });
 
-// ── Android: إنشاء channel للإشعارات المهمة ─────────────────────────────────
+// ── تعريف مهمة الخلفية (يجب استدعاؤه في أعلى مستوى الملف) ──────────────────
+// هذه المهمة تعمل حتى لو التطبيق مغلق نهائياً
+// Android يوقظ العملية عند وصول FCM عالي الأولوية ويُشغّل هذا الكود
+TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, async ({ data, error }: any) => {
+  if (error) {
+    console.error("[BG-TASK] خطأ:", error);
+    return;
+  }
+
+  const notification = data?.notification as Notifications.Notification | undefined;
+  if (!notification) return;
+
+  const d = notification.request.content.data as any;
+  console.log("[BG-TASK] وصل إشعار في الخلفية:", d?.type);
+
+  if (d?.type === "new_ride" && d?.rideId) {
+    // حفظ rideId في الذاكرة
+    await AsyncStorage.setItem("incoming_ride_id", d.rideId).catch(() => {});
+
+    // عرض إشعار محلي بشاشة كاملة + زري قبول/رفض
+    await showIncomingRideNotification(
+      d.rideId,
+      d._fromAddress ?? d.fromAddress,
+      d._toAddress  ?? d.toAddress,
+      d._price      ?? d.price
+    );
+  }
+
+  if (d?.type === "ride_taken") {
+    await AsyncStorage.removeItem("incoming_ride_id").catch(() => {});
+    await Notifications.dismissNotificationAsync("incoming_ride").catch(() => {});
+  }
+});
+
+// ── Android: إنشاء channels + فئة الإشعار مع أزرار قبول/رفض ────────────────
 
 export async function setupAndroidChannels() {
   if (Platform.OS !== "android") return;
 
-  // تسجيل كلتا القناتين (القديمة والجديدة) لضمان التوافق التام مع أي إصدار من التطبيق مثبت على هاتف المستخدم
-  // القناة الرئيسية لطلبات النقل — أعلى أولوية ممكنة + fullScreenIntent
+  // قناة طلبات النقل — أعلى أولوية + تجاوز الصامت + شاشة القفل
   await Notifications.setNotificationChannelAsync("ride_alerts", {
     name: "طلبات النقل 🚖",
-    importance: Notifications.AndroidImportance.MAX,       // IMPORTANCE_HIGH = يوقظ الشاشة
+    importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: [0, 200, 100, 200, 100, 500, 100, 500],
     sound: "alert.mp3",
     lightColor: "#00FF88",
     showBadge: true,
     enableVibrate: true,
-    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC, // يظهر على شاشة القفل
-    bypassDnd: true,                                        // يتجاوز وضع عدم الإزعاج
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+    bypassDnd: true,
   });
 
-  // نسخة احتياطية بنفس الإعدادات
   await Notifications.setNotificationChannelAsync("ride_alerts_v2", {
     name: "طلبات النقل (بديل) 🚖",
     importance: Notifications.AndroidImportance.MAX,
@@ -57,7 +97,28 @@ export async function setupAndroidChannels() {
   });
 }
 
-// ── طلب إذن الإشعارات + USE_FULL_SCREEN_INTENT (Android 14+) ────────────────
+// ── فئة الإشعار مع زري قبول/رفض ────────────────────────────────────────────
+async function setupNotificationCategories() {
+  await Notifications.setNotificationCategoryAsync("incoming_ride_category", [
+    {
+      identifier: ACCEPT_RIDE_ACTION,
+      buttonTitle: "✅ قبول",
+      options: {
+        opensAppToForeground: true,  // يفتح التطبيق عند الضغط على قبول
+      },
+    },
+    {
+      identifier: REJECT_RIDE_ACTION,
+      buttonTitle: "❌ رفض",
+      options: {
+        opensAppToForeground: false, // يرفض بدون فتح التطبيق
+        isDestructive: true,
+      },
+    },
+  ]);
+}
+
+// ── طلب الأذونات اللازمة ─────────────────────────────────────────────────────
 
 export async function requestNotificationPermissions(): Promise<boolean> {
   const existing: any = await Notifications.getPermissionsAsync();
@@ -68,23 +129,19 @@ export async function requestNotificationPermissions(): Promise<boolean> {
     if (!result.granted) return false;
   }
 
-  // Android 14+ (API 34+): نطلب إذن USE_FULL_SCREEN_INTENT صراحةً
-  // هذا الإذن يتيح فتح شاشة كاملة (كمكالمة) حتى لو التطبيق مغلق أو الشاشة مقفلة
-  if (Platform.OS === "android" && Platform.Version >= 34) {
+  // Android 14+ (API 34+): طلب USE_FULL_SCREEN_INTENT صراحةً
+  if (Platform.OS === "android" && (Platform.Version as number) >= 34) {
     try {
-      const granted = await PermissionsAndroid.request(
+      await PermissionsAndroid.request(
         "android.permission.USE_FULL_SCREEN_INTENT" as any,
         {
           title: "إذن المكالمات الواردة",
           message:
-            "يحتاج التطبيق هذا الإذن لعرض طلبات النقل كمكالمة كاملة الشاشة عند وصول طلب جديد.",
+            "يحتاج Gaytak هذا الإذن لعرض طلبات النقل كمكالمة كاملة الشاشة حتى لو التطبيق مغلق.",
           buttonPositive: "السماح",
           buttonNegative: "رفض",
         }
       );
-      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-        console.warn("[Notifications] USE_FULL_SCREEN_INTENT لم يُمنح — إشعارات عادية فقط");
-      }
     } catch (e) {
       console.warn("[Notifications] فشل طلب USE_FULL_SCREEN_INTENT:", e);
     }
@@ -93,10 +150,10 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   return true;
 }
 
-// ── حفظ push token في السيرفر ─────────────────────────────────────────────
+// ── حفظ push token في السيرفر ────────────────────────────────────────────────
 
 async function registerPushToken(token: string, userId: string) {
-  const storedToken = await AsyncStorage.getItem("fcm_token");
+  const storedToken  = await AsyncStorage.getItem("fcm_token");
   const storedUserId = await AsyncStorage.getItem("fcm_token_user");
   if (storedToken === token && storedUserId === userId) return;
 
@@ -110,10 +167,7 @@ async function registerPushToken(token: string, userId: string) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${authToken}`,
       },
-      body: JSON.stringify({
-        token,
-        platform: Platform.OS,
-      }),
+      body: JSON.stringify({ token, platform: Platform.OS }),
     });
     if (res.ok) {
       await AsyncStorage.setItem("fcm_token", token);
@@ -124,10 +178,11 @@ async function registerPushToken(token: string, userId: string) {
   }
 }
 
-// ── التهيئة ────────────────────────────────────────────────────────────────
+// ── التهيئة الكاملة (تُستدعى مرة عند بدء التطبيق) ──────────────────────────
 
 export async function initNotifications() {
   await setupAndroidChannels();
+  await setupNotificationCategories();
 
   const granted = await requestNotificationPermissions();
   if (!granted) {
@@ -135,7 +190,6 @@ export async function initNotifications() {
     return;
   }
 
-  // Get native FCM token (Android) / APNs token (iOS)
   if (Device.isDevice) {
     try {
       const tokenData = await Notifications.getDevicePushTokenAsync();
@@ -148,70 +202,94 @@ export async function initNotifications() {
   }
 }
 
-// ── معالجة النقر على الإشعار ───────────────────────────────────────────────
+// ── تسجيل مهمة الخلفية (تُستدعى بعد initNotifications) ──────────────────────
+
+export async function registerBackgroundTask() {
+  try {
+    await Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK);
+    console.log("[Notifications] Background task registered ✅");
+  } catch (e) {
+    console.warn("[Notifications] Failed to register background task:", e);
+  }
+}
+
+// ── معالجة النقر على الإشعار ─────────────────────────────────────────────────
 
 export function useNotificationHandlers() {
   const notificationListener = useRef<ReturnType<typeof Notifications.addNotificationReceivedListener> | null>(null);
-  const responseListener = useRef<ReturnType<typeof Notifications.addNotificationResponseReceivedListener> | null>(null);
+  const responseListener     = useRef<ReturnType<typeof Notifications.addNotificationResponseReceivedListener> | null>(null);
 
   useEffect(() => {
-    // Listen for notifications received while app is foregrounded
+    // إشعار وصل والتطبيق مفتوح (foreground)
     notificationListener.current = Notifications.addNotificationReceivedListener(
       async (notification) => {
         const data = notification.request.content.data as any;
-        console.log("[Notifications] received:", data);
+        console.log("[Notifications] received (fg):", data?.type);
 
-        // طلب نقل جديد والتطبيق مفتوح
         if (data?.type === "new_ride" && data?.rideId) {
           await AsyncStorage.setItem("incoming_ride_id", data.rideId).catch(() => {});
-          // نُظهر إشعار محلي بأعلى أولوية حتى يُعمل الـ fullScreenIntent
-          await showIncomingRideNotification(data.rideId, data.fromAddress, data.toAddress, data.price);
+          await showIncomingRideNotification(
+            data.rideId,
+            data._fromAddress ?? data.fromAddress,
+            data._toAddress  ?? data.toAddress,
+            data._price      ?? data.price
+          );
         }
-        // الرحلة أُخذت من سائق آخر — امسح من الذاكرة
+
         if (data?.type === "ride_taken") {
           await AsyncStorage.removeItem("incoming_ride_id").catch(() => {});
-          // إلغاء إشعار المكالمة الواردة إن كان ظاهراً
           await Notifications.dismissNotificationAsync("incoming_ride").catch(() => {});
         }
       }
     );
 
-    // Listen for user tapping on notification
+    // المستخدم ضغط على الإشعار أو على زر قبول/رفض
     responseListener.current = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        const data = response.notification.request.content.data as any;
-        console.log("[Notifications] clicked:", data);
+      async (response) => {
+        const data       = response.notification.request.content.data as any;
+        const actionId   = response.actionIdentifier;
+        console.log("[Notifications] action:", actionId, "| type:", data?.type);
 
-        if (!data) return;
-        if (data.type === "new_ride" && data.rideId) {
-          // خزّن rideId وافتح شاشة السائق مع طلب جديد
-          AsyncStorage.setItem("incoming_ride_id", data.rideId)
-            .then(() => {
-              router.push({ pathname: "/ride-driver", params: { incomingRideId: data.rideId } });
-            })
-            .catch(() => {
-              router.push({ pathname: "/ride-driver", params: { incomingRideId: data.rideId } });
-            });
-        } else if (data.type === "message" && data.conversationId) {
-          router.push(`/conversation/${data.conversationId}`);
-        } else if (data.type === "product" && data.productId) {
-          router.push(`/product/${data.productId}`);
+        // ── زر قبول ─────────────────────────────────────────────────────────
+        if (actionId === ACCEPT_RIDE_ACTION || actionId === Notifications.DEFAULT_ACTION_IDENTIFIER) {
+          if (data?.type === "new_ride" && data?.rideId) {
+            await AsyncStorage.setItem("incoming_ride_id", data.rideId).catch(() => {});
+            router.push({ pathname: "/ride-driver", params: { incomingRideId: data.rideId } } as any);
+          }
+        }
+
+        // ── زر رفض (بدون فتح التطبيق) ────────────────────────────────────
+        if (actionId === REJECT_RIDE_ACTION && data?.rideId) {
+          await AsyncStorage.removeItem("incoming_ride_id").catch(() => {});
+          await Notifications.dismissNotificationAsync("incoming_ride").catch(() => {});
+          // إرسال رفض للسيرفر في الخلفية
+          const authToken = await AsyncStorage.getItem("glow_token").catch(() => null);
+          if (authToken) {
+            fetch(`https://${DOMAIN}/api/rides/${data.rideId}/driver-reject`, {
+              method: "PATCH",
+              headers: { Authorization: `Bearer ${authToken}` },
+            }).catch(() => {});
+          }
+        }
+
+        // ── أنواع أخرى ───────────────────────────────────────────────────
+        if (data?.type === "message" && data?.conversationId) {
+          router.push(`/conversation/${data.conversationId}` as any);
+        }
+        if (data?.type === "product" && data?.productId) {
+          router.push(`/product/${data.productId}` as any);
         }
       }
     );
 
     return () => {
-      if (notificationListener.current) {
-        notificationListener.current.remove();
-      }
-      if (responseListener.current) {
-        responseListener.current.remove();
-      }
+      notificationListener.current?.remove();
+      responseListener.current?.remove();
     };
   }, []);
 }
 
-// ── حفظ token عند تسجيل الدخول ───────────────────────────────────────────
+// ── حفظ token عند تسجيل الدخول ──────────────────────────────────────────────
 
 export function useNotifications(userId: string | null) {
   useEffect(() => {
@@ -224,10 +302,9 @@ export function useNotifications(userId: string | null) {
           await registerPushToken(deviceToken, userId);
           return;
         }
-
         if (Device.isDevice) {
           const tokenData = await Notifications.getDevicePushTokenAsync();
-          const token = tokenData.data;
+          const token     = tokenData.data;
           await AsyncStorage.setItem("device_push_token", token);
           await registerPushToken(token, userId);
         }
@@ -242,7 +319,8 @@ export function useNotifications(userId: string | null) {
   useNotificationHandlers();
 }
 
-// ── إشعار مكالمة واردة للسائق (fullScreenIntent) ────────────────────────────
+// ── إشعار المكالمة الواردة (fullScreenIntent + زري قبول/رفض) ────────────────
+// يعمل هذا كـ "مكالة WhatsApp" — يفتح شاشة كاملة حتى لو الهاتف مقفل
 
 export async function showIncomingRideNotification(
   rideId: string,
@@ -250,30 +328,44 @@ export async function showIncomingRideNotification(
   toAddress?: string,
   price?: string | number
 ) {
-  // نلغي أي إشعار مكالمة سابق أولاً
-  await Notifications.dismissAllNotificationsAsync().catch(() => {});
+  // إلغاء أي إشعار مكالمة سابق لمنع التكرار
+  await Notifications.dismissNotificationAsync("incoming_ride").catch(() => {});
+
+  const body = fromAddress && toAddress
+    ? `${fromAddress} → ${toAddress}${price ? ` · ${price} دج` : ""}`
+    : "اضغط لقبول أو رفض الرحلة";
 
   await Notifications.scheduleNotificationAsync({
-    identifier: "incoming_ride",   // معرف ثابت ← يمنع تراكم إشعارات متعددة
+    identifier: "incoming_ride",    // معرف ثابت ← يمنع تراكم الإشعارات
     content: {
       title: "🚖 طلب نقل جديد!",
-      body: fromAddress && toAddress
-        ? `${fromAddress} → ${toAddress}${price ? ` · ${price} دج` : ""}`
-        : "اضغط لقبول أو رفض الرحلة",
-      data: { type: "new_ride", rideId },
+      body,
+      data: {
+        type: "new_ride",
+        rideId,
+        _fromAddress: fromAddress,
+        _toAddress:   toAddress,
+        _price:       String(price ?? ""),
+      },
       sound: "alert.mp3",
       priority: Notifications.AndroidNotificationPriority.MAX,
       vibrate: [0, 200, 100, 200, 100, 500, 100, 500],
       badge: 1,
-      // الـ channelId هو ما يحدد أن هذا الإشعار يعمل بـ fullScreenIntent
-      // (القناة ride_alerts مضبوطة على IMPORTANCE_MAX + bypassDnd + PUBLIC)
-      ...(Platform.OS === "android" ? { channelId: "ride_alerts" } : {}),
+      // فئة الإشعار → تُضيف زري قبول/رفض على الإشعار
+      categoryIdentifier: "incoming_ride_category",
+      // fullScreenAction → يفتح التطبيق كشاشة كاملة (مثل WhatsApp)
+      ...(Platform.OS === "android" ? {
+        channelId: "ride_alerts",
+        fullScreenAction: {
+          identifier: "default",    // يفتح MainActivity ويُمرّر الإشعار
+        },
+      } : {}),
     },
-    trigger: null,  // فوري
+    trigger: null,
   });
 }
 
-// ── عرض إشعار محلي (من التطبيق نفسه) ─────────────────────────────────────
+// ── إشعار محلي عام ───────────────────────────────────────────────────────────
 
 export async function showLocalNotification({
   title,

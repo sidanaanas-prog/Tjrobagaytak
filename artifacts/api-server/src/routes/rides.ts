@@ -671,6 +671,24 @@ router.patch("/rides/:id/cancel", authenticate, async (req, res): Promise<void> 
   }
 });
 
+// ── السائق: رفض الرحلة من الإشعار (بدون فتح التطبيق) ────────────────────────
+router.patch("/rides/:id/driver-reject", authenticate, async (req, res): Promise<void> => {
+  try {
+    const driverId = (req as any).user.id;
+    const [ride] = (await db.select().from(ridesTable).where(eq(ridesTable.id, req.params.id as string))) ?? [];
+    if (!ride) { res.status(404).json({ error: "الرحلة غير موجودة" }); return; }
+    // الرحلة لا تزال pending → نسجّل الرفض فقط، لا نلغيها (سيظل بإمكان سائقين آخرين قبولها)
+    if (ride.status !== "pending") {
+      res.json({ success: true, alreadyHandled: true });
+      return;
+    }
+    // نضيف السائق لقائمة من رفضها (اختياري — يمكن إضافة جدول driver_rejections لاحقاً)
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── السائق: تحديث الموقع ──────────────────────────────────────────────────
 router.patch("/driver/location", authenticate, async (req, res): Promise<void> => {
   try {

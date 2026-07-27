@@ -7,6 +7,7 @@ const basePlugins = [
   "expo-font",
   "expo-web-browser",
   "expo-image-picker",
+  "expo-task-manager",
   [
     "expo-notifications",
     {
