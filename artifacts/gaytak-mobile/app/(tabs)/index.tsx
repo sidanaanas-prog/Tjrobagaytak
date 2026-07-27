@@ -15,6 +15,7 @@ import {
   Alert,
   Modal,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -23,6 +24,22 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+const BACKGROUNDS = [
+  { id: "midnight", colors: ["#0f0c29", "#302b63", "#24243e"] },
+  { id: "aurora",   colors: ["#0d9488", "#6366f1", "#a855f7"] },
+  { id: "purple",   colors: ["#4c1d95", "#7c3aed", "#c026d3"] },
+  { id: "ocean",    colors: ["#1e3a5f", "#2563eb", "#0ea5e9"] },
+  { id: "sunset",   colors: ["#7c2d12", "#dc2626", "#f97316"] },
+  { id: "forest",   colors: ["#064e3b", "#059669", "#16a34a"] },
+  { id: "rose",     colors: ["#831843", "#db2777", "#fb7185"] },
+  { id: "gold",     colors: ["#78350f", "#d97706", "#fcd34d"] },
+  { id: "candy",    colors: ["#6d28d9", "#ec4899", "#f9a8d4"] },
+  { id: "night",    colors: ["#0f172a", "#1e293b", "#334155"] },
+  { id: "lava",     colors: ["#1a0000", "#7f1d1d", "#ef4444"] },
+];
+
+type StoryTab = "gallery" | "url" | "text";
 
 const CAT_ICONS: Record<string, string> = {
   Electronics: "smartphone",
@@ -43,8 +60,12 @@ export default function HomeScreen() {
   const { mutateAsync: addStory } = useAddStory();
 
   const [addingStory, setAddingStory] = useState(false);
+  const [storyTab, setStoryTab] = useState<StoryTab>("gallery");
   const [storyCaption, setStoryCaption] = useState("");
   const [pickedImage, setPickedImage] = useState<{ uri: string; base64: string } | null>(null);
+  const [urlInput, setUrlInput] = useState("");
+  const [storyText, setStoryText] = useState("");
+  const [selectedBg, setSelectedBg] = useState(BACKGROUNDS[0]);
   const [publishingStory, setPublishingStory] = useState(false);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
@@ -87,14 +108,31 @@ export default function HomeScreen() {
   }
 
   async function handleSubmitStory() {
-    if (!pickedImage || publishingStory) return;
+    if (publishingStory) return;
     try {
       setPublishingStory(true);
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await addStory({ mediaUrl: pickedImage.base64, mediaType: "image", caption: storyCaption });
-      setAddingStory(false);
-      setPickedImage(null);
-      setStoryCaption("");
+
+      let payload: Record<string, any>;
+
+      if (storyTab === "text") {
+        if (!storyText.trim()) { Alert.alert("مطلوب", "اكتب نص الحالة أولاً"); return; }
+        payload = {
+          mediaType: "text",
+          caption: storyText.trim(),
+          bgColor: `linear-gradient(160deg,${selectedBg.colors.join(",")})`,
+          fontFamily: "Cairo",
+        };
+      } else if (storyTab === "url") {
+        if (!urlInput.trim()) { Alert.alert("مطلوب", "أدخل رابط الصورة"); return; }
+        payload = { mediaUrl: urlInput.trim(), mediaType: "image", caption: storyCaption.trim() || null };
+      } else {
+        if (!pickedImage) { Alert.alert("مطلوب", "اختر صورة أولاً"); return; }
+        payload = { mediaUrl: pickedImage.base64, mediaType: "image", caption: storyCaption.trim() || null };
+      }
+
+      await addStory(payload as any);
+      resetStoryModal();
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
       const status = e?.status;
@@ -109,12 +147,24 @@ export default function HomeScreen() {
     }
   }
 
-  function handleCloseStoryModal() {
-    if (publishingStory) return;
+  function resetStoryModal() {
     setAddingStory(false);
     setPickedImage(null);
     setStoryCaption("");
+    setUrlInput("");
+    setStoryText("");
+    setStoryTab("gallery");
   }
+
+  function handleCloseStoryModal() {
+    if (publishingStory) return;
+    resetStoryModal();
+  }
+
+  const canSubmit =
+    storyTab === "text" ? storyText.trim().length > 0 :
+    storyTab === "url" ? urlInput.trim().length > 0 :
+    !!pickedImage;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -273,82 +323,167 @@ export default function HomeScreen() {
 
       {/* Add Story Modal */}
       <Modal visible={addingStory} animationType="slide" transparent onRequestClose={handleCloseStoryModal}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={handleCloseStoryModal} disabled={publishingStory}>
-                <Feather name="x" size={20} color={publishingStory ? colors.border : colors.mutedForeground} />
-              </TouchableOpacity>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]}>نشر حالة جديدة</Text>
-              <Feather name="image" size={20} color={colors.primary} />
-            </View>
-
-            {/* Image Preview */}
-            {pickedImage ? (
-              <View style={styles.previewWrap}>
-                <Image source={{ uri: pickedImage.uri }} style={styles.previewImg} contentFit="cover" />
-                {!publishingStory && (
-                  <TouchableOpacity style={styles.changeImgBtn} onPress={handlePickStoryImage}>
-                    <Feather name="refresh-cw" size={14} color="#FFF" />
-                    <Text style={styles.changeImgText}>تغيير</Text>
-                  </TouchableOpacity>
-                )}
+        <Pressable style={styles.modalOverlay} onPress={handleCloseStoryModal}>
+          <Pressable onPress={e => e.stopPropagation()}>
+            <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              {/* Header */}
+              <View style={styles.modalHeader}>
+                <TouchableOpacity onPress={handleCloseStoryModal} disabled={publishingStory}>
+                  <Feather name="x" size={20} color={publishingStory ? colors.border : colors.mutedForeground} />
+                </TouchableOpacity>
+                <Text style={[styles.modalTitle, { color: colors.foreground }]}>نشر حالة جديدة</Text>
+                <Feather name={storyTab === "text" ? "type" : "image"} size={20} color={colors.primary} />
               </View>
-            ) : (
-              <TouchableOpacity
-                style={[styles.pickImgBox, { borderColor: colors.border, backgroundColor: colors.background }]}
-                onPress={handlePickStoryImage}
-              >
-                <Feather name="camera" size={28} color={colors.mutedForeground} />
-                <Text style={{ color: colors.mutedForeground, fontSize: 13, marginTop: 6 }}>اختر صورة</Text>
-              </TouchableOpacity>
-            )}
 
-            {/* Caption */}
-            <TextInput
-              style={[styles.captionInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
-              placeholder="أضف تعليقاً... (اختياري)"
-              placeholderTextColor={colors.mutedForeground}
-              value={storyCaption}
-              onChangeText={setStoryCaption}
-              textAlign="right"
-              editable={!publishingStory}
-            />
+              {/* Tabs */}
+              <View style={[styles.tabRow, { backgroundColor: colors.muted }]}>
+                {([["gallery","📷 صورة"],["url","🔗 رابط"],["text","✏️ نص"]] as [StoryTab,string][]).map(([t, label]) => (
+                  <TouchableOpacity
+                    key={t}
+                    style={[styles.tabBtn, t === storyTab && { backgroundColor: colors.primary }]}
+                    onPress={() => setStoryTab(t)}
+                  >
+                    <Text style={[styles.tabBtnText, { color: t === storyTab ? "#FFF" : colors.mutedForeground }]}>{label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-            {/* Buttons */}
-            <View style={styles.modalBtns}>
-              <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: colors.muted, opacity: publishingStory ? 0.4 : 1 }]}
-                onPress={handleCloseStoryModal}
-                disabled={publishingStory}
-              >
-                <Text style={[styles.modalBtnText, { color: colors.foreground }]}>إلغاء</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.modalBtn,
-                  { backgroundColor: colors.primary, opacity: (!pickedImage || publishingStory) ? 0.6 : 1 },
-                ]}
-                onPress={handleSubmitStory}
-                disabled={!pickedImage || publishingStory}
-                activeOpacity={0.8}
-              >
-                {publishingStory ? (
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <ActivityIndicator color="#FFF" size="small" />
-                    <Text style={[styles.modalBtnText, { color: "#FFF" }]}>جارٍ النشر...</Text>
+              {/* ── تبويب الصورة ── */}
+              {storyTab === "gallery" && (
+                <>
+                  {pickedImage ? (
+                    <View style={styles.previewWrap}>
+                      <Image source={{ uri: pickedImage.uri }} style={styles.previewImg} contentFit="cover" />
+                      {!publishingStory && (
+                        <TouchableOpacity style={styles.changeImgBtn} onPress={handlePickStoryImage}>
+                          <Feather name="refresh-cw" size={14} color="#FFF" />
+                          <Text style={styles.changeImgText}>تغيير</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={[styles.pickImgBox, { borderColor: colors.border, backgroundColor: colors.background }]}
+                      onPress={handlePickStoryImage}
+                    >
+                      <Feather name="camera" size={28} color={colors.mutedForeground} />
+                      <Text style={{ color: colors.mutedForeground, fontSize: 13, marginTop: 6 }}>اختر صورة</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TextInput
+                    style={[styles.captionInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
+                    placeholder="أضف تعليقاً... (اختياري)"
+                    placeholderTextColor={colors.mutedForeground}
+                    value={storyCaption}
+                    onChangeText={setStoryCaption}
+                    textAlign="right"
+                    editable={!publishingStory}
+                  />
+                </>
+              )}
+
+              {/* ── تبويب الرابط ── */}
+              {storyTab === "url" && (
+                <>
+                  {urlInput.trim().length > 3 && (
+                    <Image source={{ uri: urlInput.trim() }} style={styles.previewImg} contentFit="cover" />
+                  )}
+                  <TextInput
+                    style={[styles.captionInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background, textAlign: "left" }]}
+                    placeholder="https://example.com/image.jpg"
+                    placeholderTextColor={colors.mutedForeground}
+                    value={urlInput}
+                    onChangeText={setUrlInput}
+                    keyboardType="url"
+                    autoCapitalize="none"
+                    editable={!publishingStory}
+                  />
+                  <TextInput
+                    style={[styles.captionInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
+                    placeholder="تعليق (اختياري)"
+                    placeholderTextColor={colors.mutedForeground}
+                    value={storyCaption}
+                    onChangeText={setStoryCaption}
+                    textAlign="right"
+                    editable={!publishingStory}
+                  />
+                </>
+              )}
+
+              {/* ── تبويب النص ── */}
+              {storyTab === "text" && (
+                <>
+                  {/* معاينة */}
+                  <View style={[styles.textPreview, { backgroundColor: selectedBg.colors[1] }]}>
+                    <View style={[StyleSheet.absoluteFillObject, { opacity: 0.7, backgroundColor: selectedBg.colors[0] }]} />
+                    <Text style={styles.textPreviewText}>
+                      {storyText.trim() || "اكتب حالتك هنا..."}
+                    </Text>
                   </View>
-                ) : (
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    <Feather name="send" size={15} color="#FFF" />
-                    <Text style={[styles.modalBtnText, { color: "#FFF" }]}>نشر الحالة</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
+
+                  {/* نص الحالة */}
+                  <TextInput
+                    style={[styles.captionInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background, minHeight: 80 }]}
+                    placeholder="اكتب نص حالتك..."
+                    placeholderTextColor={colors.mutedForeground}
+                    value={storyText}
+                    onChangeText={setStoryText}
+                    textAlign="right"
+                    multiline
+                    maxLength={200}
+                    editable={!publishingStory}
+                  />
+                  <Text style={{ color: colors.mutedForeground, fontSize: 11, textAlign: "left" }}>{storyText.length}/200</Text>
+
+                  {/* اختيار الخلفية */}
+                  <Text style={{ color: colors.mutedForeground, fontSize: 11, fontWeight: "700", textAlign: "right" }}>الخلفية</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 4 }}>
+                    {BACKGROUNDS.map((bg) => (
+                      <TouchableOpacity
+                        key={bg.id}
+                        onPress={() => setSelectedBg(bg)}
+                        style={[
+                          styles.bgSwatch,
+                          { backgroundColor: bg.colors[1] },
+                          selectedBg.id === bg.id && { borderWidth: 2, borderColor: "#FFF", transform: [{ scale: 1.12 }] },
+                        ]}
+                      />
+                    ))}
+                  </ScrollView>
+                </>
+              )}
+
+              {/* أزرار */}
+              <View style={styles.modalBtns}>
+                <TouchableOpacity
+                  style={[styles.modalBtn, { backgroundColor: colors.muted, opacity: publishingStory ? 0.4 : 1 }]}
+                  onPress={handleCloseStoryModal}
+                  disabled={publishingStory}
+                >
+                  <Text style={[styles.modalBtnText, { color: colors.foreground }]}>إلغاء</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalBtn, { backgroundColor: colors.primary, opacity: (!canSubmit || publishingStory) ? 0.5 : 1 }]}
+                  onPress={handleSubmitStory}
+                  disabled={!canSubmit || publishingStory}
+                  activeOpacity={0.8}
+                >
+                  {publishingStory ? (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <ActivityIndicator color="#FFF" size="small" />
+                      <Text style={[styles.modalBtnText, { color: "#FFF" }]}>جارٍ النشر...</Text>
+                    </View>
+                  ) : (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <Feather name="send" size={15} color="#FFF" />
+                      <Text style={[styles.modalBtnText, { color: "#FFF" }]}>نشر الحالة</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </View>
   );
@@ -468,4 +603,18 @@ const styles = StyleSheet.create({
   modalBtns: { flexDirection: "row-reverse", gap: 10 },
   modalBtn: { flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   modalBtnText: { fontSize: 15, fontWeight: "700" },
+  tabRow: { flexDirection: "row-reverse", borderRadius: 16, padding: 4, gap: 4 },
+  tabBtn: { flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: "center" },
+  tabBtnText: { fontSize: 12, fontWeight: "700" },
+  textPreview: {
+    height: 160, borderRadius: 18, overflow: "hidden",
+    alignItems: "center", justifyContent: "center", padding: 16,
+  },
+  textPreviewText: {
+    color: "#FFF", fontSize: 20, fontWeight: "800",
+    textAlign: "center", lineHeight: 30,
+  },
+  bgSwatch: {
+    width: 44, height: 44, borderRadius: 14, marginLeft: 8,
+  },
 });
