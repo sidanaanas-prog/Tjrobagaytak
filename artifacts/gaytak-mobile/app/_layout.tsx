@@ -16,6 +16,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { GlobalRideOverlay } from "@/components/GlobalRideOverlay";
 import { useNotifications, initNotifications, registerBackgroundTask } from "@/hooks/useNotifications";
 
 setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
@@ -26,9 +27,10 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function NotificationsManager() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   useNotifications(user?.id ?? null);
-  return null;
+  const isDriver = user?.role === "driver" || user?.role === "both";
+  return <GlobalRideOverlay token={token ?? null} isDriver={isDriver} />;
 }
 
 function RootLayoutNav() {

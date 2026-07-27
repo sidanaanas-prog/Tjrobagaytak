@@ -128,7 +128,31 @@ export default function HomeScreen() {
         payload = { mediaUrl: urlInput.trim(), mediaType: "image", caption: storyCaption.trim() || null };
       } else {
         if (!pickedImage) { Alert.alert("مطلوب", "اختر صورة أولاً"); return; }
-        payload = { mediaUrl: pickedImage.base64, mediaType: "image", caption: storyCaption.trim() || null };
+        // رفع الصورة على Cloudinary أولاً ثم نخزّن الرابط فقط (ليس base64)
+        const token = await import("@react-native-async-storage/async-storage")
+          .then((m) => m.default.getItem("glow_token"));
+        const fileName = `stories/${Date.now()}.jpg`;
+        const uploadRes = await fetch(
+          `https://${process.env.EXPO_PUBLIC_DOMAIN}/api/upload`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              base64: pickedImage.base64,
+              path: fileName,
+              contentType: "image/jpeg",
+            }),
+          }
+        );
+        if (!uploadRes.ok) {
+          const err = await uploadRes.json().catch(() => ({}));
+          throw new Error(err?.error || "فشل رفع الصورة");
+        }
+        const { url: mediaUrl } = await uploadRes.json();
+        payload = { mediaUrl, mediaType: "image", caption: storyCaption.trim() || null };
       }
 
       await addStory(payload as any);
