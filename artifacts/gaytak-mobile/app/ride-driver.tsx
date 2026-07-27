@@ -9,6 +9,7 @@ import {
   Alert,
   AppState,
   Dimensions,
+  Linking,
   Modal,
   StyleSheet,
   Text,
@@ -387,11 +388,16 @@ export default function RideDriverScreen() {
             )}
             {ride.passenger?.phone && (
               <TouchableOpacity
-                onPress={() => { /* call */ }}
-                style={[styles.actionBtnOutline, { borderColor: colors.border }]}
+                onPress={() => {
+                  const phone = (ride.passenger.phone as string).replace(/\s+/g, "");
+                  Linking.openURL(`tel:${phone}`).catch(() =>
+                    Alert.alert("خطأ", "تعذر فتح تطبيق الهاتف")
+                  );
+                }}
+                style={[styles.actionBtn, { backgroundColor: "#34C759" }]}
               >
-                <Feather name="phone" size={14} color={colors.primary} />
-                <Text style={[styles.actionTextOutline, { color: colors.primary }]}>اتصل بالراكب</Text>
+                <Feather name="phone" size={16} color="#FFF" />
+                <Text style={styles.actionText}>📞 اتصل بالراكب</Text>
               </TouchableOpacity>
             )}
             {ride.conversationId && (

@@ -322,10 +322,10 @@ export default function HomeScreen() {
       </ScrollView>
 
       {/* Add Story Modal */}
-      <Modal visible={addingStory} animationType="slide" transparent onRequestClose={handleCloseStoryModal}>
-        <Pressable style={styles.modalOverlay} onPress={handleCloseStoryModal}>
-          <Pressable onPress={e => e.stopPropagation()}>
-            <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <Modal visible={addingStory} animationType="slide" transparent={false} onRequestClose={handleCloseStoryModal}>
+        <View style={[styles.modalFullScreen, { backgroundColor: colors.background }]}>
+          <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border, marginTop: topPad + 8 }]}>
               {/* Header */}
               <View style={styles.modalHeader}>
                 <TouchableOpacity onPress={handleCloseStoryModal} disabled={publishingStory}>
@@ -482,8 +482,8 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-          </Pressable>
-        </Pressable>
+          </ScrollView>
+        </View>
       </Modal>
     </View>
   );
@@ -563,9 +563,17 @@ const styles = StyleSheet.create({
     flex: 1, backgroundColor: "rgba(0,0,0,0.7)",
     alignItems: "center", justifyContent: "flex-end",
   },
+  modalFullScreen: {
+    flex: 1,
+  },
+  modalScrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingBottom: 32,
+  },
   modalBox: {
-    width: "100%", borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 24, gap: 14, borderWidth: 1, borderBottomWidth: 0,
+    width: "100%", borderRadius: 24,
+    padding: 24, gap: 14, borderWidth: 1,
   },
   modalHeader: {
     flexDirection: "row-reverse",

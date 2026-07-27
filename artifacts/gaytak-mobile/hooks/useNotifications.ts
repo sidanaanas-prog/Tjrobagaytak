@@ -15,21 +15,22 @@ export const BACKGROUND_NOTIFICATION_TASK = "BACKGROUND-NOTIFICATION-TASK";
 export const ACCEPT_RIDE_ACTION = "ACCEPT_RIDE";
 export const REJECT_RIDE_ACTION = "REJECT_RIDE";
 
-// ── التهيئة الافتراضية لمعالج الإشعارات ────────────────────────────────────
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    priority: Notifications.AndroidNotificationPriority.MAX,
-  }),
-});
+// ── التهيئة الافتراضية لمعالج الإشعارات (native only) ──────────────────────
+if (Platform.OS !== "web") {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      priority: Notifications.AndroidNotificationPriority.MAX,
+    }),
+  });
+}
 
-// ── تعريف مهمة الخلفية (يجب استدعاؤه في أعلى مستوى الملف) ──────────────────
-// هذه المهمة تعمل حتى لو التطبيق مغلق نهائياً
-// Android يوقظ العملية عند وصول FCM عالي الأولوية ويُشغّل هذا الكود
-TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, async ({ data, error }: any) => {
+// ── تعريف مهمة الخلفية (native only) ────────────────────────────────────────
+if (Platform.OS !== "web") {
+  TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, async ({ data, error }: any) => {
   if (error) {
     console.error("[BG-TASK] خطأ:", error);
     return;
@@ -58,12 +59,13 @@ TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, async ({ data, error }: any
     await AsyncStorage.removeItem("incoming_ride_id").catch(() => {});
     await Notifications.dismissNotificationAsync("incoming_ride").catch(() => {});
   }
-});
+  });
+}
 
 // ── Android: إنشاء channels + فئة الإشعار مع أزرار قبول/رفض ────────────────
 
 export async function setupAndroidChannels() {
-  if (Platform.OS !== "android") return;
+  if (Platform.OS !== "android" || Platform.OS === ("web" as any)) return;
 
   // قناة طلبات النقل — أعلى أولوية + تجاوز الصامت + شاشة القفل
   await Notifications.setNotificationChannelAsync("ride_alerts", {
@@ -99,6 +101,7 @@ export async function setupAndroidChannels() {
 
 // ── فئة الإشعار مع زري قبول/رفض ────────────────────────────────────────────
 async function setupNotificationCategories() {
+  if (Platform.OS === "web") return;
   await Notifications.setNotificationCategoryAsync("incoming_ride_category", [
     {
       identifier: ACCEPT_RIDE_ACTION,
@@ -181,6 +184,7 @@ async function registerPushToken(token: string, userId: string) {
 // ── التهيئة الكاملة (تُستدعى مرة عند بدء التطبيق) ──────────────────────────
 
 export async function initNotifications() {
+  if (Platform.OS === "web") return;
   await setupAndroidChannels();
   await setupNotificationCategories();
 
@@ -205,6 +209,7 @@ export async function initNotifications() {
 // ── تسجيل مهمة الخلفية (تُستدعى بعد initNotifications) ──────────────────────
 
 export async function registerBackgroundTask() {
+  if (Platform.OS === "web") return;
   try {
     await Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK);
     console.log("[Notifications] Background task registered ✅");
