@@ -1,4 +1,5 @@
 import { ProductCard } from "@/components/ProductCard";
+import { HeroBannerSlider } from "@/components/HeroBannerSlider";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { useStories, useAddStory } from "@/hooks/useStories";
@@ -56,7 +57,7 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const { data: products, isLoading: loadingProducts } = useGetFeaturedProducts();
   const { data: categories, isLoading: loadingCats } = useListCategories();
-  const { data: storyGroups } = useStories();
+  const { data: storyGroups, isLoading: loadingStories } = useStories();
   const { mutateAsync: addStory } = useAddStory();
 
   const [addingStory, setAddingStory] = useState(false);
@@ -226,7 +227,7 @@ export default function HomeScreen() {
         {/* Stories Row */}
         <View style={styles.storiesSection}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storiesScroll}>
-            {/* Add story button */}
+            {/* Add story button — always visible when logged in */}
             {user && (
               <TouchableOpacity style={styles.storyItem} onPress={handlePickStoryImage}>
                 <View style={[styles.storyRing, { borderColor: colors.primary }]}>
@@ -238,8 +239,18 @@ export default function HomeScreen() {
               </TouchableOpacity>
             )}
 
+            {/* Loading skeletons */}
+            {loadingStories && [1, 2, 3].map((k) => (
+              <View key={k} style={styles.storyItem}>
+                <View style={[styles.storyRing, { borderColor: colors.border }]}>
+                  <View style={[styles.storyCircle, { backgroundColor: colors.muted }]} />
+                </View>
+                <View style={{ width: 40, height: 8, borderRadius: 4, backgroundColor: colors.muted }} />
+              </View>
+            ))}
+
             {/* Story groups */}
-            {storyGroups?.map((group) => (
+            {!loadingStories && storyGroups?.map((group) => (
               <TouchableOpacity
                 key={group.userId}
                 style={styles.storyItem}
@@ -264,34 +275,18 @@ export default function HomeScreen() {
                 </Text>
               </TouchableOpacity>
             ))}
+
+            {/* Empty hint when no stories and not loading */}
+            {!loadingStories && (!storyGroups || storyGroups.length === 0) && !user && (
+              <View style={{ paddingHorizontal: 8, justifyContent: "center" }}>
+                <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>لا توجد حالات حالياً</Text>
+              </View>
+            )}
           </ScrollView>
         </View>
 
-        {/* Hero Banner */}
-        <View style={[styles.hero, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "30" }]}>
-          <View style={styles.heroContent}>
-            <Text style={[styles.heroLabel, { color: colors.primary }]}>السوق الرقمي</Text>
-            <Text style={[styles.heroTitle, { color: colors.foreground }]}>اشتري وبيع بكل سهولة</Text>
-            <Text style={[styles.heroSub, { color: colors.mutedForeground }]}>آلاف المنتجات في مكان واحد</Text>
-            <View style={styles.heroBtnRow}>
-              <TouchableOpacity
-                style={[styles.heroBtn, { backgroundColor: colors.primary }]}
-                onPress={() => router.push("/(tabs)/explore")}
-              >
-                <Text style={styles.heroBtnText}>استكشف الآن</Text>
-                <Feather name="arrow-left" size={14} color="#FFF" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.heroBtn, { backgroundColor: colors.secondary }]}
-                onPress={() => router.push("/ride-request")}
-              >
-                <Text style={styles.heroBtnText}>طلب نقل</Text>
-                <Feather name={"car" as any} size={14} color="#FFF" />
-              </TouchableOpacity>
-            </View>
-          </View>
-          <View style={[styles.heroDecor, { backgroundColor: colors.primary + "20" }]} />
-        </View>
+        {/* Hero Banner Slider — animated, fetched from server */}
+        <HeroBannerSlider />
 
         {/* Categories */}
         <View style={styles.section}>
