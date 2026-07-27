@@ -309,7 +309,7 @@ export default function ProfileScreen() {
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>حسابي</Text>
         <TouchableOpacity
           style={[styles.menuRow, { backgroundColor: colors.card, borderColor: colors.border }]}
-          onPress={() => router.push("/role-select")}
+          onPress={() => router.push("/role-select" as any)}
           activeOpacity={0.7}
         >
           <Feather name="chevron-left" size={16} color={colors.mutedForeground} />

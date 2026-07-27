@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { router } from "expo-router";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
-import { Platform } from "react-native";
+import { Platform, PermissionsAndroid } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const DOMAIN = process.env.EXPO_PUBLIC_DOMAIN;
@@ -24,22 +24,24 @@ export async function setupAndroidChannels() {
   if (Platform.OS !== "android") return;
 
   // تسجيل كلتا القناتين (القديمة والجديدة) لضمان التوافق التام مع أي إصدار من التطبيق مثبت على هاتف المستخدم
+  // القناة الرئيسية لطلبات النقل — أعلى أولوية ممكنة + fullScreenIntent
   await Notifications.setNotificationChannelAsync("ride_alerts", {
-    name: "طلبات النقل",
-    importance: Notifications.AndroidImportance.MAX,
-    vibrationPattern: [200, 100, 200, 100, 500, 100, 500],
+    name: "طلبات النقل 🚖",
+    importance: Notifications.AndroidImportance.MAX,       // IMPORTANCE_HIGH = يوقظ الشاشة
+    vibrationPattern: [0, 200, 100, 200, 100, 500, 100, 500],
     sound: "alert.mp3",
     lightColor: "#00FF88",
     showBadge: true,
     enableVibrate: true,
-    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-    bypassDnd: true,
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC, // يظهر على شاشة القفل
+    bypassDnd: true,                                        // يتجاوز وضع عدم الإزعاج
   });
 
+  // نسخة احتياطية بنفس الإعدادات
   await Notifications.setNotificationChannelAsync("ride_alerts_v2", {
-    name: "طلبات النقل (بديل)",
+    name: "طلبات النقل (بديل) 🚖",
     importance: Notifications.AndroidImportance.MAX,
-    vibrationPattern: [200, 100, 200, 100, 500, 100, 500],
+    vibrationPattern: [0, 200, 100, 200, 100, 500, 100, 500],
     sound: "alert.mp3",
     lightColor: "#00FF88",
     showBadge: true,
@@ -55,16 +57,40 @@ export async function setupAndroidChannels() {
   });
 }
 
-// ── طلب إذن الإشعارات ────────────────────────────────────────────────────────
+// ── طلب إذن الإشعارات + USE_FULL_SCREEN_INTENT (Android 14+) ────────────────
 
 export async function requestNotificationPermissions(): Promise<boolean> {
   const existing: any = await Notifications.getPermissionsAsync();
-  if (existing.granted) return true;
+  if (!existing.granted) {
+    const result: any = await Notifications.requestPermissionsAsync({
+      ios: { allowAlert: true, allowBadge: true, allowSound: true },
+    });
+    if (!result.granted) return false;
+  }
 
-  const result: any = await Notifications.requestPermissionsAsync({
-    ios: { allowAlert: true, allowBadge: true, allowSound: true },
-  });
-  return result.granted;
+  // Android 14+ (API 34+): نطلب إذن USE_FULL_SCREEN_INTENT صراحةً
+  // هذا الإذن يتيح فتح شاشة كاملة (كمكالمة) حتى لو التطبيق مغلق أو الشاشة مقفلة
+  if (Platform.OS === "android" && Platform.Version >= 34) {
+    try {
+      const granted = await PermissionsAndroid.request(
+        "android.permission.USE_FULL_SCREEN_INTENT" as any,
+        {
+          title: "إذن المكالمات الواردة",
+          message:
+            "يحتاج التطبيق هذا الإذن لعرض طلبات النقل كمكالمة كاملة الشاشة عند وصول طلب جديد.",
+          buttonPositive: "السماح",
+          buttonNegative: "رفض",
+        }
+      );
+      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+        console.warn("[Notifications] USE_FULL_SCREEN_INTENT لم يُمنح — إشعارات عادية فقط");
+      }
+    } catch (e) {
+      console.warn("[Notifications] فشل طلب USE_FULL_SCREEN_INTENT:", e);
+    }
+  }
+
+  return true;
 }
 
 // ── حفظ push token في السيرفر ─────────────────────────────────────────────
@@ -131,16 +157,21 @@ export function useNotificationHandlers() {
   useEffect(() => {
     // Listen for notifications received while app is foregrounded
     notificationListener.current = Notifications.addNotificationReceivedListener(
-      (notification) => {
+      async (notification) => {
         const data = notification.request.content.data as any;
         console.log("[Notifications] received:", data);
-        // لو جاه طلب نقل جديد والتطبيق مفتوح — خزّن ويروح لشاشة السائق
+
+        // طلب نقل جديد والتطبيق مفتوح
         if (data?.type === "new_ride" && data?.rideId) {
-          AsyncStorage.setItem("incoming_ride_id", data.rideId).catch(() => {});
+          await AsyncStorage.setItem("incoming_ride_id", data.rideId).catch(() => {});
+          // نُظهر إشعار محلي بأعلى أولوية حتى يُعمل الـ fullScreenIntent
+          await showIncomingRideNotification(data.rideId, data.fromAddress, data.toAddress, data.price);
         }
-        // الرحلة تم قبولها من سائق آخر — امسح من الذاكرة
-        if (data?.type === "ride_taken" && data?.rideId) {
-          AsyncStorage.removeItem("incoming_ride_id").catch(() => {});
+        // الرحلة أُخذت من سائق آخر — امسح من الذاكرة
+        if (data?.type === "ride_taken") {
+          await AsyncStorage.removeItem("incoming_ride_id").catch(() => {});
+          // إلغاء إشعار المكالمة الواردة إن كان ظاهراً
+          await Notifications.dismissNotificationAsync("incoming_ride").catch(() => {});
         }
       }
     );
@@ -209,6 +240,37 @@ export function useNotifications(userId: string | null) {
   }, [userId]);
 
   useNotificationHandlers();
+}
+
+// ── إشعار مكالمة واردة للسائق (fullScreenIntent) ────────────────────────────
+
+export async function showIncomingRideNotification(
+  rideId: string,
+  fromAddress?: string,
+  toAddress?: string,
+  price?: string | number
+) {
+  // نلغي أي إشعار مكالمة سابق أولاً
+  await Notifications.dismissAllNotificationsAsync().catch(() => {});
+
+  await Notifications.scheduleNotificationAsync({
+    identifier: "incoming_ride",   // معرف ثابت ← يمنع تراكم إشعارات متعددة
+    content: {
+      title: "🚖 طلب نقل جديد!",
+      body: fromAddress && toAddress
+        ? `${fromAddress} → ${toAddress}${price ? ` · ${price} دج` : ""}`
+        : "اضغط لقبول أو رفض الرحلة",
+      data: { type: "new_ride", rideId },
+      sound: "alert.mp3",
+      priority: Notifications.AndroidNotificationPriority.MAX,
+      vibrate: [0, 200, 100, 200, 100, 500, 100, 500],
+      badge: 1,
+      // الـ channelId هو ما يحدد أن هذا الإشعار يعمل بـ fullScreenIntent
+      // (القناة ride_alerts مضبوطة على IMPORTANCE_MAX + bypassDnd + PUBLIC)
+      ...(Platform.OS === "android" ? { channelId: "ride_alerts" } : {}),
+    },
+    trigger: null,  // فوري
+  });
 }
 
 // ── عرض إشعار محلي (من التطبيق نفسه) ─────────────────────────────────────

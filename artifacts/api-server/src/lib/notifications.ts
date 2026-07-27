@@ -145,6 +145,13 @@ export async function sendNotification({
           channelId: isRideAlert ? "ride_alerts" : "default",
           sound: isRideAlert ? "alert.mp3" : "default",
           notificationPriority: isRideAlert ? "PRIORITY_MAX" : "PRIORITY_DEFAULT",
+          // تفعيل العرض على شاشة القفل كشاشة كاملة (مكالمة واردة)
+          ...(isRideAlert ? {
+            visibility: "public",   // يظهر المحتوى كاملاً على شاشة القفل
+            defaultVibrateTimings: false,
+            vibrateTimingsMillis: [0, 200, 100, 200, 100, 500, 100, 500],
+            tag: "incoming_ride",   // يمنع تراكم إشعارات متعددة
+          } : {}),
         },
       },
       apns: {
@@ -243,6 +250,13 @@ export async function sendPushNotification({
           channelId: isRideAlert ? "ride_alerts" : "default",
           sound: isRideAlert ? "alert.mp3" : "default",
           notificationPriority: isRideAlert ? "PRIORITY_MAX" : "PRIORITY_DEFAULT",
+          // تفعيل العرض على شاشة القفل كشاشة كاملة (مكالمة واردة)
+          ...(isRideAlert ? {
+            visibility: "public",
+            defaultVibrateTimings: false,
+            vibrateTimingsMillis: [0, 200, 100, 200, 100, 500, 100, 500],
+            tag: "incoming_ride",
+          } : {}),
         },
       },
       apns: {
