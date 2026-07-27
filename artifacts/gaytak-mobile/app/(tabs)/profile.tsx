@@ -304,8 +304,33 @@ export default function ProfileScreen() {
         )}
       </View>
 
+      {/* Role Selection */}
+      <View style={{ paddingHorizontal: 16, marginTop: 24 }}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>حسابي</Text>
+        <TouchableOpacity
+          style={[styles.menuRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={() => router.push("/role-select")}
+          activeOpacity={0.7}
+        >
+          <Feather name="chevron-left" size={16} color={colors.mutedForeground} />
+          <View style={{ flex: 1 }} />
+          <View style={{ alignItems: "flex-end" }}>
+            <Text style={[styles.menuLabel, { color: colors.foreground }]}>تغيير الدور</Text>
+            <Text style={{ fontSize: 11, color: colors.mutedForeground }}>
+              {user.role === "seller" ? "🏪 بائع" :
+               user.role === "driver" ? "🚗 سائق" :
+               user.role === "passenger" ? "🧳 راكب" :
+               "🛍 متسوق"} — اضغط للتغيير
+            </Text>
+          </View>
+          <View style={[styles.menuIcon, { backgroundColor: "#7C3AED18" }]}>
+            <Feather name="users" size={15} color="#7C3AED" />
+          </View>
+        </TouchableOpacity>
+      </View>
+
       {/* Settings & Legal */}
-      <View style={{ paddingHorizontal: 16, marginTop: 8, gap: 1 }}>
+      <View style={{ paddingHorizontal: 16, marginTop: 12, gap: 1 }}>
         <TouchableOpacity
           style={[styles.menuRow, { backgroundColor: colors.card, borderColor: colors.border }]}
           onPress={() => router.push("/privacy-policy")}

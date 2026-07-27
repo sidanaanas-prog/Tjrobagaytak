@@ -47,6 +47,7 @@ function RootLayoutNav() {
       <Stack.Screen name="driver-subscribe" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="(auth)/pin-setup" options={{ headerShown: false }} />
       <Stack.Screen name="(auth)/pin-lock" options={{ headerShown: false }} />
+      <Stack.Screen name="role-select" options={{ headerShown: false }} />
     </Stack>
   );
 }
