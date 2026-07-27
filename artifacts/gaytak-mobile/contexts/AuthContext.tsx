@@ -12,6 +12,10 @@ interface User {
   role: string;
   banned: boolean;
   createdAt: string;
+  walletBalance?: number | null;
+  points?: number | null;
+  noShowCount?: number | null;
+  rideBannedUntil?: string | null;
 }
 
 interface AuthContextType {
