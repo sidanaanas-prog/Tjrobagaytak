@@ -11,7 +11,7 @@ router.get("/stories", optionalAuthenticate, async (req, res): Promise<void> => 
   const now = new Date();
   const viewerId = (req as any).user?.id ?? null;
 
-  const stories = await db
+  const stories = (await db
     .select({
       id: storiesTable.id,
       userId: storiesTable.userId,
@@ -30,7 +30,7 @@ router.get("/stories", optionalAuthenticate, async (req, res): Promise<void> => 
     .from(storiesTable)
     .innerJoin(usersTable, eq(storiesTable.userId, usersTable.id))
     .where(and(eq(storiesTable.isActive, true), gt(storiesTable.expiresAt, now)))
-    .orderBy(desc(storiesTable.createdAt));
+    .orderBy(desc(storiesTable.createdAt))) ?? [];
 
   const storyIds = stories.map((s) => s.id);
   let viewData: Array<{ storyId: string; viewCount: number; viewedByMe: boolean }> = [];

@@ -10,6 +10,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -130,8 +131,7 @@ export default function HomeScreen() {
       } else {
         if (!pickedImage) { Alert.alert("مطلوب", "اختر صورة أولاً"); return; }
         // رفع الصورة على Cloudinary أولاً ثم نخزّن الرابط فقط (ليس base64)
-        const token = await import("@react-native-async-storage/async-storage")
-          .then((m) => m.default.getItem("glow_token"));
+        const token = await AsyncStorage.getItem("glow_token");
         const fileName = `stories/${Date.now()}.jpg`;
         const uploadRes = await fetch(
           `https://${process.env.EXPO_PUBLIC_DOMAIN}/api/upload`,
@@ -276,10 +276,12 @@ export default function HomeScreen() {
               </TouchableOpacity>
             ))}
 
-            {/* Empty hint when no stories and not loading */}
-            {!loadingStories && (!storyGroups || storyGroups.length === 0) && !user && (
+            {/* Empty hint when no stories from others */}
+            {!loadingStories && (!storyGroups || storyGroups.length === 0) && (
               <View style={{ paddingHorizontal: 8, justifyContent: "center" }}>
-                <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>لا توجد حالات حالياً</Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
+                  {user ? "لا توجد حالات — كن أول من ينشر!" : "لا توجد حالات حالياً"}
+                </Text>
               </View>
             )}
           </ScrollView>
