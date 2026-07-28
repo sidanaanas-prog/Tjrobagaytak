@@ -125,3 +125,9 @@ id = "QLDH3t5qLu2nxAv98WSKt"
 uri = "file://artifacts/gaytak-mobile/assets/sounds/alert.mp3"
 type = "audio"
 title = "Gaytak Ride Alert Sound"
+
+[[outputs]]
+id = "T8C9Zd2g4O2A23kjshfsU"
+uri = "file://attached_assets/generated_audio/ride_alert_base.mp3"
+type = "audio"
+title = "ride_alert_ringtone"
