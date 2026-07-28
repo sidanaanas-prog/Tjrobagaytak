@@ -45,6 +45,7 @@ export default function ConversationScreen() {
   const sendMsg = useSendMessage();
   const [text, setText] = useState("");
   const prevCountRef = useRef<number>(0);
+  const [deletingMsgId, setDeletingMsgId] = useState<string | null>(null);
 
   // ─── تسجيل الصوت ─────────────────────────────────────────────────────
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
@@ -243,6 +244,34 @@ export default function ConversationScreen() {
     return `${m}:${sec.toString().padStart(2, "0")}`;
   }
 
+  // ─── حذف رسالة ────────────────────────────────────────────────────────
+  async function handleDeleteMsg(msgId: string) {
+    if (!id) return;
+    Alert.alert("حذف الرسالة", "هل تريد حذف هذه الرسالة نهائياً؟", [
+      { text: "إلغاء", style: "cancel" },
+      {
+        text: "حذف",
+        style: "destructive",
+        onPress: async () => {
+          setDeletingMsgId(msgId);
+          try {
+            const res = await fetch(`${BASE}/api/conversations/${id}/messages/${msgId}`, {
+              method: "DELETE",
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!res.ok) throw new Error("فشل الحذف");
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            refetch();
+          } catch {
+            Alert.alert("خطأ", "تعذر حذف الرسالة");
+          } finally {
+            setDeletingMsgId(null);
+          }
+        },
+      },
+    ]);
+  }
+
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -289,40 +318,61 @@ export default function ConversationScreen() {
 
             const isPlaying = playingMsgId === msg.id;
 
+            const isDeleting = deletingMsgId === msg.id;
             return (
               <View style={[styles.msgWrap, isMine ? styles.msgRight : styles.msgLeft]}>
                 <TouchableOpacity
                   onPress={() => audioUri && playVoice(msg.id, audioUri)}
-                  disabled={!audioUri}
+                  onLongPress={() => isMine && handleDeleteMsg(msg.id)}
+                  disabled={!audioUri || isDeleting}
                   style={[
                     styles.voiceBubble,
                     isMine
                       ? { backgroundColor: colors.primary }
-                      : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }
+                      : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 },
+                    isDeleting && { opacity: 0.4 },
                   ]}
                 >
-                  <Feather name={isPlaying ? "pause" : "play"} size={20} color={isMine ? "#FFF" : colors.primary} />
+                  {isDeleting ? (
+                    <ActivityIndicator size="small" color={isMine ? "#FFF" : colors.primary} />
+                  ) : (
+                    <Feather name={isPlaying ? "pause" : "play"} size={20} color={isMine ? "#FFF" : colors.primary} />
+                  )}
                   <View style={[styles.waveform, { backgroundColor: isMine ? "rgba(255,255,255,0.3)" : colors.border }]} />
                   <Text style={{ color: isMine ? "rgba(255,255,255,0.8)" : colors.mutedForeground, fontSize: 12, fontWeight: "600" }}>
                     {formatDuration(dur)}
                   </Text>
+                  {isMine && (
+                    <Feather name="trash-2" size={13} color={isMine ? "rgba(255,255,255,0.5)" : colors.mutedForeground} style={{ marginLeft: 4 }} />
+                  )}
                 </TouchableOpacity>
               </View>
             );
           }
 
+          const isDeleting = deletingMsgId === msg.id;
           return (
             <View style={[styles.msgWrap, isMine ? styles.msgRight : styles.msgLeft]}>
-              <View style={[
-                styles.bubble,
-                isMine
-                  ? { backgroundColor: colors.primary }
-                  : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }
-              ]}>
-                <Text style={[styles.msgText, { color: isMine ? "#FFF" : colors.foreground }]}>
-                  {msg.content}
-                </Text>
-              </View>
+              <TouchableOpacity
+                onLongPress={() => isMine && handleDeleteMsg(msg.id)}
+                activeOpacity={isMine ? 0.7 : 1}
+                disabled={isDeleting}
+                style={[
+                  styles.bubble,
+                  isMine
+                    ? { backgroundColor: colors.primary }
+                    : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 },
+                  isDeleting && { opacity: 0.4 },
+                ]}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color={isMine ? "#FFF" : colors.primary} style={{ paddingHorizontal: 8 }} />
+                ) : (
+                  <Text style={[styles.msgText, { color: isMine ? "#FFF" : colors.foreground }]}>
+                    {msg.content}
+                  </Text>
+                )}
+              </TouchableOpacity>
             </View>
           );
         }}
