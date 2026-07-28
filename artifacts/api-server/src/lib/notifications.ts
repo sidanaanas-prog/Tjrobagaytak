@@ -124,69 +124,100 @@ export async function sendNotification({
 
     console.log(`[FCM] محاولة إرسال إشعار إلى الرمز: ${fcmToken.slice(0, 15)}... | العنوان: "${title}"`);
 
-    await admin.messaging().send({
-      token: fcmToken,
-      // كائن notification على المستوى الأعلى ضروري لاستقبال الهواتف والمتصفحات الإشعارات مباشرة في الخلفية
-      notification: {
-        title,
-        body,
-      },
-      data: {
-        ...stringData,
-        _title: title,
-        _body: body,
-        _isRideAlert: isRideAlert ? "1" : "0",
-      },
-      android: {
-        priority: "high",
-        notification: {
-          title,
-          body,
-          channelId: isRideAlert ? "ride_alerts" : "default",
-          sound: isRideAlert ? "alert.mp3" : "default",
-          notificationPriority: isRideAlert ? "PRIORITY_MAX" : "PRIORITY_DEFAULT",
-          // تفعيل العرض على شاشة القفل كشاشة كاملة (مكالمة واردة)
-          ...(isRideAlert ? {
-            visibility: "public",   // يظهر المحتوى كاملاً على شاشة القفل
-            defaultVibrateTimings: false,
-            vibrateTimingsMillis: [0, 200, 100, 200, 100, 500, 100, 500],
-            tag: "incoming_ride",   // يمنع تراكم إشعارات متعددة
-          } : {}),
+    const isNewRide = data?.type === "new_ride";
+
+    if (isNewRide) {
+      // ── طلب نقل جديد: data-only ← يُشغّل background task حتى لو التطبيق مغلق
+      //    النظام يستيقظ → BACKGROUND-NOTIFICATION-TASK يعمل → showIncomingRideNotification
+      //    → fullScreenAction = شاشة كاملة مثل واتساب
+      await admin.messaging().send({
+        token: fcmToken,
+        // ❌ بدون notification key — data-only فقط
+        data: {
+          ...stringData,
+          _title: title,
+          _body: body,
+          _isRideAlert: "1",
         },
-      },
-      apns: {
-        payload: {
-          aps: {
-            alert: { title, body },
-            sound: isRideAlert ? "alert.mp3" : "default",
-            badge: 1,
-            "content-available": 1,
+        android: {
+          priority: "high",
+          // ❌ بدون android.notification — نترك الـ background task يصنع الإشعار بـ fullScreenAction
+        },
+        apns: {
+          headers: { "apns-priority": "10" },
+          payload: {
+            aps: {
+              "content-available": 1,   // iOS background fetch
+              sound: "alert.mp3",
+              badge: 1,
+            },
           },
         },
-      },
-      webpush: {
-        headers: { Urgency: "high" },
+      });
+    } else {
+      await admin.messaging().send({
+        token: fcmToken,
+        // كائن notification على المستوى الأعلى ضروري لاستقبال الهواتف والمتصفحات الإشعارات مباشرة في الخلفية
         notification: {
           title,
           body,
-          icon: "/favicon.png",
-          badge: "/favicon.png",
-          dir: "rtl",
-          lang: "ar",
-          ...(isRideAlert ? {
-            tag: "ride_alert",
-            requireInteraction: true,
-            actions: [
-              { action: "accept", title: "قبول" },
-              { action: "decline", title: "رفض" },
-            ],
-          } : {
-            tag: "default",
-          }),
         },
-        ...(link ? { fcmOptions: { link } } : {}),
-      },
-    });
+        data: {
+          ...stringData,
+          _title: title,
+          _body: body,
+          _isRideAlert: isRideAlert ? "1" : "0",
+        },
+        android: {
+          priority: "high",
+          notification: {
+            title,
+            body,
+            channelId: isRideAlert ? "ride_alerts" : "default",
+            sound: isRideAlert ? "alert.mp3" : "default",
+            notificationPriority: isRideAlert ? "PRIORITY_MAX" : "PRIORITY_DEFAULT",
+            ...(isRideAlert ? {
+              visibility: "public",
+              defaultVibrateTimings: false,
+              vibrateTimingsMillis: [0, 200, 100, 200, 100, 500, 100, 500],
+              tag: "incoming_ride",
+            } : {}),
+          },
+        },
+        apns: {
+          payload: {
+            aps: {
+              alert: { title, body },
+              sound: isRideAlert ? "alert.mp3" : "default",
+              badge: 1,
+              "content-available": 1,
+            },
+          },
+        },
+        webpush: {
+          headers: { Urgency: "high" },
+          notification: {
+            title,
+            body,
+            icon: "/favicon.png",
+            badge: "/favicon.png",
+            dir: "rtl",
+            lang: "ar",
+            ...(isRideAlert ? {
+              tag: "ride_alert",
+              requireInteraction: true,
+              actions: [
+                { action: "accept", title: "قبول" },
+                { action: "decline", title: "رفض" },
+              ],
+            } : {
+              tag: "default",
+            }),
+          },
+          ...(link ? { fcmOptions: { link } } : {}),
+        },
+      });
+    }
     console.log(`[FCM] تم إرسال الإشعار بنجاح إلى: ${fcmToken.slice(0, 15)}...`);
   } catch (err: any) {
     const code: string = err?.code ?? "";
@@ -229,69 +260,86 @@ export async function sendPushNotification({
 
   console.log(`[FCM] محاولة إرسال إشعارات جماعية لعدد ${clean.length} رمز... | العنوان: "${title}"`);
 
+  const isNewRide = data?.type === "new_ride";
+
   const results = await admin.messaging().sendEach(
-    clean.map((token) => ({
-      token,
-      notification: {
-        title,
-        body,
-      },
-      data: {
-        ...stringData,
-        _title: title,
-        _body: body,
-        _isRideAlert: isRideAlert ? "1" : "0",
-      },
-      android: {
-        priority: "high" as const,
-        notification: {
-          title,
-          body,
-          channelId: isRideAlert ? "ride_alerts" : "default",
-          sound: isRideAlert ? "alert.mp3" : "default",
-          notificationPriority: isRideAlert ? "PRIORITY_MAX" : "PRIORITY_DEFAULT",
-          // تفعيل العرض على شاشة القفل كشاشة كاملة (مكالمة واردة)
-          ...(isRideAlert ? {
-            visibility: "public",
-            defaultVibrateTimings: false,
-            vibrateTimingsMillis: [0, 200, 100, 200, 100, 500, 100, 500],
-            tag: "incoming_ride",
-          } : {}),
+    clean.map((token) => {
+      if (isNewRide) {
+        // data-only لطلبات النقل ← background task يعمل → fullScreenAction حتى لو التطبيق مغلق
+        return {
+          token,
+          data: {
+            ...stringData,
+            _title: title,
+            _body: body,
+            _isRideAlert: "1",
+          },
+          android: { priority: "high" as const },
+          apns: {
+            headers: { "apns-priority": "10" },
+            payload: { aps: { "content-available": 1, sound: "alert.mp3", badge: 1 } },
+          },
+        };
+      }
+      return {
+        token,
+        notification: { title, body },
+        data: {
+          ...stringData,
+          _title: title,
+          _body: body,
+          _isRideAlert: isRideAlert ? "1" : "0",
         },
-      },
-      apns: {
-        payload: {
-          aps: {
-            alert: { title, body },
+        android: {
+          priority: "high" as const,
+          notification: {
+            title,
+            body,
+            channelId: isRideAlert ? "ride_alerts" : "default",
             sound: isRideAlert ? "alert.mp3" : "default",
-            badge: 1,
-            "content-available": 1,
+            notificationPriority: isRideAlert ? "PRIORITY_MAX" : "PRIORITY_DEFAULT",
+            ...(isRideAlert ? {
+              visibility: "public",
+              defaultVibrateTimings: false,
+              vibrateTimingsMillis: [0, 200, 100, 200, 100, 500, 100, 500],
+              tag: "incoming_ride",
+            } : {}),
           },
         },
-      },
-      webpush: {
-        headers: { Urgency: "high" },
-        notification: {
-          title,
-          body,
-          icon: "/favicon.png",
-          badge: "/favicon.png",
-          dir: "rtl",
-          lang: "ar",
-          ...(isRideAlert ? {
-            tag: "ride_alert",
-            requireInteraction: true,
-            actions: [
-              { action: "accept", title: "قبول" },
-              { action: "decline", title: "رفض" },
-            ],
-          } : {
-            tag: "default",
-          }),
+        apns: {
+          payload: {
+            aps: {
+              alert: { title, body },
+              sound: isRideAlert ? "alert.mp3" : "default",
+              badge: 1,
+              "content-available": 1,
+            },
+          },
         },
-        ...(link ? { fcmOptions: { link } } : {}),
-      },
-    }))
+        webpush: {
+          headers: { Urgency: "high" },
+          notification: {
+            title,
+            body,
+            icon: "/favicon.png",
+            badge: "/favicon.png",
+            dir: "rtl",
+            lang: "ar",
+            ...(isRideAlert ? {
+              tag: "ride_alert",
+              requireInteraction: true,
+              actions: [
+                { action: "accept", title: "قبول" },
+                { action: "decline", title: "رفض" },
+              ],
+            } : {
+              tag: "default",
+            }),
+          },
+          ...(link ? { fcmOptions: { link } } : {}),
+        },
+      };
+    })
   );
 
   const badTokens: string[] = [];
