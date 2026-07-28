@@ -102,6 +102,17 @@ export default function StoryViewerScreen() {
   }
 
   const isOwn = currentGroup.userId === user?.id;
+  const isTextStory = currentStory.mediaType === "text";
+
+  // استخلاص اللون الأول من bgColor للخلفية
+  function extractBgColors(bgColor?: string | null): [string, string] {
+    if (!bgColor) return ["#1a1a2e", "#16213e"];
+    const matches = bgColor.match(/#[0-9a-fA-F]{3,8}|rgb\([^)]+\)/g);
+    if (matches && matches.length >= 2) return [matches[0], matches[1]];
+    if (matches && matches.length === 1) return [matches[0], matches[0]];
+    return ["#1a1a2e", "#16213e"];
+  }
+  const [bgFrom, bgTo] = extractBgColors(currentStory.bgColor);
 
   async function handleDelete() {
     Alert.alert("حذف الحالة", "هل تريد حذف هذه الحالة؟", [
@@ -124,15 +135,28 @@ export default function StoryViewerScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Background image */}
-      <Image
-        source={{ uri: currentStory.mediaUrl }}
-        style={StyleSheet.absoluteFill}
-        contentFit="cover"
-      />
-
-      {/* Dark overlay */}
-      <View style={styles.overlay} />
+      {/* خلفية الحالة: صورة أو تدرج لوني للنص */}
+      {isTextStory ? (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: bgTo }]}>
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: bgFrom, opacity: 0.7 }]} />
+          {/* نص الحالة في المنتصف */}
+          <View style={styles.textStoryCenter}>
+            <Text style={styles.textStoryContent}>
+              {currentStory.caption}
+            </Text>
+          </View>
+        </View>
+      ) : (
+        <>
+          <Image
+            source={{ uri: currentStory.mediaUrl ?? undefined }}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+          />
+          {/* Dark overlay for image stories */}
+          <View style={styles.overlay} />
+        </>
+      )}
 
       {/* Progress bars */}
       <View style={[styles.progressRow, { paddingTop: insets.top + 8 }]}>
@@ -191,8 +215,8 @@ export default function StoryViewerScreen() {
         </TouchableWithoutFeedback>
       </View>
 
-      {/* Caption */}
-      {currentStory.caption ? (
+      {/* Caption للصور فقط (حالات النص تعرض النص في المنتصف) */}
+      {!isTextStory && currentStory.caption ? (
         <View style={[styles.captionBox, { paddingBottom: insets.bottom + 24 }]}>
           <Text style={styles.captionText}>{currentStory.caption}</Text>
         </View>
@@ -284,5 +308,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "right",
     lineHeight: 24,
+  },
+  textStoryCenter: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+    marginTop: 80,
+    marginBottom: 60,
+  },
+  textStoryContent: {
+    color: "#FFF",
+    fontSize: 26,
+    fontWeight: "800",
+    textAlign: "center",
+    lineHeight: 40,
   },
 });

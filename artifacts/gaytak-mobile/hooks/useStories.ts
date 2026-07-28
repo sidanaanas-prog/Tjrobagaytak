@@ -4,8 +4,10 @@ import { customFetch } from "@workspace/api-client-react";
 export interface Story {
   id: string;
   userId: string;
-  mediaUrl: string;
-  mediaType: "image" | "video";
+  mediaUrl: string | null;
+  mediaType: "image" | "video" | "text";
+  bgColor?: string | null;
+  fontFamily?: string | null;
   caption?: string | null;
   expiresAt: string;
   createdAt: string;
@@ -27,10 +29,18 @@ export function useStories() {
   });
 }
 
+export interface AddStoryPayload {
+  mediaUrl?: string | null;
+  mediaType?: string;
+  caption?: string | null;
+  bgColor?: string | null;
+  fontFamily?: string | null;
+}
+
 export function useAddStory() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { mediaUrl: string; mediaType?: string; caption?: string }) =>
+    mutationFn: (data: AddStoryPayload) =>
       customFetch<Story>("/api/stories", {
         method: "POST",
         body: JSON.stringify(data),

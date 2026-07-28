@@ -2,15 +2,14 @@ import { ProductCard } from "@/components/ProductCard";
 import { HeroBannerSlider } from "@/components/HeroBannerSlider";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
-import { useStories, useAddStory } from "@/hooks/useStories";
-import { useGetFeaturedProducts, useListCategories } from "@workspace/api-client-react";
+import { useStories, useAddStory, type AddStoryPayload } from "@/hooks/useStories";
+import { useGetFeaturedProducts, useListCategories, customFetch } from "@workspace/api-client-react";
 import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -115,10 +114,13 @@ export default function HomeScreen() {
       setPublishingStory(true);
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      let payload: Record<string, any>;
+      let payload: AddStoryPayload;
 
       if (storyTab === "text") {
-        if (!storyText.trim()) { Alert.alert("مطلوب", "اكتب نص الحالة أولاً"); return; }
+        if (!storyText.trim()) {
+          Alert.alert("مطلوب", "اكتب نص الحالة أولاً");
+          return;
+        }
         payload = {
           mediaType: "text",
           caption: storyText.trim(),
@@ -126,46 +128,57 @@ export default function HomeScreen() {
           fontFamily: "Cairo",
         };
       } else if (storyTab === "url") {
-        if (!urlInput.trim()) { Alert.alert("مطلوب", "أدخل رابط الصورة"); return; }
-        payload = { mediaUrl: urlInput.trim(), mediaType: "image", caption: storyCaption.trim() || null };
-      } else {
-        if (!pickedImage) { Alert.alert("مطلوب", "اختر صورة أولاً"); return; }
-        // رفع الصورة على Cloudinary أولاً ثم نخزّن الرابط فقط (ليس base64)
-        const token = await AsyncStorage.getItem("glow_token");
-        const fileName = `stories/${Date.now()}.jpg`;
-        const uploadRes = await fetch(
-          `https://${process.env.EXPO_PUBLIC_DOMAIN}/api/upload`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              base64: pickedImage.base64,
-              path: fileName,
-              contentType: "image/jpeg",
-            }),
-          }
-        );
-        if (!uploadRes.ok) {
-          const err = await uploadRes.json().catch(() => ({}));
-          throw new Error(err?.error || "فشل رفع الصورة");
+        if (!urlInput.trim()) {
+          Alert.alert("مطلوب", "أدخل رابط الصورة");
+          return;
         }
-        const { url: mediaUrl } = await uploadRes.json();
-        payload = { mediaUrl, mediaType: "image", caption: storyCaption.trim() || null };
+        payload = {
+          mediaUrl: urlInput.trim(),
+          mediaType: "image",
+          caption: storyCaption.trim() || null,
+        };
+      } else {
+        if (!pickedImage) {
+          Alert.alert("مطلوب", "اختر صورة أولاً");
+          return;
+        }
+        // رفع الصورة أولاً عبر customFetch (يُرفق التوكن تلقائياً)
+        const fileName = `stories/${Date.now()}.jpg`;
+        const uploadResult = await customFetch<{ url: string }>("/api/upload", {
+          method: "POST",
+          body: JSON.stringify({
+            base64: pickedImage.base64,
+            path: fileName,
+            contentType: "image/jpeg",
+          }),
+        });
+        payload = {
+          mediaUrl: uploadResult.url,
+          mediaType: "image",
+          caption: storyCaption.trim() || null,
+        };
       }
 
-      await addStory(payload as any);
+      await addStory(payload);
       resetStoryModal();
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
       const status = e?.status;
+      // استخرج رسالة الخطأ الفعلية من الـ API
+      const apiMsg =
+        e?.data?.error ||
+        e?.data?.message ||
+        (typeof e?.data === "string" ? e.data : null) ||
+        e?.message;
+
       let msg = "فشل نشر الحالة، حاول مرة أخرى";
       if (status === 413) msg = "الصورة كبيرة جداً، اختر صورة أصغر";
       else if (status === 401) msg = "انتهت جلستك، أعد تسجيل الدخول";
-      else if (status === 0 || e?.name === "TypeError") msg = "تحقق من اتصالك بالإنترنت";
-      else if (e?.message) msg = e.message;
+      else if (status === 400 && apiMsg) msg = apiMsg;
+      else if (status === 500) msg = "خطأ في الخادم، حاول لاحقاً";
+      else if (e?.name === "TypeError" || status === 0) msg = "تحقق من اتصالك بالإنترنت";
+      else if (apiMsg) msg = apiMsg;
+
       Alert.alert("خطأ في النشر", msg);
     } finally {
       setPublishingStory(false);
