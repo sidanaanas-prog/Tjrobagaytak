@@ -3,6 +3,7 @@ import { db, pharmaciesTable, pharmacyStaffTable, prescriptionOrdersTable, pharm
 import { eq, desc, and, or } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { authenticate, requireAdmin } from "../lib/auth";
+import { notifyUsers, sendNotification } from "../lib/notifications";
 
 const router = Router();
 
@@ -101,6 +102,21 @@ router.post("/pharmacy/prescriptions", authenticate, async (req, res): Promise<v
       notes: notes || null, deliveryType: deliveryType || "pickup",
       address: address || null, status: "pending",
     });
+
+    // إشعار لصاحب الصيدلية
+    if (pharmacy.ownerId) {
+      const [sender] = (await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, userId)).limit(1)) ?? [];
+      const [owner] = (await db.select({ pushToken: usersTable.pushToken }).from(usersTable).where(eq(usersTable.id, pharmacy.ownerId)).limit(1)) ?? [];
+      if (owner?.pushToken) {
+        await sendNotification({
+          fcmToken: owner.pushToken,
+          title: "وصفة جديدة 💊",
+          body: `وصفة جديدة من ${sender?.name ?? "عميل"}`,
+          data: { type: "new_prescription", prescriptionId: id },
+        }).catch(() => {});
+      }
+    }
+
     res.status(201).json({ id, message: "تم إرسال طلبك بنجاح، سيتواصل معك الصيدلاني قريباً" });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
@@ -118,13 +134,28 @@ router.post("/pharmacy/appointments", authenticate, async (req, res): Promise<vo
     if (!exam) { res.status(404).json({ error: "نوع الفحص غير موجود" }); return; }
 
     const id = randomUUID();
-    const commission = (Number(exam.price) * Number((await db.select().from(pharmaciesTable).where(eq(pharmaciesTable.id, exam.pharmacyId)).limit(1))[0]?.commissionRate ?? 10) / 100).toFixed(2);
+    const [examPharmacy] = (await db.select().from(pharmaciesTable).where(eq(pharmaciesTable.id, exam.pharmacyId)).limit(1)) ?? [];
+    const commission = (Number(exam.price) * Number(examPharmacy?.commissionRate ?? 10) / 100).toFixed(2);
     await db.insert(pharmacyAppointmentsTable).values({
       id, pharmacyId: exam.pharmacyId, examId, userId,
       appointmentDate, appointmentTime, patientName, patientPhone,
       notes: notes || null, status: "pending", price: exam.price,
       commissionAmount: commission,
     });
+
+    // إشعار لصاحب الصيدلية
+    if (examPharmacy?.ownerId) {
+      const [owner] = (await db.select({ pushToken: usersTable.pushToken }).from(usersTable).where(eq(usersTable.id, examPharmacy.ownerId)).limit(1)) ?? [];
+      if (owner?.pushToken) {
+        await sendNotification({
+          fcmToken: owner.pushToken,
+          title: "حجز جديد 📅",
+          body: `حجز جديد: ${exam.name} في ${appointmentDate} الساعة ${appointmentTime}`,
+          data: { type: "new_appointment", appointmentId: id },
+        }).catch(() => {});
+      }
+    }
+
     res.status(201).json({ id, message: "تم الحجز بنجاح، سيتم تأكيده قريباً" });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
@@ -145,6 +176,23 @@ router.post("/pharmacy/consultations", authenticate, async (req, res): Promise<v
       question: question.trim(), imageUrl: imageUrl || null,
       isPublic: isPublic !== false, status: "open",
     });
+
+    // إشعار لأطباء الطاقم الطبي في الصيدلية
+    const staffMembers = (await db.select({ userId: pharmacyStaffTable.userId })
+      .from(pharmacyStaffTable)
+      .where(and(eq(pharmacyStaffTable.pharmacyId, pharmacy.id), eq(pharmacyStaffTable.status, "active")))) ?? [];
+    const staffUserIds = staffMembers.map((s) => s.userId).filter(Boolean) as string[];
+    // أضف صاحب الصيدلية أيضاً
+    if (pharmacy.ownerId) staffUserIds.push(pharmacy.ownerId);
+    if (staffUserIds.length > 0) {
+      await notifyUsers({
+        userIds: staffUserIds,
+        title: "استفسار جديد 🩺",
+        body: question.trim().slice(0, 100),
+        data: { type: "new_consultation", consultationId: id },
+      }).catch(() => {});
+    }
+
     res.status(201).json({ id, message: "تم إرسال سؤالك، سيرد عليك الطبيب قريباً" });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
@@ -281,6 +329,29 @@ router.patch("/pharmacy/owner/prescriptions/:id", authenticate, async (req, res)
       eq(prescriptionOrdersTable.id, req.params.id),
       eq(prescriptionOrdersTable.pharmacyId, pharmacy.id)
     ));
+
+    // إشعار للعميل عند تحديد السعر — نتحقق أن الطلب ينتمي لصيدلية هذا المالك
+    if (proposedPrice) {
+      const [order] = (await db.select({ userId: prescriptionOrdersTable.userId })
+        .from(prescriptionOrdersTable)
+        .where(and(
+          eq(prescriptionOrdersTable.id, req.params.id),
+          eq(prescriptionOrdersTable.pharmacyId, pharmacy.id),
+        ))
+        .limit(1)) ?? [];
+      if (order?.userId) {
+        const [patient] = (await db.select({ pushToken: usersTable.pushToken }).from(usersTable).where(eq(usersTable.id, order.userId)).limit(1)) ?? [];
+        if (patient?.pushToken) {
+          await sendNotification({
+            fcmToken: patient.pushToken,
+            title: "تم تحديد سعر وصفتك 💰",
+            body: `السعر المقترح: ${proposedPrice} ر.س — افتح التطبيق للمراجعة`,
+            data: { type: "prescription_price", prescriptionId: req.params.id, proposedPrice: String(proposedPrice) },
+          }).catch(() => {});
+        }
+      }
+    }
+
     res.json({ message: "تم التحديث" });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
