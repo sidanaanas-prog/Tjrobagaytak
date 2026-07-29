@@ -1,5 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import PharmacyOwnerDashboard from "@/components/pharmacy/PharmacyOwnerDashboard";
+import PharmacyStaffDashboard from "@/components/pharmacy/PharmacyStaffDashboard";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
@@ -23,8 +25,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { customFetch } from "@workspace/api-client-react";
 
-const BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
-
 type Tab = "prescriptions" | "appointments" | "consultations";
 type Exam = { id: string; name: string; description: string | null; price: string; durationMinutes: number };
 type Consultation = {
@@ -32,6 +32,11 @@ type Consultation = {
   createdAt: string; replies: { reply: string; staffName: string; createdAt: string }[];
 };
 type Pharmacy = { id: string; name: string; phone: string | null; workHours: string | null; address: string | null };
+
+type PharmacyRole =
+  | { role: "user"; pharmacy: null }
+  | { role: "pharmacy_owner"; pharmacy: Pharmacy }
+  | { role: "pharmacy_staff"; pharmacy: Pharmacy; staffInfo: { name: string; specialty: string; phone: string } };
 
 // ─── الشارة الملونة ─────────────────────────────────────────────────────────
 function StatusBadge({ status, colors }: { status: string; colors: any }) {
@@ -191,7 +196,7 @@ function AppointmentsTab({ colors }: { colors: any }) {
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [patientName, setPatientName] = useState(user?.name ?? "");
-  const [patientPhone, setPatientPhone] = useState(user?.phone ?? "");
+  const [patientPhone, setPatientPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [myApps, setMyApps] = useState<any[]>([]);
@@ -389,12 +394,42 @@ function ConsultationsTab({ colors }: { colors: any }) {
   );
 }
 
+// ─── شاشة التحميل ────────────────────────────────────────────────────────────
+function RoleLoadingScreen({ colors }: { colors: any }) {
+  return (
+    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}>
+      <ActivityIndicator color={colors.primary} size="large" />
+      <Text style={{ color: colors.muted, marginTop: 12, fontSize: 13 }}>جاري التحقق...</Text>
+    </View>
+  );
+}
+
 // ─── الشاشة الرئيسية ─────────────────────────────────────────────────────
 export default function PharmacyScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { token } = useAuth();
   const [tab, setTab] = useState<Tab>("prescriptions");
   const [pharmacy, setPharmacy] = useState<Pharmacy | null>(null);
+  const [pharmacyRole, setPharmacyRole] = useState<PharmacyRole | null>(null);
+  const [roleLoading, setRoleLoading] = useState(true);
+
+  // كشف دور المستخدم عند التحميل
+  useEffect(() => {
+    let cancelled = false;
+    async function detectRole() {
+      setRoleLoading(true);
+      try {
+        if (token) {
+          const roleData = await customFetch<PharmacyRole>("/api/pharmacy/me");
+          if (!cancelled && roleData) setPharmacyRole(roleData);
+        }
+      } catch {}
+      if (!cancelled) setRoleLoading(false);
+    }
+    detectRole();
+    return () => { cancelled = true; };
+  }, [token]);
 
   useEffect(() => {
     customFetch<Pharmacy>("/api/pharmacy").then(setPharmacy).catch(() => {});
@@ -406,6 +441,25 @@ export default function PharmacyScreen() {
     { id: "consultations", label: "استفسار", icon: "message-circle" },
   ];
 
+  // مؤشر تحميل عند فحص الدور
+  if (roleLoading) return <RoleLoadingScreen colors={colors} />;
+
+  // لوحة صاحب الصيدلية
+  if (pharmacyRole?.role === "pharmacy_owner") {
+    return <PharmacyOwnerDashboard pharmacy={pharmacyRole.pharmacy} />;
+  }
+
+  // لوحة الطاقم الطبي (الأطباء)
+  if (pharmacyRole?.role === "pharmacy_staff") {
+    return (
+      <PharmacyStaffDashboard
+        pharmacy={pharmacyRole.pharmacy}
+        staffInfo={pharmacyRole.staffInfo}
+      />
+    );
+  }
+
+  // الواجهة العادية للمستخدم
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
