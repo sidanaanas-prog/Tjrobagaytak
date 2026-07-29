@@ -26,6 +26,7 @@ import ridesRouter from "./rides";
 import walletRouter from "./wallet";
 import userRolesRouter from "./user-roles";
 import restaurantsRouter from "./restaurants";
+import pharmacyRouter from "./pharmacy";
 
 const router: IRouter = Router();
 
@@ -55,6 +56,7 @@ router.use(ridesRouter);
 router.use(walletRouter);
 router.use(userRolesRouter);
 router.use(restaurantsRouter);
+router.use(pharmacyRouter);
 router.use(wasenderApiRouter);
 
 export default router;

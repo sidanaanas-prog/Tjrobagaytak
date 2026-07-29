@@ -77,7 +77,7 @@ function MoreModal({ visible, onClose }: MoreModalProps) {
     { icon: "shopping-bag", label: "بيع منتج", path: "/(tabs)/sell", color: "#10B981", show: true },
     { icon: "credit-card", label: "محفظتي", path: "/(tabs)/wallet", color: "#F59E0B", show: true },
     { icon: "message-circle", label: "الرسائل", path: "/(tabs)/chat", color: "#8B5CF6", show: true, badge: unread > 0 ? unread : undefined },
-    { icon: "star", label: "المناسبات", path: "/(tabs)/food", color: "#EF4444", show: true },
+    { icon: "plus-circle", label: "صيدلية شفاء", path: "/(tabs)/food", color: "#34D399", show: true },
     { icon: "briefcase", label: "أعمالي", path: "/(tabs)/dashboard", color: "#F97316", show: isSeller },
     { icon: "navigation", label: "لوحة السائق", path: "/ride-driver", color: "#00C48C", show: isDriver },
     { icon: "user-plus", label: "تغيير الدور", path: "/role-select", color: "#0EA5E9", show: true },

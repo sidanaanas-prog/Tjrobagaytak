@@ -28,3 +28,4 @@ export * from "./post_comments";
 export * from "./post_views";
 export * from "./wallets";
 export * from "./restaurants";
+export * from "./pharmacy";

@@ -5,7 +5,7 @@ import { StoriesBar } from "@/components/Stories";
 import { HeroSlider } from "@/components/HeroSlider";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Zap, Clock, Flame, UtensilsCrossed, ChevronRight, Sparkles, Trophy } from "lucide-react";
+import { Zap, Clock, Flame, ChevronRight, Sparkles, Trophy, Pill, Calendar, MessageCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { SkeletonCard } from "@/components/SkeletonCard";
 import { getCachedData } from "@/hooks/use-cached-query";
@@ -50,51 +50,35 @@ const CAT_COLORS = [
 const ROTATE_INTERVAL = 30_000;
 const PAGE_SIZE = 4;
 
-function RestaurantsStrip() {
-  const [restaurants, setRestaurants] = useState<any[]>([]);
-
-  useEffect(() => {
-    fetch(`${BASE}/api/restaurants?limit=6`)
-      .then((r) => r.ok ? r.json() : [])
-      .then((data) => { if (Array.isArray(data)) setRestaurants(data.slice(0, 6)); })
-      .catch(() => {});
-  }, []);
-
-  if (!restaurants.length) return null;
-
+function PharmacyStrip() {
+  const services = [
+    { icon: Pill, label: "وصفة طبية", desc: "أرسل وصفتك", color: "from-emerald-500/30 to-emerald-500/5 border-emerald-500/30", iconColor: "text-emerald-400", href: "/pharmacy" },
+    { icon: Calendar, label: "حجز فحص", desc: "احجز موعدك", color: "from-blue-500/30 to-blue-500/5 border-blue-500/30", iconColor: "text-blue-400", href: "/pharmacy" },
+    { icon: MessageCircle, label: "استفسار طبي", desc: "اسأل الطبيب", color: "from-purple-500/30 to-purple-500/5 border-purple-500/30", iconColor: "text-purple-400", href: "/pharmacy" },
+  ];
   return (
     <div className="mt-5">
       <div className="flex items-center justify-between px-5 mb-3">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-primary" />
-          <h2 className="text-xs font-bold text-white/60 uppercase tracking-widest">منازل المناسبات</h2>
+          <Pill className="w-4 h-4 text-emerald-400" />
+          <h2 className="text-xs font-bold text-white/60 uppercase tracking-widest">صيدلية شفاء</h2>
         </div>
-        <Link href="/food">
+        <Link href="/pharmacy">
           <span className="text-xs text-primary font-semibold flex items-center gap-1">
-            الكل <ChevronRight className="w-3.5 h-3.5" />
+            اكتشف <ChevronRight className="w-3.5 h-3.5" />
           </span>
         </Link>
       </div>
       <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none -mx-5 px-5">
-        {restaurants.map((r: any) => (
-          <Link key={r.id} href={`/food/${r.id}`}>
-            <motion.div whileTap={{ scale: 0.93 }} className="shrink-0 w-28">
-              <div className="w-28 h-20 rounded-2xl overflow-hidden bg-white/5 border border-white/10 mb-1.5 relative">
-                {r.coverImage || r.logo ? (
-                  <img src={r.coverImage ?? r.logo} alt={r.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20">
-                    <span className="text-2xl font-black text-white/30">{r.name[0]}</span>
-                  </div>
-                )}
-                {!r.isOpen && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-2xl">
-                    <span className="text-[10px] text-white/60 font-bold">مغلق</span>
-                  </div>
-                )}
+        {services.map((s) => (
+          <Link key={s.label} href={s.href}>
+            <motion.div whileTap={{ scale: 0.93 }}
+              className={`shrink-0 w-32 rounded-2xl bg-gradient-to-br ${s.color} border p-4 flex flex-col gap-2`}>
+              <div className={`w-9 h-9 rounded-xl bg-black/20 flex items-center justify-center`}>
+                <s.icon className={`w-5 h-5 ${s.iconColor}`} />
               </div>
-              <p className="text-xs font-semibold text-white truncate">{r.name}</p>
-              <p className="text-[10px] text-white/40 truncate">{r.category}</p>
+              <p className="text-sm font-bold text-white leading-tight">{s.label}</p>
+              <p className="text-[10px] text-white/50">{s.desc}</p>
             </motion.div>
           </Link>
         ))}
@@ -334,8 +318,8 @@ export default function HomePage() {
           )}
         </AnimatePresence>
 
-        {/* 🍽️ مطاعم قريبة */}
-        <RestaurantsStrip />
+        {/* 💊 صيدلية شفاء */}
+        <PharmacyStrip />
 
         {/* Categories */}
         <div className="mt-6 px-5">
