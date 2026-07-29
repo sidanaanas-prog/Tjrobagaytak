@@ -200,6 +200,13 @@ export default function WalletScreen() {
               <Text style={{ color: colors.primary, fontWeight: "700", fontSize: 13 }}>طلب كورسا</Text>
             </TouchableOpacity>
             <TouchableOpacity
+              style={[s.quickBtn, { backgroundColor: "#F59E0B15", borderColor: "#F59E0B30" }]}
+              onPress={() => router.push("/(auth)/pin-setup" as any)}
+            >
+              <Feather name="lock" size={16} color="#F59E0B" />
+              <Text style={{ color: "#F59E0B", fontWeight: "700", fontSize: 13 }}>قفل PIN</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               style={[s.quickBtn, { backgroundColor: colors.muted, borderColor: colors.border }]}
               onPress={() => router.push("/chat" as any)}
             >

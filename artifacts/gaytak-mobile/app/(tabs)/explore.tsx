@@ -2,6 +2,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { useColors } from "@/hooks/useColors";
 import { useListProducts, useListCategories } from "@workspace/api-client-react";
 import { Feather } from "@expo/vector-icons";
+import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -87,6 +88,24 @@ export default function ExploreScreen() {
         ))}
       </ScrollView>
 
+      {/* Sellers Shortcut */}
+      <View style={[styles.sellersRow, { borderBottomColor: colors.border }]}>
+        <TouchableOpacity
+          style={[styles.sellersBtn, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "30" }]}
+          onPress={() => router.push("/sellers" as any)}
+        >
+          <Feather name="shopping-bag" size={14} color={colors.primary} />
+          <Text style={[styles.sellersBtnText, { color: colors.primary }]}>المتاجر</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.sellersBtn, { backgroundColor: "#EF444415", borderColor: "#EF444430" }]}
+          onPress={() => router.push("/wishlist" as any)}
+        >
+          <Feather name="heart" size={14} color="#EF4444" />
+          <Text style={[styles.sellersBtnText, { color: "#EF4444" }]}>المفضلة</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Results */}
       {isLoading ? (
         <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
@@ -141,4 +160,7 @@ const styles = StyleSheet.create({
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
   emptyTitle: { fontSize: 18, fontWeight: "700" },
   emptyText: { fontSize: 14 },
+  sellersRow: { flexDirection: "row-reverse", paddingHorizontal: 16, paddingVertical: 10, gap: 10, borderBottomWidth: 1 },
+  sellersBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
+  sellersBtnText: { fontSize: 13, fontWeight: "700" },
 });

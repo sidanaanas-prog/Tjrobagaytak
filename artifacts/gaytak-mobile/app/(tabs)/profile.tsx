@@ -304,6 +304,56 @@ export default function ProfileScreen() {
         )}
       </View>
 
+      {/* التسوق */}
+      <View style={{ paddingHorizontal: 16, marginTop: 24 }}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>التسوق</Text>
+        <TouchableOpacity
+          style={[styles.menuRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={() => router.push("/wishlist" as any)}
+          activeOpacity={0.7}
+        >
+          <Feather name="chevron-left" size={16} color={colors.mutedForeground} />
+          <View style={{ flex: 1 }} />
+          <View style={{ alignItems: "flex-end" }}>
+            <Text style={[styles.menuLabel, { color: colors.foreground }]}>المفضلة</Text>
+            <Text style={{ fontSize: 11, color: colors.mutedForeground }}>المنتجات المحفوظة</Text>
+          </View>
+          <View style={[styles.menuIcon, { backgroundColor: "#EF444418" }]}>
+            <Feather name="heart" size={15} color="#EF4444" />
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.menuRow, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 8 }]}
+          onPress={() => router.push("/sellers" as any)}
+          activeOpacity={0.7}
+        >
+          <Feather name="chevron-left" size={16} color={colors.mutedForeground} />
+          <View style={{ flex: 1 }} />
+          <View style={{ alignItems: "flex-end" }}>
+            <Text style={[styles.menuLabel, { color: colors.foreground }]}>المتاجر</Text>
+            <Text style={{ fontSize: 11, color: colors.mutedForeground }}>تصفح جميع البائعين</Text>
+          </View>
+          <View style={[styles.menuIcon, { backgroundColor: colors.primary + "18" }]}>
+            <Feather name="shopping-bag" size={15} color={colors.primary} />
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.menuRow, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 8 }]}
+          onPress={() => router.push("/seller-verify" as any)}
+          activeOpacity={0.7}
+        >
+          <Feather name="chevron-left" size={16} color={colors.mutedForeground} />
+          <View style={{ flex: 1 }} />
+          <View style={{ alignItems: "flex-end" }}>
+            <Text style={[styles.menuLabel, { color: colors.foreground }]}>توثيق البائع</Text>
+            <Text style={{ fontSize: 11, color: colors.mutedForeground }}>7 أيام مجانية بعد التوثيق</Text>
+          </View>
+          <View style={[styles.menuIcon, { backgroundColor: "#10B98118" }]}>
+            <Feather name="check-circle" size={15} color="#10B981" />
+          </View>
+        </TouchableOpacity>
+      </View>
+
       {/* Role Selection */}
       <View style={{ paddingHorizontal: 16, marginTop: 24 }}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>حسابي</Text>
@@ -325,6 +375,21 @@ export default function ProfileScreen() {
           </View>
           <View style={[styles.menuIcon, { backgroundColor: "#7C3AED18" }]}>
             <Feather name="users" size={15} color="#7C3AED" />
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.menuRow, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 8 }]}
+          onPress={() => router.push("/(auth)/pin-setup" as any)}
+          activeOpacity={0.7}
+        >
+          <Feather name="chevron-left" size={16} color={colors.mutedForeground} />
+          <View style={{ flex: 1 }} />
+          <View style={{ alignItems: "flex-end" }}>
+            <Text style={[styles.menuLabel, { color: colors.foreground }]}>قفل PIN</Text>
+            <Text style={{ fontSize: 11, color: colors.mutedForeground }}>حماية الحساب بكود رقمي</Text>
+          </View>
+          <View style={[styles.menuIcon, { backgroundColor: "#F59E0B18" }]}>
+            <Feather name="lock" size={15} color="#F59E0B" />
           </View>
         </TouchableOpacity>
       </View>
