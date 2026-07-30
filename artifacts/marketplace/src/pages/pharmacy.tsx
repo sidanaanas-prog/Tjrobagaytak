@@ -119,7 +119,7 @@ function PrescriptionSection() {
           {(["pickup", "delivery"] as const).map((type) => (
             <button key={type} onClick={() => setDeliveryType(type)}
               className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition-all ${deliveryType === type ? "bg-primary/20 border-primary/50 text-primary" : "bg-white/5 border-white/10 text-white/50"}`}>
-              {type === "pickup" ? "🏪 استلام من الصيدلية" : "🚚 توصيل للمنزل"}
+              {type === "pickup" ? "🏪 استلام من المؤسسة" : "🚚 توصيل للمنزل"}
             </button>
           ))}
         </div>
