@@ -431,7 +431,7 @@ export default function PharmacyPage() {
                   <Pill className="w-6 h-6 text-emerald-400" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-black text-white">صيدلية شفاء</h1>
+                  <h1 className="text-xl font-black text-white">مؤسسة الشفاء</h1>
                   <p className="text-xs text-white/40">خدماتنا الصحية</p>
                 </div>
               </div>

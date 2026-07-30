@@ -61,7 +61,7 @@ function PharmacyStrip() {
       <div className="flex items-center justify-between px-5 mb-3">
         <div className="flex items-center gap-2">
           <Pill className="w-4 h-4 text-emerald-400" />
-          <h2 className="text-xs font-bold text-white/60 uppercase tracking-widest">صيدلية شفاء</h2>
+          <h2 className="text-xs font-bold text-white/60 uppercase tracking-widest">مؤسسة الشفاء</h2>
         </div>
         <Link href="/pharmacy">
           <span className="text-xs text-primary font-semibold flex items-center gap-1">
@@ -318,7 +318,7 @@ export default function HomePage() {
           )}
         </AnimatePresence>
 
-        {/* 💊 صيدلية شفاء */}
+        {/* 💊 مؤسسة الشفاء */}
         <PharmacyStrip />
 
         {/* Categories */}

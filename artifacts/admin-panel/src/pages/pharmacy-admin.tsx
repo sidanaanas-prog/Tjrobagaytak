@@ -117,7 +117,7 @@ export default function PharmacyAdminPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-white/40 block mb-1">اسم الصيدلية *</label>
-                <input value={name} onChange={e => setName(e.target.value)} placeholder="صيدلية شفاء"
+                <input value={name} onChange={e => setName(e.target.value)} placeholder="مؤسسة الشفاء"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-emerald-500/50" />
               </div>
               <div>

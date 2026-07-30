@@ -469,7 +469,7 @@ export default function PharmacyScreen() {
             <Feather name="plus-circle" size={24} color="#34D399" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>{pharmacy?.name ?? "صيدلية شفاء"}</Text>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>{pharmacy?.name ?? "مؤسسة الشفاء"}</Text>
             {(pharmacy?.phone || pharmacy?.workHours) && (
               <Text style={{ color: colors.muted, fontSize: 11 }}>
                 {pharmacy?.phone ? `📞 ${pharmacy.phone}` : ""}

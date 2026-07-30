@@ -311,12 +311,12 @@ export default function HomeScreen() {
           </TouchableOpacity>
         )}
 
-        {/* ─── 💊 صيدلية شفاء ─── */}
+        {/* ─── 💊 مؤسسة الشفاء ─── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
               <Text style={{ fontSize: 14 }}>💊</Text>
-              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>صيدلية شفاء</Text>
+              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>مؤسسة الشفاء</Text>
             </View>
             <TouchableOpacity onPress={() => router.push("/(tabs)/food")}>
               <Text style={[styles.seeAll, { color: colors.primary }]}>اكتشف ‹</Text>

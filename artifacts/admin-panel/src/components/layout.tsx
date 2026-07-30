@@ -114,7 +114,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/restaurants", label: "منازل المناسبات", icon: Home },
     { href: "/promotions", label: "العروض الترويجية", icon: Zap },
     { href: "/competition", label: "إدارة المسابقات 🏆", icon: Trophy },
-    { href: "/pharmacy", label: "صيدلية شفاء 💊", icon: Pill },
+    { href: "/pharmacy", label: "مؤسسة الشفاء 💊", icon: Pill },
     { href: "/flash-sales", label: "Flash Sales", icon: Zap },
     { href: "/activity", label: "Activity", icon: Activity },
   ];

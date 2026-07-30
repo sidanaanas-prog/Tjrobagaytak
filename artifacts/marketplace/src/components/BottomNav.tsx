@@ -26,7 +26,7 @@ const ALL_TABS: NavTab[] = [
   { href: "/", icon: Home, label: "الرئيسية", auth: false },
   { href: "/products", icon: Search, label: "استكشف", auth: false, roles: ["seller", "shopper", null] },
   { href: "/sell", icon: Plus, label: "بيع", auth: true, isSell: true, roles: ["seller"] },
-  { href: "/pharmacy", icon: PlusCircle, label: "صيدلية شفاء", auth: false },
+  { href: "/pharmacy", icon: PlusCircle, label: "مؤسسة الشفاء", auth: false },
   { href: "/rides", icon: Car, label: "كورسا", auth: false, roles: ["driver", "passenger", null] },
   { href: "/wallet", icon: Wallet, label: "محفظتي", auth: true },
   { href: "/chat", icon: MessageCircle, label: "محادثات", auth: true, isChat: true },
