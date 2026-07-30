@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Pill, Users, Percent, Trash2, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Edit2, Save } from "lucide-react";
+import { Plus, Pill, Users, Percent, Trash2, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Edit2, Save, UserPlus, Package } from "lucide-react";
 import { getApiUrl } from "@/lib/api-url";
 
 const BASE = getApiUrl("");
@@ -10,6 +10,7 @@ const authJson = () => ({ ...auth(), "Content-Type": "application/json" });
 
 type Pharmacy = { id: string; name: string; ownerPhone: string; commissionRate: string; isActive: boolean; phone: string; address: string; workHours: string };
 type Staff = { id: string; name: string; phone: string; specialty: string; status: string };
+type Worker = { id: string; name: string; phone: string; specialty: string; status: string };
 type Revenue = { totalSales: string; totalCommission: string; prescriptionsCount: number; appointmentsCount: number };
 
 function Badge({ active }: { active: boolean }) {
@@ -48,6 +49,13 @@ export default function PharmacyAdminPage() {
   const [editingPhone, setEditingPhone] = useState<string | null>(null);
   const [newPhone, setNewPhone] = useState("");
 
+  // إدارة العمال
+  const [workers, setWorkers] = useState<Record<string, Worker[]>>({});
+  const [workerName, setWorkerName] = useState("");
+  const [workerPhone, setWorkerPhone] = useState("");
+  const [addingWorker, setAddingWorker] = useState<string | null>(null);
+  const [workerError, setWorkerError] = useState("");
+
   const load = async () => {
     setLoading(true);
     const res = await fetch(`${BASE}/api/admin/pharmacies`, { headers: auth() });
@@ -60,12 +68,35 @@ export default function PharmacyAdminPage() {
   const expand = async (id: string) => {
     if (expanded === id) { setExpanded(null); return; }
     setExpanded(id);
-    if (!staff[id]) {
-      const r = await fetch(`${BASE}/api/admin/pharmacies/${id}/staff`, { headers: auth() }).catch(() => null);
-      // نجلب الطاقم من owner route مؤقتاً
+    const [r1, r2] = await Promise.all([
+      fetch(`${BASE}/api/admin/pharmacies/${id}/staff`, { headers: auth() }),
+      fetch(`${BASE}/api/admin/pharmacies/${id}/revenue`, { headers: auth() }),
+    ]);
+    if (r1.ok) {
+      const staffData: Worker[] = await r1.json();
+      setWorkers(prev => ({ ...prev, [id]: staffData }));
     }
-    const r2 = await fetch(`${BASE}/api/admin/pharmacies/${id}/revenue`, { headers: auth() });
     if (r2.ok) { const data = await r2.json(); setRevenue(prev => ({ ...prev, [id]: data })); }
+  };
+
+  const addWorker = async (pharmacyId: string) => {
+    if (!workerName.trim() || !workerPhone.trim()) { setWorkerError("الاسم والهاتف مطلوبان"); return; }
+    setWorkerError(""); setAddingWorker(pharmacyId);
+    const res = await fetch(`${BASE}/api/admin/pharmacies/${pharmacyId}/staff`, {
+      method: "POST", headers: authJson(),
+      body: JSON.stringify({ name: workerName.trim(), phone: workerPhone.trim(), specialty: "عامل استقبال" }),
+    });
+    setAddingWorker(null);
+    if (!res.ok) { const d = await res.json(); setWorkerError(d.error || "حدث خطأ"); return; }
+    setWorkerName(""); setWorkerPhone("");
+    const r = await fetch(`${BASE}/api/admin/pharmacies/${pharmacyId}/staff`, { headers: auth() });
+    if (r.ok) { const data: Worker[] = await r.json(); setWorkers(prev => ({ ...prev, [pharmacyId]: data })); }
+  };
+
+  const deleteWorker = async (pharmacyId: string, staffId: string) => {
+    await fetch(`${BASE}/api/admin/pharmacies/${pharmacyId}/staff/${staffId}`, { method: "DELETE", headers: auth() });
+    const r = await fetch(`${BASE}/api/admin/pharmacies/${pharmacyId}/staff`, { headers: auth() });
+    if (r.ok) { const data: Worker[] = await r.json(); setWorkers(prev => ({ ...prev, [pharmacyId]: data })); }
   };
 
   const handleAdd = async () => {
@@ -266,6 +297,60 @@ export default function PharmacyAdminPage() {
                         </div>
                       </div>
                     )}
+
+                    {/* عمال الاستقبال */}
+                    <div>
+                      <h4 className="text-xs font-bold text-white/40 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <Package className="w-3.5 h-3.5 text-amber-400" /> عمال استقبال الطلبيات
+                      </h4>
+
+                      {/* قائمة العمال الحاليين */}
+                      <div className="space-y-2 mb-3">
+                        {(workers[p.id] ?? []).filter(w => w.specialty === "عامل استقبال" && w.status !== "removed").map(w => (
+                          <div key={w.id} className="flex items-center justify-between rounded-xl bg-white/5 border border-amber-500/10 px-3 py-2">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
+                                <Package className="w-3.5 h-3.5 text-amber-400" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold text-white">{w.name}</p>
+                                <p className="text-xs text-white/40">{w.phone}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${w.status === "active" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"}`}>
+                                {w.status === "active" ? "نشط" : "في الانتظار"}
+                              </span>
+                              <button onClick={() => deleteWorker(p.id, w.id)}
+                                className="p-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        {(workers[p.id] ?? []).filter(w => w.specialty === "عامل استقبال" && w.status !== "removed").length === 0 && (
+                          <p className="text-xs text-white/30 text-center py-2">لا يوجد عمال مضافون</p>
+                        )}
+                      </div>
+
+                      {/* نموذج إضافة عامل */}
+                      <div className="rounded-xl bg-white/5 border border-white/10 p-3 space-y-2">
+                        <p className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                          <UserPlus className="w-3.5 h-3.5" /> إضافة عامل جديد
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <input value={workerName} onChange={e => setWorkerName(e.target.value)}
+                            placeholder="اسم العامل" className="w-full bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-amber-500/50" />
+                          <input value={workerPhone} onChange={e => setWorkerPhone(e.target.value)}
+                            placeholder="رقم الهاتف" type="tel" className="w-full bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-amber-500/50" />
+                        </div>
+                        {workerError && <p className="text-red-400 text-xs">{workerError}</p>}
+                        <button onClick={() => addWorker(p.id)} disabled={addingWorker === p.id}
+                          className="w-full py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-400 font-bold text-xs hover:bg-amber-500/30 transition-all disabled:opacity-40">
+                          {addingWorker === p.id ? "جاري الإضافة..." : "إضافة العامل"}
+                        </button>
+                      </div>
+                    </div>
 
                     {/* معلومات الصيدلية */}
                     <div className="grid grid-cols-2 gap-2 text-xs text-white/40">

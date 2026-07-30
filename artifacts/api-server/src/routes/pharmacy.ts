@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, pharmaciesTable, pharmacyStaffTable, prescriptionOrdersTable, pharmacyExamsTable, pharmacyAppointmentsTable, pharmacyConsultationsTable, consultationRepliesTable, usersTable } from "@workspace/db";
-import { eq, desc, and, or } from "drizzle-orm";
+import { eq, desc, and, or, ne } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { authenticate, requireAdmin } from "../lib/auth";
 import { notifyUsers, sendNotification } from "../lib/notifications";
@@ -617,6 +617,74 @@ router.patch("/admin/pharmacies/:id", authenticate, requireAdmin, async (req, re
 });
 
 // ── تقرير عمولات ───────────────────────────────────────────────────────────
+// ─── Admin: إدارة عمال الاستقبال ──────────────────────────────────────────
+
+router.get("/admin/pharmacies/:id/staff", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const staff = (await db.select().from(pharmacyStaffTable)
+      .where(and(eq(pharmacyStaffTable.pharmacyId, req.params.id), ne(pharmacyStaffTable.status, "removed")))
+      .orderBy(pharmacyStaffTable.addedAt)) ?? [];
+    res.json(staff);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+router.post("/admin/pharmacies/:id/staff", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const { phone, name, specialty } = req.body;
+    if (!phone || !name) { res.status(400).json({ error: "الاسم والهاتف مطلوبان" }); return; }
+    const id = crypto.randomUUID();
+    const [existingUser] = (await db.select().from(usersTable).where(eq(usersTable.phone, phone)).limit(1)) ?? [];
+    await db.insert(pharmacyStaffTable).values({
+      id, pharmacyId: req.params.id, phone, name,
+      specialty: specialty || "عامل استقبال",
+      userId: existingUser?.id ?? null,
+      status: existingUser ? "active" : "pending",
+    });
+    res.json({ success: true, id });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+router.delete("/admin/pharmacies/:id/staff/:staffId", authenticate, requireAdmin, async (req, res): Promise<void> => {
+  try {
+    await db.update(pharmacyStaffTable).set({ status: "removed" })
+      .where(and(eq(pharmacyStaffTable.id, req.params.staffId), eq(pharmacyStaffTable.pharmacyId, req.params.id)));
+    res.json({ success: true });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── طلبيات العامل (عامل استقبال) ─────────────────────────────────────────
+
+router.get("/pharmacy/worker/orders", authenticate, async (req, res): Promise<void> => {
+  try {
+    const userId = (req as any).user?.id;
+    const userPhone = (req as any).user?.phone;
+    const [staffRecord] = (await db.select().from(pharmacyStaffTable)
+      .where(or(eq(pharmacyStaffTable.userId, userId ?? ""), eq(pharmacyStaffTable.phone, userPhone ?? "")))
+      .limit(1)) ?? [];
+    if (!staffRecord || staffRecord.specialty !== "عامل استقبال") {
+      res.status(403).json({ error: "غير مصرح" }); return;
+    }
+    const orders = (await db.select({
+      id: prescriptionOrdersTable.id,
+      prescriptionUrl: prescriptionOrdersTable.prescriptionUrl,
+      notes: prescriptionOrdersTable.notes,
+      deliveryType: prescriptionOrdersTable.deliveryType,
+      address: prescriptionOrdersTable.address,
+      status: prescriptionOrdersTable.status,
+      proposedPrice: prescriptionOrdersTable.proposedPrice,
+      finalPrice: prescriptionOrdersTable.finalPrice,
+      pharmacistNote: prescriptionOrdersTable.pharmacistNote,
+      createdAt: prescriptionOrdersTable.createdAt,
+      patientName: usersTable.name,
+      patientPhone: usersTable.phone,
+    }).from(prescriptionOrdersTable)
+      .innerJoin(usersTable, eq(prescriptionOrdersTable.userId, usersTable.id))
+      .where(eq(prescriptionOrdersTable.pharmacyId, staffRecord.pharmacyId))
+      .orderBy(desc(prescriptionOrdersTable.createdAt))) ?? [];
+    res.json(orders);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
 router.get("/admin/pharmacies/:id/revenue", authenticate, requireAdmin, async (req, res): Promise<void> => {
   try {
     const prescriptions = (await db.select().from(prescriptionOrdersTable)

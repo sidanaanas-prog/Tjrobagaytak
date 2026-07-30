@@ -2,6 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import PharmacyOwnerDashboard from "@/components/pharmacy/PharmacyOwnerDashboard";
 import PharmacyStaffDashboard from "@/components/pharmacy/PharmacyStaffDashboard";
+import PharmacyWorkerDashboard from "@/components/pharmacy/PharmacyWorkerDashboard";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
@@ -450,6 +451,16 @@ export default function PharmacyScreen() {
   // لوحة صاحب الصيدلية
   if (pharmacyRole?.role === "pharmacy_owner") {
     return <PharmacyOwnerDashboard pharmacy={pharmacyRole.pharmacy} />;
+  }
+
+  // لوحة عامل الاستقبال (يرى الطلبيات فقط)
+  if (pharmacyRole?.role === "pharmacy_staff" && pharmacyRole.staffInfo?.specialty === "عامل استقبال") {
+    return (
+      <PharmacyWorkerDashboard
+        pharmacy={pharmacyRole.pharmacy}
+        staffInfo={pharmacyRole.staffInfo}
+      />
+    );
   }
 
   // لوحة الطاقم الطبي (الأطباء)
