@@ -471,6 +471,43 @@ router.delete("/pharmacy/owner/staff/:id", authenticate, async (req, res): Promi
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
+// ── الاستفسارات (لوحة صاحب الصيدلية) ────────────────────────────────────
+router.get("/pharmacy/owner/consultations", authenticate, async (req, res): Promise<void> => {
+  try {
+    const userId = (req as any).user.id;
+    const pharmacy = await getPharmacyByOwner(userId);
+    if (!pharmacy) { res.status(403).json({ error: "غير مصرح" }); return; }
+
+    const consultations = (await db.select({
+      id: pharmacyConsultationsTable.id,
+      question: pharmacyConsultationsTable.question,
+      imageUrl: pharmacyConsultationsTable.imageUrl,
+      status: pharmacyConsultationsTable.status,
+      isPublic: pharmacyConsultationsTable.isPublic,
+      createdAt: pharmacyConsultationsTable.createdAt,
+      patientName: usersTable.name,
+    })
+      .from(pharmacyConsultationsTable)
+      .innerJoin(usersTable, eq(pharmacyConsultationsTable.userId, usersTable.id))
+      .where(eq(pharmacyConsultationsTable.pharmacyId, pharmacy.id))
+      .orderBy(desc(pharmacyConsultationsTable.createdAt))) ?? [];
+
+    const result = await Promise.all(consultations.map(async (c) => {
+      const replies = (await db.select({
+        id: consultationRepliesTable.id,
+        reply: consultationRepliesTable.reply,
+        createdAt: consultationRepliesTable.createdAt,
+        staffName: usersTable.name,
+      })
+        .from(consultationRepliesTable)
+        .innerJoin(usersTable, eq(consultationRepliesTable.staffId, usersTable.id))
+        .where(eq(consultationRepliesTable.consultationId, c.id))) ?? [];
+      return { ...c, replies };
+    }));
+    res.json(result);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
 // ── الاستفسارات (لوحة الطاقم الطبي) ──────────────────────────────────────
 router.get("/pharmacy/staff/consultations", authenticate, async (req, res): Promise<void> => {
   try {

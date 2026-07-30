@@ -21,7 +21,18 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { customFetch } from "@workspace/api-client-react";
 
-type OwnerTab = "prescriptions" | "appointments" | "exams" | "staff";
+type OwnerTab = "prescriptions" | "appointments" | "exams" | "consultations" | "staff";
+
+type ConsultationItem = {
+  id: string;
+  question: string;
+  imageUrl: string | null;
+  status: string;
+  isPublic: boolean;
+  createdAt: string;
+  patientName: string;
+  replies: { id: string; reply: string; createdAt: string; staffName: string }[];
+};
 
 type PrescriptionOrder = {
   id: string;
@@ -630,6 +641,155 @@ function StaffOwnerTab({ colors }: { colors: any }) {
   );
 }
 
+// ─── تبويب الاستفسارات ───────────────────────────────────────────────────────
+function ConsultationsOwnerTab({ colors }: { colors: any }) {
+  const [items, setItems] = useState<ConsultationItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selected, setSelected] = useState<ConsultationItem | null>(null);
+  const [reply, setReply] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const data = await customFetch<ConsultationItem[]>("/api/pharmacy/owner/consultations");
+      setItems(data ?? []);
+    } catch {}
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, []);
+
+  const sendReply = async () => {
+    if (!selected || !reply.trim()) return;
+    setSaving(true);
+    try {
+      await customFetch(`/api/pharmacy/consultations/${selected.id}/reply`, {
+        method: "POST",
+        body: JSON.stringify({ reply: reply.trim() }),
+      });
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("✅ تم إرسال الرد");
+      setSelected(null);
+      setReply("");
+      load();
+    } catch (e: any) {
+      Alert.alert("خطأ", e?.data?.error || "تعذر إرسال الرد");
+    }
+    setSaving(false);
+  };
+
+  const statusMap: Record<string, { label: string; color: string }> = {
+    open:     { label: "بانتظار الرد", color: "#FCD34D" },
+    answered: { label: "تم الرد",       color: "#34D399" },
+  };
+
+  if (loading) return (
+    <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+      <ActivityIndicator color={colors.primary} />
+    </View>
+  );
+
+  return (
+    <>
+      <FlatList
+        data={items}
+        keyExtractor={(i) => i.id}
+        contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 120 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
+        ListEmptyComponent={
+          <View style={[s.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Feather name="message-circle" size={32} color={colors.muted} />
+            <Text style={{ color: colors.muted, marginTop: 8 }}>لا توجد استفسارات</Text>
+          </View>
+        }
+        renderItem={({ item: c }) => {
+          const st = statusMap[c.status] ?? { label: c.status, color: "#aaa" };
+          return (
+            <TouchableOpacity
+              onPress={() => { setSelected(c); setReply(""); }}
+              style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+            >
+              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+                <Text style={{ color: colors.text, fontWeight: "800", fontSize: 13 }}>{c.patientName}</Text>
+                <View style={{ backgroundColor: st.color + "22", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 }}>
+                  <Text style={{ color: st.color, fontSize: 10, fontWeight: "700" }}>{st.label}</Text>
+                </View>
+              </View>
+              <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 4 }} numberOfLines={2}>{c.question}</Text>
+              {c.replies.length > 0 && (
+                <View style={{ backgroundColor: "#06402415", borderColor: "#34D39933", borderWidth: 1, borderRadius: 8, padding: 8, marginTop: 4 }}>
+                  <Text style={{ color: "#34D399", fontSize: 10, fontWeight: "700" }}>✅ آخر رد: {c.replies[c.replies.length - 1].staffName}</Text>
+                  <Text style={{ color: colors.muted, fontSize: 11, marginTop: 2 }} numberOfLines={1}>{c.replies[c.replies.length - 1].reply}</Text>
+                </View>
+              )}
+              <Text style={{ color: colors.muted, fontSize: 10, marginTop: 6 }}>{new Date(c.createdAt).toLocaleDateString("ar")}</Text>
+            </TouchableOpacity>
+          );
+        }}
+      />
+
+      {/* مودال الرد */}
+      <Modal visible={!!selected} transparent animationType="slide" onRequestClose={() => setSelected(null)}>
+        <Pressable style={s.modalOverlay} onPress={() => setSelected(null)}>
+          <Pressable onPress={() => {}}>
+            <View style={[s.modalContent, { backgroundColor: colors.card }]}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 12 }}>
+                <Text style={{ color: colors.text, fontWeight: "800", fontSize: 16 }}>رد على الاستفسار</Text>
+                <TouchableOpacity onPress={() => setSelected(null)}>
+                  <Feather name="x" size={20} color={colors.muted} />
+                </TouchableOpacity>
+              </View>
+
+              {selected && (
+                <>
+                  <View style={{ backgroundColor: colors.background, borderRadius: 10, padding: 10, marginBottom: 12 }}>
+                    <Text style={{ color: "#34D399", fontSize: 11, fontWeight: "700", marginBottom: 4 }}>👤 {selected.patientName}</Text>
+                    <Text style={{ color: colors.text, fontSize: 13 }}>{selected.question}</Text>
+                  </View>
+
+                  {selected.replies.length > 0 && (
+                    <View style={{ marginBottom: 12 }}>
+                      <Text style={{ color: colors.muted, fontSize: 11, marginBottom: 6 }}>الردود السابقة:</Text>
+                      {selected.replies.map((r) => (
+                        <View key={r.id} style={{ backgroundColor: "#06402415", borderColor: "#34D39933", borderWidth: 1, borderRadius: 8, padding: 8, marginBottom: 4 }}>
+                          <Text style={{ color: "#34D399", fontSize: 11, fontWeight: "700" }}>{r.staffName}</Text>
+                          <Text style={{ color: colors.text, fontSize: 12, marginTop: 2 }}>{r.reply}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  <Text style={{ color: colors.muted, fontSize: 11, marginBottom: 6 }}>ردك:</Text>
+                  <TextInput
+                    value={reply}
+                    onChangeText={setReply}
+                    placeholder="اكتب ردك الطبي هنا..."
+                    placeholderTextColor={colors.muted}
+                    multiline
+                    numberOfLines={3}
+                    style={[s.input, { color: colors.text, borderColor: colors.border, height: 80, marginBottom: 14, textAlignVertical: "top" }]}
+                  />
+                  <TouchableOpacity
+                    onPress={sendReply}
+                    disabled={saving || !reply.trim()}
+                    style={[s.btn, { backgroundColor: "#34D399", opacity: (saving || !reply.trim()) ? 0.5 : 1 }]}
+                  >
+                    {saving
+                      ? <ActivityIndicator color="#fff" size="small" />
+                      : <Text style={s.btnText}>إرسال الرد</Text>
+                    }
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
+
 // ─── لوحة الصاحب الرئيسية ────────────────────────────────────────────────────
 export default function PharmacyOwnerDashboard({ pharmacy }: { pharmacy: Pharmacy }) {
   const colors = useColors();
@@ -637,10 +797,11 @@ export default function PharmacyOwnerDashboard({ pharmacy }: { pharmacy: Pharmac
   const [tab, setTab] = useState<OwnerTab>("prescriptions");
 
   const tabs: { id: OwnerTab; label: string; icon: string }[] = [
-    { id: "prescriptions", label: "وصفات", icon: "file-text" },
-    { id: "appointments",  label: "حجوزات", icon: "calendar" },
-    { id: "exams",         label: "فحوصات", icon: "activity" },
-    { id: "staff",         label: "الأطباء", icon: "users" },
+    { id: "prescriptions",  label: "وصفات",      icon: "file-text" },
+    { id: "appointments",   label: "حجوزات",     icon: "calendar" },
+    { id: "exams",          label: "فحوصات",     icon: "activity" },
+    { id: "consultations",  label: "استفسارات",  icon: "message-circle" },
+    { id: "staff",          label: "الأطباء",    icon: "users" },
   ];
 
   return (
@@ -679,10 +840,11 @@ export default function PharmacyOwnerDashboard({ pharmacy }: { pharmacy: Pharmac
 
       {/* المحتوى */}
       <View style={{ flex: 1 }}>
-        {tab === "prescriptions" && <PrescriptionsOwnerTab colors={colors} />}
-        {tab === "appointments"  && <AppointmentsOwnerTab colors={colors} />}
-        {tab === "exams"         && <ExamsOwnerTab colors={colors} />}
-        {tab === "staff"         && <StaffOwnerTab colors={colors} />}
+        {tab === "prescriptions"  && <PrescriptionsOwnerTab colors={colors} />}
+        {tab === "appointments"   && <AppointmentsOwnerTab colors={colors} />}
+        {tab === "exams"          && <ExamsOwnerTab colors={colors} />}
+        {tab === "consultations"  && <ConsultationsOwnerTab colors={colors} />}
+        {tab === "staff"          && <StaffOwnerTab colors={colors} />}
       </View>
     </View>
   );
