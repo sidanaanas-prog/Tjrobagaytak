@@ -253,7 +253,10 @@ function AppointmentsTab({ colors }: { colors: any }) {
             ]}>
               <Text style={{ color: colors.text, fontWeight: "700", fontSize: 13, marginBottom: 4 }}>{exam.name}</Text>
               {exam.description && <Text style={{ color: colors.muted, fontSize: 11, marginBottom: 6 }} numberOfLines={2}>{exam.description}</Text>}
-              <Text style={{ color: colors.primary, fontWeight: "800", fontSize: 14 }}>{exam.price} دورو</Text>
+              {Number(exam.price) > 0
+                ? <Text style={{ color: colors.primary, fontWeight: "800", fontSize: 14 }}>{exam.price} دج</Text>
+                : <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>السعر يحدده الصيدلاني</Text>
+              }
             </TouchableOpacity>
           ))}
         </View>
@@ -275,7 +278,7 @@ function AppointmentsTab({ colors }: { colors: any }) {
           <TouchableOpacity onPress={handleBook} disabled={loading}
             style={[styles.submitBtn, { backgroundColor: colors.primary, opacity: loading ? 0.5 : 1 }]}>
             {loading ? <ActivityIndicator color="#fff" size="small" />
-              : <Text style={styles.submitBtnText}>تأكيد الحجز — {selected.price} دورو</Text>}
+              : <Text style={styles.submitBtnText}>{Number(selected.price) > 0 ? `تأكيد الحجز — ${selected.price} دج` : "تأكيد الحجز"}</Text>}
           </TouchableOpacity>
         </View>
       )}

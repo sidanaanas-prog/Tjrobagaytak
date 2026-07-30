@@ -218,7 +218,10 @@ function AppointmentsSection() {
                 <p className="text-sm font-bold text-white mb-1">{exam.name}</p>
                 {exam.description && <p className="text-xs text-white/40 mb-2 line-clamp-2">{exam.description}</p>}
                 <div className="flex items-center justify-between">
-                  <span className="text-primary font-black text-sm">{exam.price} دورو</span>
+                  {Number(exam.price) > 0
+                    ? <span className="text-primary font-black text-sm">{exam.price} دج</span>
+                    : <span className="text-white/40 text-xs">السعر يحدده الصيدلاني</span>
+                  }
                   <span className="text-white/30 text-xs flex items-center gap-1"><Clock className="w-3 h-3" />{exam.durationMinutes}د</span>
                 </div>
               </button>
@@ -261,7 +264,7 @@ function AppointmentsSection() {
           <button onClick={handleBook} disabled={loading}
             className="w-full py-3 rounded-2xl bg-primary text-white font-bold text-sm disabled:opacity-40 flex items-center justify-center gap-2">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calendar className="w-4 h-4" />}
-            تأكيد الحجز — {selected.price} دورو
+            {Number(selected.price) > 0 ? `تأكيد الحجز — ${selected.price} دج` : "تأكيد الحجز"}
           </button>
         </motion.div>
       )}
