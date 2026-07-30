@@ -213,8 +213,17 @@ export default function TabLayout() {
         />
 
         {/* ── الأقسام المخفية من الشريط (متاحة للتنقل) ── */}
+        {/* ── صيدلية شفاء ── */}
+        <Tabs.Screen
+          name="food"
+          options={{
+            title: "صيدلية شفاء",
+            tabBarIcon: ({ color }) => <Feather name="plus-circle" size={22} color={color} />,
+            tabBarActiveTintColor: "#34D399",
+          }}
+        />
+
         <Tabs.Screen name="sell" options={{ href: null }} />
-        <Tabs.Screen name="food" options={{ href: null }} />
         <Tabs.Screen name="wallet" options={{ href: null }} />
         <Tabs.Screen
           name="chat"
