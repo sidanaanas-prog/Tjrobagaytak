@@ -98,7 +98,7 @@ export default function PharmacyAdminPage() {
 
   const savePhone = async (id: string) => {
     await fetch(`${BASE}/api/admin/pharmacies/${id}`, {
-      method: "PATCH", headers: authJson(), body: JSON.stringify({ ownerPhone: newPhone }),
+      method: "PATCH", headers: authJson(), body: JSON.stringify({ ownerPhone: newPhone, phone: newPhone }),
     });
     setEditingPhone(null);
     load();
