@@ -1,6 +1,6 @@
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { Home, Search, Plus, MessageCircle, User, Package, Store, Car, ShoppingBag, Wallet, UtensilsCrossed, Sparkles } from "lucide-react";
+import { Home, Search, Plus, MessageCircle, User, Package, Store, Car, ShoppingBag, Wallet, UtensilsCrossed, PlusCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { useListConversations, getListConversationsQueryKey } from "@workspace/api-client-react";
@@ -26,7 +26,7 @@ const ALL_TABS: NavTab[] = [
   { href: "/", icon: Home, label: "الرئيسية", auth: false },
   { href: "/products", icon: Search, label: "استكشف", auth: false, roles: ["seller", "shopper", null] },
   { href: "/sell", icon: Plus, label: "بيع", auth: true, isSell: true, roles: ["seller"] },
-  { href: "/food", icon: Sparkles, label: "المناسبات", auth: false },
+  { href: "/pharmacy", icon: PlusCircle, label: "صيدلية شفاء", auth: false },
   { href: "/rides", icon: Car, label: "كورسا", auth: false, roles: ["driver", "passenger", null] },
   { href: "/wallet", icon: Wallet, label: "محفظتي", auth: true },
   { href: "/chat", icon: MessageCircle, label: "محادثات", auth: true, isChat: true },
@@ -74,11 +74,6 @@ export function BottomNav() {
   const tabs = ALL_TABS.filter((t) => {
     if (!t.roles) return true;
     return t.roles.includes(activeRole);
-  }).map((t) => {
-    if (t.href === "/food" && isCompetitionEnabled) {
-      return { ...t, label: "المسابقات" };
-    }
-    return t;
   });
 
   const { data: conversations } = useListConversations({
@@ -144,33 +139,13 @@ export function BottomNav() {
                   />
                 )}
                 <div className="relative">
-                  {tab.href === "/food" && isCompetitionEnabled ? (
-                    <motion.div
-                      animate={{
-                        scale: [1, 1.15, 1],
-                        filter: [
-                          "drop-shadow(0 0 2px rgba(168,85,247,0.4))",
-                          "drop-shadow(0 0 10px rgba(168,85,247,0.8))",
-                          "drop-shadow(0 0 2px rgba(168,85,247,0.4))"
-                        ]
-                      }}
-                      transition={{
-                        duration: 2,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                      }}
-                    >
-                      <Icon className={`w-5 h-5 ${isActive ? "text-primary" : "text-primary animate-pulse"}`} />
-                    </motion.div>
-                  ) : (
-                    <Icon className={`w-5 h-5 transition-colors ${isActive ? "text-primary" : "text-white/40"}`} />
-                  )}
-                  {tab.href === "/food" && isCompetitionEnabled && (
-                    <span className="absolute -top-1.5 -right-1.5 flex h-2.5 w-2.5 z-10">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400"></span>
-                    </span>
-                  )}
+                  <Icon
+                    className={`w-5 h-5 transition-colors ${
+                      tab.href === "/pharmacy"
+                        ? isActive ? "text-emerald-400" : "text-emerald-400/50"
+                        : isActive ? "text-primary" : "text-white/40"
+                    }`}
+                  />
                   {showChatBadge && (
                     <motion.div
                       initial={{ scale: 0 }}
