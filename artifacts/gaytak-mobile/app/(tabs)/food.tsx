@@ -468,9 +468,12 @@ export default function PharmacyScreen() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: colors.border }]}>
         <View style={styles.headerContent}>
-          <View style={[styles.pharmacyIcon, { backgroundColor: "#06402422", borderColor: "#34D39933" }]}>
-            <Feather name="plus-circle" size={24} color="#34D399" />
-          </View>
+          {pharmacy?.logo
+            ? <Image source={{ uri: pharmacy.logo }} style={{ width: 48, height: 48, borderRadius: 12 }} contentFit="contain" />
+            : <View style={[styles.pharmacyIcon, { backgroundColor: "#06402422", borderColor: "#34D39933" }]}>
+                <Feather name="plus-circle" size={24} color="#34D399" />
+              </View>
+          }
           <View style={{ flex: 1 }}>
             <Text style={[styles.headerTitle, { color: colors.text }]}>{pharmacy?.name ?? "مؤسسة الشفاء"}</Text>
             {(pharmacy?.phone || pharmacy?.workHours) && (
