@@ -49,6 +49,14 @@ export default function PharmacyAdminPage() {
   const [editingPhone, setEditingPhone] = useState<string | null>(null);
   const [newPhone, setNewPhone] = useState("");
 
+  // تعديل رقم العرض (phone)
+  const [editingDisplayPhone, setEditingDisplayPhone] = useState<string | null>(null);
+  const [newDisplayPhone, setNewDisplayPhone] = useState("");
+
+  // تعديل ساعات العمل
+  const [editingWorkHours, setEditingWorkHours] = useState<string | null>(null);
+  const [newWorkHours, setNewWorkHours] = useState("");
+
   // إدارة العمال
   const [workers, setWorkers] = useState<Record<string, Worker[]>>({});
   const [workerName, setWorkerName] = useState("");
@@ -132,6 +140,22 @@ export default function PharmacyAdminPage() {
       method: "PATCH", headers: authJson(), body: JSON.stringify({ ownerPhone: newPhone, phone: newPhone }),
     });
     setEditingPhone(null);
+    load();
+  };
+
+  const saveDisplayPhone = async (id: string) => {
+    await fetch(`${BASE}/api/admin/pharmacies/${id}`, {
+      method: "PATCH", headers: authJson(), body: JSON.stringify({ phone: newDisplayPhone }),
+    });
+    setEditingDisplayPhone(null);
+    load();
+  };
+
+  const saveWorkHours = async (id: string) => {
+    await fetch(`${BASE}/api/admin/pharmacies/${id}`, {
+      method: "PATCH", headers: authJson(), body: JSON.stringify({ workHours: newWorkHours }),
+    });
+    setEditingWorkHours(null);
     load();
   };
 
@@ -352,10 +376,45 @@ export default function PharmacyAdminPage() {
                       </div>
                     </div>
 
-                    {/* معلومات الصيدلية */}
-                    <div className="grid grid-cols-2 gap-2 text-xs text-white/40">
-                      <div><span className="text-white/60">الهاتف:</span> {p.phone || "-"}</div>
-                      <div><span className="text-white/60">ساعات العمل:</span> {p.workHours || "-"}</div>
+                    {/* معلومات الصيدلية — قابلة للتعديل */}
+                    <div className="grid grid-cols-2 gap-2">
+                      {/* هاتف العرض */}
+                      <div className="rounded-xl bg-white/5 border border-white/10 px-3 py-2">
+                        <p className="text-[10px] text-white/40 mb-1">📞 هاتف العرض للعملاء</p>
+                        {editingDisplayPhone === p.id ? (
+                          <div className="flex items-center gap-1">
+                            <input value={newDisplayPhone} onChange={e => setNewDisplayPhone(e.target.value)}
+                              type="tel" className="flex-1 bg-white/5 border border-primary/40 rounded-lg px-2 py-0.5 text-xs text-white outline-none" />
+                            <button onClick={() => saveDisplayPhone(p.id)} className="text-emerald-400 hover:text-emerald-300"><Save className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => setEditingDisplayPhone(null)} className="text-white/30 hover:text-white/50"><XCircle className="w-3.5 h-3.5" /></button>
+                          </div>
+                        ) : (
+                          <button onClick={() => { setEditingDisplayPhone(p.id); setNewDisplayPhone(p.phone || ""); }}
+                            className="flex items-center gap-1 text-xs text-white/70 hover:text-white group w-full">
+                            <span className="flex-1 text-right">{p.phone || "-"}</span>
+                            <Edit2 className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* ساعات العمل */}
+                      <div className="rounded-xl bg-white/5 border border-white/10 px-3 py-2">
+                        <p className="text-[10px] text-white/40 mb-1">🕐 ساعات العمل</p>
+                        {editingWorkHours === p.id ? (
+                          <div className="flex items-center gap-1">
+                            <input value={newWorkHours} onChange={e => setNewWorkHours(e.target.value)}
+                              placeholder="8:00 - 22:00" className="flex-1 bg-white/5 border border-primary/40 rounded-lg px-2 py-0.5 text-xs text-white outline-none" />
+                            <button onClick={() => saveWorkHours(p.id)} className="text-emerald-400 hover:text-emerald-300"><Save className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => setEditingWorkHours(null)} className="text-white/30 hover:text-white/50"><XCircle className="w-3.5 h-3.5" /></button>
+                          </div>
+                        ) : (
+                          <button onClick={() => { setEditingWorkHours(p.id); setNewWorkHours(p.workHours || "8:00 - 22:00"); }}
+                            className="flex items-center gap-1 text-xs text-white/70 hover:text-white group w-full">
+                            <span className="flex-1 text-right">{p.workHours || "-"}</span>
+                            <Edit2 className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </motion.div>
                 )}
