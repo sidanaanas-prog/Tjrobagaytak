@@ -44,6 +44,10 @@ export default function PharmacyAdminPage() {
   const [editingCommission, setEditingCommission] = useState<string | null>(null);
   const [newCommission, setNewCommission] = useState("");
 
+  // تعديل رقم المالك
+  const [editingPhone, setEditingPhone] = useState<string | null>(null);
+  const [newPhone, setNewPhone] = useState("");
+
   const load = async () => {
     setLoading(true);
     const res = await fetch(`${BASE}/api/admin/pharmacies`, { headers: auth() });
@@ -89,6 +93,14 @@ export default function PharmacyAdminPage() {
       method: "PATCH", headers: authJson(), body: JSON.stringify({ commissionRate: newCommission }),
     });
     setEditingCommission(null);
+    load();
+  };
+
+  const savePhone = async (id: string) => {
+    await fetch(`${BASE}/api/admin/pharmacies/${id}`, {
+      method: "PATCH", headers: authJson(), body: JSON.stringify({ ownerPhone: newPhone }),
+    });
+    setEditingPhone(null);
     load();
   };
 
@@ -180,7 +192,24 @@ export default function PharmacyAdminPage() {
                     <span className="text-sm font-bold text-white">{p.name}</span>
                     <Badge active={p.isActive} />
                   </div>
-                  <p className="text-xs text-white/40">{p.ownerPhone} {p.address ? `· ${p.address}` : ""}</p>
+                  <div className="flex items-center gap-1">
+                    {editingPhone === p.id ? (
+                      <div className="flex items-center gap-1">
+                        <input value={newPhone} onChange={e => setNewPhone(e.target.value)}
+                          type="tel" placeholder="0700000000"
+                          className="w-32 bg-white/5 border border-primary/40 rounded-lg px-2 py-0.5 text-xs text-white outline-none" />
+                        <button onClick={() => savePhone(p.id)} className="text-emerald-400 hover:text-emerald-300"><Save className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => setEditingPhone(null)} className="text-white/30 hover:text-white/50"><XCircle className="w-3.5 h-3.5" /></button>
+                      </div>
+                    ) : (
+                      <button onClick={() => { setEditingPhone(p.id); setNewPhone(p.ownerPhone); }}
+                        className="flex items-center gap-1 text-xs text-white/40 hover:text-white/70 transition-all group">
+                        <span>{p.ownerPhone}</span>
+                        <Edit2 className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                      </button>
+                    )}
+                    {p.address && <span className="text-xs text-white/30">· {p.address}</span>}
+                  </div>
                 </div>
 
                 {/* العمولة */}
