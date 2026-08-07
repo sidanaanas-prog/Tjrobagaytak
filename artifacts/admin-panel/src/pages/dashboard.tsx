@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
+import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/lib/api-url";
 import { Loader2 } from "lucide-react";
@@ -147,6 +148,12 @@ export default function Dashboard() {
           <p className="text-muted-foreground font-mono text-sm">PLATFORM METRICS AND PENDING ACTIONS</p>
         </div>
         <div className="flex items-center gap-3">
+          <Link href="/wholesale-settings">
+            <Button variant="outline" className="gap-2 border-amber-500/30 text-amber-300 hover:bg-amber-500/10">
+              <ShoppingBag className="w-4 h-4" />
+              إعدادات سوق الجملة
+            </Button>
+          </Link>
           <BulkFreeButton />
           <div className="text-right">
             <p className="font-mono text-xs text-primary/60">SYSTEM STATUS: <span className="text-primary font-bold">ONLINE</span></p>

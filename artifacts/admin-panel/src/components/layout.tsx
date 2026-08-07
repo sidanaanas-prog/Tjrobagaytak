@@ -98,6 +98,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/wholesale-settings", label: "إعدادات سوق الجملة", icon: ShoppingBag },
     { href: "/products", label: "Products", icon: Box },
     { href: "/users", label: "Users", icon: Users },
     { href: "/categories", label: "Categories", icon: Tags },

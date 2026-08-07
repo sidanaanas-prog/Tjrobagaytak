@@ -71,6 +71,7 @@ function Router() {
       <Route path="/competition" component={() => <ProtectedRoute component={Competition} />} />
       <Route path="/pharmacy" component={() => <ProtectedRoute component={PharmacyAdminPage} />} />
       <Route path="/section-settings" component={() => <ProtectedRoute component={SectionSettingsPage} />} />
+      <Route path="/wholesale-settings" component={() => <ProtectedRoute component={SectionSettingsPage} />} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -95,8 +95,8 @@ export default function SectionSettingsPage() {
             <Layers className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-white">إدارة ظهور الأقسام</h1>
-            <p className="text-sm text-white/40 mt-1">تحكم بما يظهر للعملاء من التطبيق والموقع</p>
+            <h1 className="text-2xl font-black text-white">إعدادات سوق الجملة وظهور الأقسام</h1>
+            <p className="text-sm text-white/40 mt-1">تحكم بسوق الجملة ومؤسسة الشفاء وما يظهر للعملاء من التطبيق والموقع</p>
           </div>
         </div>
       </div>
