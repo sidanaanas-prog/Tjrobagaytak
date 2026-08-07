@@ -48,9 +48,10 @@ interface MoreModalProps {
   visible: boolean;
   onClose: () => void;
   pharmacyEnabled: boolean;
+  wholesaleEnabled: boolean;
 }
 
-function MoreModal({ visible, onClose, pharmacyEnabled }: MoreModalProps) {
+function MoreModal({ visible, onClose, pharmacyEnabled, wholesaleEnabled }: MoreModalProps) {
   const colors = useColors();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
@@ -79,6 +80,7 @@ function MoreModal({ visible, onClose, pharmacyEnabled }: MoreModalProps) {
     { icon: "credit-card", label: "محفظتي", path: "/(tabs)/wallet", color: "#F59E0B", show: true },
     { icon: "message-circle", label: "الرسائل", path: "/(tabs)/chat", color: "#8B5CF6", show: true, badge: unread > 0 ? unread : undefined },
     { icon: "plus-circle", label: "مؤسسة الشفاء", path: "/(tabs)/food", color: "#34D399", show: pharmacyEnabled },
+    { icon: "shopping-bag", label: "سوق الجملة", path: "/(tabs)/wholesale", color: "#F59E0B", show: wholesaleEnabled },
     { icon: "briefcase", label: "أعمالي", path: "/(tabs)/dashboard", color: "#F97316", show: isSeller },
     { icon: "navigation", label: "لوحة السائق", path: "/ride-driver", color: "#00C48C", show: isDriver },
     { icon: "user-plus", label: "تغيير الدور", path: "/role-select", color: "#0EA5E9", show: true },
@@ -129,6 +131,7 @@ export default function TabLayout() {
 
   const [isCompetition, setIsCompetition] = useState(false);
   const [isPharmacyEnabled, setIsPharmacyEnabled] = useState(true);
+  const [isWholesaleEnabled, setIsWholesaleEnabled] = useState(false);
 
   const TAB_BAR_HEIGHT = isWeb ? 84 : 62;
   const bottomPad = isIOS ? 0 : insets.bottom;
@@ -159,6 +162,9 @@ export default function TabLayout() {
         const flags = await response.json();
         if (typeof flags.pharmacyEnabled === "boolean") {
           setIsPharmacyEnabled(flags.pharmacyEnabled);
+        }
+        if (typeof flags.wholesaleEnabled === "boolean") {
+          setIsWholesaleEnabled(flags.wholesaleEnabled);
         }
       } catch {}
     };
@@ -240,6 +246,7 @@ export default function TabLayout() {
             tabBarActiveTintColor: "#34D399",
           }}
         />
+        <Tabs.Screen name="wholesale" options={{ href: null }} />
 
         <Tabs.Screen name="sell" options={{ href: null }} />
         <Tabs.Screen name="wallet" options={{ href: null }} />
@@ -256,7 +263,7 @@ export default function TabLayout() {
         />
       </Tabs>
 
-      <MoreModal visible={showMore} onClose={() => setShowMore(false)} pharmacyEnabled={isPharmacyEnabled} />
+      <MoreModal visible={showMore} onClose={() => setShowMore(false)} pharmacyEnabled={isPharmacyEnabled} wholesaleEnabled={isWholesaleEnabled} />
     </>
   );
 }

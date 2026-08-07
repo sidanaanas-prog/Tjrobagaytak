@@ -38,6 +38,7 @@ import FoodOrdersPage from "@/pages/food-orders";
 import FoodRegisterPage from "@/pages/food-register";
 import FoodDashboardPage from "@/pages/food-dashboard";
 import PharmacyPage from "@/pages/pharmacy";
+import WholesalePage from "@/pages/wholesale";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -72,6 +73,23 @@ function PharmacyVisibilityGuard({ children }: { children: React.ReactNode }) {
       .then((flags) => {
         if (flags && typeof flags.pharmacyEnabled === "boolean") {
           setEnabled(flags.pharmacyEnabled);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  return enabled ? <>{children}</> : <Redirect to="/" />;
+}
+
+function WholesaleVisibilityGuard({ children }: { children: React.ReactNode }) {
+  const [enabled, setEnabled] = useState(true);
+
+  useEffect(() => {
+    fetch(`${BASE}/api/feature-flags`)
+      .then((response) => response.ok ? response.json() : null)
+      .then((flags) => {
+        if (flags && typeof flags.wholesaleEnabled === "boolean") {
+          setEnabled(flags.wholesaleEnabled);
         }
       })
       .catch(() => {});
@@ -193,6 +211,9 @@ function Router() {
       <Route path="/food/:id" component={FoodDetailPage} />
       <Route path="/pharmacy">
         <PharmacyVisibilityGuard><PharmacyPage /></PharmacyVisibilityGuard>
+      </Route>
+      <Route path="/wholesale">
+        <WholesaleVisibilityGuard><WholesalePage /></WholesaleVisibilityGuard>
       </Route>
       <Route component={NotFound} />
     </Switch>

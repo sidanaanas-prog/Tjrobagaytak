@@ -27,6 +27,7 @@ const ALL_TABS: NavTab[] = [
   { href: "/products", icon: Search, label: "استكشف", auth: false, roles: ["seller", "shopper", null] },
   { href: "/sell", icon: Plus, label: "بيع", auth: true, isSell: true, roles: ["seller"] },
   { href: "/pharmacy", icon: PlusCircle, label: "مؤسسة الشفاء", auth: false },
+  { href: "/wholesale", icon: ShoppingBag, label: "سوق الجملة", auth: false },
   { href: "/rides", icon: Car, label: "كورسا", auth: false, roles: ["driver", "passenger", null] },
   { href: "/wallet", icon: Wallet, label: "محفظتي", auth: true },
   { href: "/chat", icon: MessageCircle, label: "محادثات", auth: true, isChat: true },
@@ -47,6 +48,7 @@ export function BottomNav() {
   const [pendingOrders, setPendingOrders] = useState(0);
   const [isCompetitionEnabled, setIsCompetitionEnabled] = useState(false);
   const [isPharmacyEnabled, setIsPharmacyEnabled] = useState(true);
+  const [isWholesaleEnabled, setIsWholesaleEnabled] = useState(false);
 
   useEffect(() => {
     const checkCompetition = () => {
@@ -77,9 +79,8 @@ export function BottomNav() {
       fetch(`${BASE}/api/feature-flags`)
         .then((response) => response.ok ? response.json() : null)
         .then((flags) => {
-          if (flags && typeof flags.pharmacyEnabled === "boolean") {
-            setIsPharmacyEnabled(flags.pharmacyEnabled);
-          }
+          if (flags && typeof flags.pharmacyEnabled === "boolean") setIsPharmacyEnabled(flags.pharmacyEnabled);
+          if (flags && typeof flags.wholesaleEnabled === "boolean") setIsWholesaleEnabled(flags.wholesaleEnabled);
         })
         .catch(() => {});
     };
@@ -90,6 +91,7 @@ export function BottomNav() {
 
   const tabs = ALL_TABS.filter((t) => {
     if (t.href === "/pharmacy" && !isPharmacyEnabled) return false;
+    if (t.href === "/wholesale" && !isWholesaleEnabled) return false;
     if (!t.roles) return true;
     return t.roles.includes(activeRole);
   });

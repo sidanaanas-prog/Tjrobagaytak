@@ -9,3 +9,4 @@
 - [User type extra fields](user-type-fields.md) — لإضافة حقول جديدة للـ User (walletBalance, noShowCount...) يجب تعديل lib/api-client-react/src/generated/api.schemas.ts مباشرة ثم إعادة build الليب
 - [Admin HMR hook crash fix](admin-hmr-hook.md) — useAdminAuth يُسبب crash عند HMR إذا رمى error — الحل: إرجاع fallback بدل throw عند context = null
 - [Pharmacy system](pharmacy-system.md) — نظام صيدلية شفاء: 7 جداول DB، API routes في pharmacy.ts، صفحة /pharmacy في marketplace، food.tsx استُبدل، لوحة أدمن في /pharmacy
+- [Section visibility controls](section-visibility.md) — زر الظهور يجب أن يرتبط بالإعداد والصفحة والتنقل والحماية من فتح الرابط مباشرة

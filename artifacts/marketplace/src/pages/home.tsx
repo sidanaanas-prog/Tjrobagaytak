@@ -5,7 +5,7 @@ import { StoriesBar } from "@/components/Stories";
 import { HeroSlider } from "@/components/HeroSlider";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Zap, Clock, Flame, ChevronRight, Sparkles, Trophy, Pill, Calendar, MessageCircle } from "lucide-react";
+import { Zap, Clock, Flame, ChevronRight, Sparkles, Trophy, Pill, Calendar, MessageCircle, ShoppingBag } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { SkeletonCard } from "@/components/SkeletonCard";
 import { getCachedData } from "@/hooks/use-cached-query";
@@ -98,6 +98,46 @@ function PharmacyStrip() {
           </Link>
         ))}
       </div>
+    </div>
+  );
+}
+
+function WholesaleStrip() {
+  const [enabled, setEnabled] = useState(false);
+
+  useEffect(() => {
+    fetch(`${BASE}/api/feature-flags`)
+      .then((response) => response.ok ? response.json() : null)
+      .then((flags) => setEnabled(flags?.wholesaleEnabled === true))
+      .catch(() => {});
+  }, []);
+
+  if (!enabled) return null;
+
+  return (
+    <div className="mt-5">
+      <div className="flex items-center justify-between px-5 mb-3">
+        <div className="flex items-center gap-2">
+          <ShoppingBag className="w-4 h-4 text-amber-400" />
+          <h2 className="text-xs font-bold text-white/60 uppercase tracking-widest">سوق الجملة</h2>
+        </div>
+        <Link href="/wholesale">
+          <span className="text-xs text-amber-400 font-semibold flex items-center gap-1">
+            اكتشف <ChevronRight className="w-3.5 h-3.5" />
+          </span>
+        </Link>
+      </div>
+      <Link href="/wholesale">
+        <motion.div whileTap={{ scale: 0.98 }} className="mx-5 rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/15 to-transparent p-4 flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-amber-500/15 flex items-center justify-center">
+            <ShoppingBag className="w-5 h-5 text-amber-400" />
+          </div>
+          <div>
+            <p className="text-sm font-black text-white">ملابس، إلكترونيات وقطع غيار</p>
+            <p className="text-xs text-white/45 mt-1">بيع بالكرتون وأسعار خاصة للتجار</p>
+          </div>
+        </motion.div>
+      </Link>
     </div>
   );
 }
@@ -335,6 +375,7 @@ export default function HomePage() {
 
         {/* 💊 مؤسسة الشفاء */}
         <PharmacyStrip />
+        <WholesaleStrip />
 
         {/* Categories */}
         <div className="mt-6 px-5">
