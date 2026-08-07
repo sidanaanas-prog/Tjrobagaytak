@@ -22,6 +22,7 @@ import DriverMemo from "@/pages/driver-memo";
 import Rides from "@/pages/rides-admin";
 import RestaurantsAdmin from "@/pages/restaurants-admin";
 import PharmacyAdminPage from "@/pages/pharmacy-admin";
+import SectionSettingsPage from "@/pages/section-settings";
 import Promotions from "@/pages/promotions";
 import Competition from "@/pages/competition";
 import { AdminAuthProvider } from "@/hooks/use-admin-auth";
@@ -69,6 +70,7 @@ function Router() {
       <Route path="/promotions" component={() => <ProtectedRoute component={Promotions} />} />
       <Route path="/competition" component={() => <ProtectedRoute component={Competition} />} />
       <Route path="/pharmacy" component={() => <ProtectedRoute component={PharmacyAdminPage} />} />
+      <Route path="/section-settings" component={() => <ProtectedRoute component={SectionSettingsPage} />} />
       <Route component={NotFound} />
     </Switch>
   );

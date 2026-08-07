@@ -51,6 +51,21 @@ const ROTATE_INTERVAL = 30_000;
 const PAGE_SIZE = 4;
 
 function PharmacyStrip() {
+  const [enabled, setEnabled] = useState(true);
+
+  useEffect(() => {
+    fetch(`${BASE}/api/feature-flags`)
+      .then((response) => response.ok ? response.json() : null)
+      .then((flags) => {
+        if (flags && typeof flags.pharmacyEnabled === "boolean") {
+          setEnabled(flags.pharmacyEnabled);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  if (!enabled) return null;
+
   const services = [
     { icon: Pill, label: "وصفة طبية", desc: "أرسل وصفتك", color: "from-emerald-500/30 to-emerald-500/5 border-emerald-500/30", iconColor: "text-emerald-400", href: "/pharmacy" },
     { icon: Calendar, label: "حجز فحص", desc: "احجز موعدك", color: "from-blue-500/30 to-blue-500/5 border-blue-500/30", iconColor: "text-blue-400", href: "/pharmacy" },

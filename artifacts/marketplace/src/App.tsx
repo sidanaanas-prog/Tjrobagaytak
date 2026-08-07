@@ -1,5 +1,6 @@
 import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth, handle401 } from "@/hooks/use-auth";
@@ -58,6 +59,26 @@ const queryClient = new QueryClient({
 
 import { PinLockGuard } from "@/components/PinLockGuard";
 import { PinOnlyGuard } from "@/components/PinOnlyGuard";
+import { getApiUrl } from "@/lib/api-url";
+
+const BASE = getApiUrl("");
+
+function PharmacyVisibilityGuard({ children }: { children: React.ReactNode }) {
+  const [enabled, setEnabled] = useState(true);
+
+  useEffect(() => {
+    fetch(`${BASE}/api/feature-flags`)
+      .then((response) => response.ok ? response.json() : null)
+      .then((flags) => {
+        if (flags && typeof flags.pharmacyEnabled === "boolean") {
+          setEnabled(flags.pharmacyEnabled);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  return enabled ? <>{children}</> : <Redirect to="/" />;
+}
 
 // Auth Guard wrapper
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -170,7 +191,9 @@ function Router() {
         <RequireAuth><FoodDashboardPage /></RequireAuth>
       </Route>
       <Route path="/food/:id" component={FoodDetailPage} />
-      <Route path="/pharmacy" component={PharmacyPage} />
+      <Route path="/pharmacy">
+        <PharmacyVisibilityGuard><PharmacyPage /></PharmacyVisibilityGuard>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );

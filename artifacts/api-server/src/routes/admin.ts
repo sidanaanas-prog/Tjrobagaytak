@@ -907,6 +907,26 @@ router.get("/admin/settings", authenticate, requireAdmin, async (req, res): Prom
   }
 });
 
+// ── إعدادات ظهور الأقسام للعامة ────────────────────────────────────────────
+// These flags intentionally live in the existing settings table so the admin
+// can control them without a separate migration/table.
+router.get("/feature-flags", async (_req, res): Promise<void> => {
+  try {
+    const list = await db.select().from(rideSettingsTable);
+    const getEnabled = (key: string, defaultValue: boolean) => {
+      const value = list.find((setting) => setting.key === key)?.value;
+      return value === undefined ? defaultValue : value === "true";
+    };
+
+    res.json({
+      pharmacyEnabled: getEnabled("section_pharmacy_enabled", true),
+      wholesaleEnabled: getEnabled("section_wholesale_enabled", false),
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── تحديث/إضافة إعداد للرحلات للأدمن ──────────────────────────
 router.patch("/admin/settings/:key", authenticate, requireAdmin, async (req, res): Promise<void> => {
   try {

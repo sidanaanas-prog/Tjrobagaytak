@@ -47,9 +47,10 @@ function MoreButton({ onPress }: { onPress: () => void }) {
 interface MoreModalProps {
   visible: boolean;
   onClose: () => void;
+  pharmacyEnabled: boolean;
 }
 
-function MoreModal({ visible, onClose }: MoreModalProps) {
+function MoreModal({ visible, onClose, pharmacyEnabled }: MoreModalProps) {
   const colors = useColors();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
@@ -77,7 +78,7 @@ function MoreModal({ visible, onClose }: MoreModalProps) {
     { icon: "shopping-bag", label: "بيع منتج", path: "/(tabs)/sell", color: "#10B981", show: true },
     { icon: "credit-card", label: "محفظتي", path: "/(tabs)/wallet", color: "#F59E0B", show: true },
     { icon: "message-circle", label: "الرسائل", path: "/(tabs)/chat", color: "#8B5CF6", show: true, badge: unread > 0 ? unread : undefined },
-    { icon: "plus-circle", label: "مؤسسة الشفاء", path: "/(tabs)/food", color: "#34D399", show: true },
+    { icon: "plus-circle", label: "مؤسسة الشفاء", path: "/(tabs)/food", color: "#34D399", show: pharmacyEnabled },
     { icon: "briefcase", label: "أعمالي", path: "/(tabs)/dashboard", color: "#F97316", show: isSeller },
     { icon: "navigation", label: "لوحة السائق", path: "/ride-driver", color: "#00C48C", show: isDriver },
     { icon: "user-plus", label: "تغيير الدور", path: "/role-select", color: "#0EA5E9", show: true },
@@ -127,6 +128,7 @@ export default function TabLayout() {
   const [showMore, setShowMore] = useState(false);
 
   const [isCompetition, setIsCompetition] = useState(false);
+  const [isPharmacyEnabled, setIsPharmacyEnabled] = useState(true);
 
   const TAB_BAR_HEIGHT = isWeb ? 84 : 62;
   const bottomPad = isIOS ? 0 : insets.bottom;
@@ -148,6 +150,22 @@ export default function TabLayout() {
     const interval = setInterval(check, 30_000);
     return () => clearInterval(interval);
   }, [user]);
+
+  useEffect(() => {
+    const checkPharmacy = async () => {
+      try {
+        const response = await fetch(`${BASE}/api/feature-flags`);
+        if (!response.ok) return;
+        const flags = await response.json();
+        if (typeof flags.pharmacyEnabled === "boolean") {
+          setIsPharmacyEnabled(flags.pharmacyEnabled);
+        }
+      } catch {}
+    };
+    checkPharmacy();
+    const interval = setInterval(checkPharmacy, 30_000);
+    return () => clearInterval(interval);
+  }, []);
 
   const isSeller = user?.role === "seller";
 
@@ -238,7 +256,7 @@ export default function TabLayout() {
         />
       </Tabs>
 
-      <MoreModal visible={showMore} onClose={() => setShowMore(false)} />
+      <MoreModal visible={showMore} onClose={() => setShowMore(false)} pharmacyEnabled={isPharmacyEnabled} />
     </>
   );
 }

@@ -22,6 +22,7 @@ import {
   Trophy,
   FileText,
   Pill,
+  Layers,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -115,6 +116,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/promotions", label: "العروض الترويجية", icon: Zap },
     { href: "/competition", label: "إدارة المسابقات 🏆", icon: Trophy },
     { href: "/pharmacy", label: "مؤسسة الشفاء 💊", icon: Pill },
+    { href: "/section-settings", label: "ظهور الأقسام", icon: Layers },
     { href: "/flash-sales", label: "Flash Sales", icon: Zap },
     { href: "/activity", label: "Activity", icon: Activity },
   ];

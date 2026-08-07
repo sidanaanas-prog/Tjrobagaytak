@@ -46,6 +46,7 @@ export function BottomNav() {
   const activeRole = getActiveRole();
   const [pendingOrders, setPendingOrders] = useState(0);
   const [isCompetitionEnabled, setIsCompetitionEnabled] = useState(false);
+  const [isPharmacyEnabled, setIsPharmacyEnabled] = useState(true);
 
   useEffect(() => {
     const checkCompetition = () => {
@@ -71,7 +72,24 @@ export function BottomNav() {
     return () => clearInterval(interval);
   }, [user]);
 
+  useEffect(() => {
+    const checkPharmacy = () => {
+      fetch(`${BASE}/api/feature-flags`)
+        .then((response) => response.ok ? response.json() : null)
+        .then((flags) => {
+          if (flags && typeof flags.pharmacyEnabled === "boolean") {
+            setIsPharmacyEnabled(flags.pharmacyEnabled);
+          }
+        })
+        .catch(() => {});
+    };
+    checkPharmacy();
+    const interval = setInterval(checkPharmacy, 30_000);
+    return () => clearInterval(interval);
+  }, []);
+
   const tabs = ALL_TABS.filter((t) => {
+    if (t.href === "/pharmacy" && !isPharmacyEnabled) return false;
     if (!t.roles) return true;
     return t.roles.includes(activeRole);
   });

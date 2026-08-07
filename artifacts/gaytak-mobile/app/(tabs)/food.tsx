@@ -26,13 +26,15 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { customFetch } from "@workspace/api-client-react";
 
+const BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
+
 type Tab = "prescriptions" | "appointments" | "consultations";
 type Exam = { id: string; name: string; description: string | null; price: string; durationMinutes: number };
 type Consultation = {
   id: string; question: string; userName: string; status: string;
   createdAt: string; replies: { reply: string; staffName: string; createdAt: string }[];
 };
-type Pharmacy = { id: string; name: string; phone: string | null; workHours: string | null; address: string | null };
+type Pharmacy = { id: string; name: string; logo?: string | null; phone: string | null; workHours: string | null; address: string | null };
 
 type PharmacyRole =
   | { role: "user"; pharmacy: null }
@@ -417,11 +419,20 @@ export default function PharmacyScreen() {
   const [pharmacy, setPharmacy] = useState<Pharmacy | null>(null);
   const [pharmacyRole, setPharmacyRole] = useState<PharmacyRole | null>(null);
   const [roleLoading, setRoleLoading] = useState(true);
+  const [sectionEnabled, setSectionEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch(`${BASE}/api/feature-flags`)
+      .then((response) => response.ok ? response.json() : null)
+      .then((flags) => setSectionEnabled(flags?.pharmacyEnabled !== false))
+      .catch(() => setSectionEnabled(true));
+  }, []);
 
   // كشف دور المستخدم عند التحميل
   useEffect(() => {
     let cancelled = false;
     async function detectRole() {
+      if (sectionEnabled !== true) return;
       setRoleLoading(true);
       try {
         if (token) {
@@ -433,17 +444,31 @@ export default function PharmacyScreen() {
     }
     detectRole();
     return () => { cancelled = true; };
-  }, [token]);
+  }, [token, sectionEnabled]);
 
   useEffect(() => {
+    if (sectionEnabled !== true) return;
     customFetch<Pharmacy>("/api/pharmacy").then(setPharmacy).catch(() => {});
-  }, []);
+  }, [sectionEnabled]);
 
   const tabs: { id: Tab; label: string; icon: string }[] = [
     { id: "prescriptions", label: "وصفة", icon: "file-text" },
     { id: "appointments", label: "فحص", icon: "calendar" },
     { id: "consultations", label: "استفسار", icon: "message-circle" },
   ];
+
+  if (sectionEnabled === null) return <RoleLoadingScreen colors={colors} />;
+
+  if (!sectionEnabled) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, alignItems: "center", justifyContent: "center", padding: 24 }]}>
+        <Feather name="eye-off" size={34} color={colors.muted} />
+        <Text style={{ color: colors.text, fontSize: 16, fontWeight: "800", marginTop: 12, textAlign: "center" }}>
+          هذا القسم غير متاح حالياً
+        </Text>
+      </View>
+    );
+  }
 
   // مؤشر تحميل عند فحص الدور
   if (roleLoading) return <RoleLoadingScreen colors={colors} />;
